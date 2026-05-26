@@ -5,10 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.game.audio.MysteryAudioPlayer
 import com.example.game.data.CaseRepository
 import com.example.game.viewmodel.GameViewModel
 import com.example.ui.screens.GameNavigation
@@ -28,20 +28,13 @@ class MainActivity : ComponentActivity() {
             e.printStackTrace()
         }
 
-        MysteryAudioPlayer.init(this)
-        
         setContent {
             MyApplicationTheme {
                 val viewModel: GameViewModel = viewModel()
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    // We apply padding safely or pass it along to avoid structural overlapping issues
                     GameNavigation(viewModel = viewModel)
                 }
             }
         }
     }
 }
-
-
-
-
