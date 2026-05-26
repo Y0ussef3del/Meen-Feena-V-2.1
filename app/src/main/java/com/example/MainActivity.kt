@@ -37,4 +37,16 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        // بدء تشغيل موسيقى الخلفية التلقائية عند فتح التطبيق أو العودة إليه
+        MysteryAudioPlayer.startMusic(this)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // إيقاف تشغيل الموسيقى مؤقتاً عند الخروج من التطبيق للحفاظ على البطارية والذاكرة
+        MysteryAudioPlayer.stopMusic()
+    }
 }

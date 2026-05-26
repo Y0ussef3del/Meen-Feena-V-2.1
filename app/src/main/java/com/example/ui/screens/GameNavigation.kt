@@ -53,9 +53,10 @@ import kotlin.math.sin
 fun GameNavigation(viewModel: GameViewModel) {
     val state by viewModel.roomState.collectAsState()
     var showSplash by remember { mutableStateOf(true) }
+    val context = LocalContext.current
     
     LaunchedEffect(Unit) {
-        MysteryAudioPlayer.startMusic()
+        MysteryAudioPlayer.startMusic(context)
         kotlinx.coroutines.delay(2200)
         showSplash = false
     }
@@ -1018,7 +1019,7 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().height(54.dp)
             ) {
-                Text("اضغط لكشف ملفي السري 🔍", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("اضغط لكشف ملفي Сري 🔍", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         } else {
             ParchmentCard(
@@ -1070,7 +1071,7 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                     fontSize = 16.sp
                 )
                 Text(
-                    text = if (activePassPlayer.isMafia) char.hiddenMotive else "أنت بريء حاول تكتشف المجرم الحقيقي !!",
+                    text =char.hiddenMotive,
                     color = PapyrusText,
                     fontSize = 15.sp,
                     textAlign = TextAlign.Center
@@ -1192,7 +1193,6 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
 
 @Composable
 fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
-    // Highly resilient safe query fallback avoiding any structural assumption breaks
     val currentClue = state.currentCase?.description ?: "لا توجد أدلة إضافية متاحة حالياً."
     val hintText = "راقب تصرفات الجميع جيدا ودوافعهم السريّة."
     var showHint by remember { mutableStateOf(false) }
@@ -1213,7 +1213,7 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
             seed = 4455L
         ) {
             Text(
-                text = "الدليل الجنائي والملابسات المكتشفة:",
+                text = "الدليل الجنائي:",
                 color = Color(0xFF6E1B10),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
@@ -1246,7 +1246,7 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "💡 تلميح استراتيجي: $hintText",
+                        text = "💡 تلميح ..يارب تفهم: $hintText",
                         modifier = Modifier.padding(10.dp),
                         color = Color(0xFF856404),
                         fontSize = 12.sp,
@@ -1293,8 +1293,22 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
 @Composable
 fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
     val suspectedByClick = remember { mutableStateListOf<String>() }
-    val timerMockLeft = 120
-    val durationMockMins = 3
+    
+    // Dynamic countdown timer based on user customized settings (defaults to 2 mins if not configured)
+    val configuredMins = state.discussionDurationMins
+    val totalSeconds = configuredMins * 60
+    var timerLeft by remember { mutableStateOf(totalSeconds) }
+
+    LaunchedEffect(configuredMins) {
+        timerLeft = configuredMins * 60
+    }
+
+    LaunchedEffect(timerLeft) {
+        if (timerLeft > 0) {
+            kotlinx.coroutines.delay(1000)
+            timerLeft--
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -1313,7 +1327,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                 .weight(1.2f),
             contentAlignment = Alignment.Center
         ) {
-            val progress = timerMockLeft.toFloat() / (durationMockMins * 60f)
+            val progress = if (totalSeconds > 0) timerLeft.toFloat() / totalSeconds.toFloat() else 1f
             Canvas(modifier = Modifier.size(240.dp)) {
                 drawCircle(color = Color(0x1F000000), style = Stroke(width = 8.dp.toPx()))
                 drawArc(
@@ -1326,8 +1340,8 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
             }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                val mins = timerMockLeft / 60
-                val secs = timerMockLeft % 60
+                val mins = timerLeft / 60
+                val secs = timerLeft % 60
                 Text(
                     text = String.format("%02d:%02d", mins, secs),
                     color = Color.Yellow,
@@ -1410,7 +1424,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
             seed = 771L
         ) {
             Text(
-                text = "دوس على أي لاعب عشان تركز الشكوك عليه باللون الأحمر عشان تبدأوا تتناقشوا مع بعض وتزنقوه بالأسئلة !",
+                text = "ابدأوا فقرة المناقشة والاتهامات ..وبالله عليكم شغلوا دماغكم شوية!",
                 color = PapyrusText,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
@@ -1421,7 +1435,13 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
         Button(
             onClick = { 
                 MysteryAudioPlayer.playWarning()
-                viewModel.advanceFromDiscussionToVoting() 
+                // Automatically route to Jury screen if it's the final round suspects match
+                val aliveCount = state.players.count { it.isAlive }
+                if (aliveCount <= 2) {
+                    viewModel.advanceToJuryRound()
+                } else {
+                    viewModel.advanceFromDiscussionToVoting() 
+                }
             },
             colors = ButtonDefaults.buttonColors(containerColor = RedAccent),
             modifier = Modifier
@@ -1429,9 +1449,15 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                 .testTag("discussion_advance_button"),
             contentPadding = PaddingValues(15.dp)
         ) {
-            Icon(Icons.Default.Ballot, "Vote Box", tint = Color.White)
+            val aliveCount = state.players.count { it.isAlive }
+            Icon(if (aliveCount <= 2) Icons.Default.Gavel else Icons.Default.Ballot, "Next Frame", tint = Color.White)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("الذهاب لصندوق التصويت السري 🗳️", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+            Text(
+                text = if (aliveCount <= 2) "جولة المحلفين الختامية (المستبعدين) ⚖️" else "الذهاب لصندوق التصويت السري 🗳️", 
+                color = Color.White, 
+                fontWeight = FontWeight.ExtraBold, 
+                fontSize = 15.sp
+            )
         }
     }
 }
@@ -1453,7 +1479,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                     ParchmentHeaderBanner(text = "أنت ميت 💀")
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        text = "مبروك تصفيتك! استنى تصويت باقي اللعيبة...",
+                        text = "الف مبرووك انك خرجت اقعد جنب اخواتك .....يا فاشل",
                         color = PapyrusBgLight,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
@@ -1478,23 +1504,6 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(20.dp))
-                    ParchmentCard(modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp)) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("الشفافية والتصويت المفتوح المباشر:", color = Color(0xFF6E1B10), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            val votesCast = state.votes.mapNotNull { (vId, tId) ->
-                                val voterName = state.players.find { it.id == vId }?.name ?: return@mapNotNull null
-                                val targetName = state.players.find { it.id == tId }?.name ?: "مجهول"
-                                "$voterName ➔ $targetName"
-                            }
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                items(votesCast) { textItem ->
-                                    Text("• $textItem", color = PapyrusText, fontSize = 14.sp)
-                                }
-                            }
-                        }
-                    }
                 }
             }
             return
@@ -1521,8 +1530,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
         val baseFiltered = if (state.tiedVotePlayers.isNotEmpty()) {
             state.players.filter { it.id in state.tiedVotePlayers }
         } else {
-            val aliveList = state.players.filter { it.isAlive }
-            if (aliveList.isEmpty()) state.players else aliveList
+            state.players.filter { it.isAlive }
         }
         baseFiltered.filter { it.id != voterPlayer.id }
     }
@@ -1547,7 +1555,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                 textAlign = TextAlign.Center
             )
             Text(
-                text = "اختار الشخص اللي شاكك فيه تفتكر هو المجرم:",
+                text = "اختار الشخص اللي شاكك فيه ان هو المجرم:",
                 color = PapyrusTextSecondary,
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center
@@ -1607,8 +1615,6 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                     MysteryAudioPlayer.playSuccess()
                     viewModel.submitVote(selectedTargetId)
                     selectedTargetId = ""
-                } else {
-                    Toast.makeText(context, "يجب تحديد شخص متهم لتسجيل الصوت !", Toast.LENGTH_SHORT).show()
                 }
             },
             enabled = selectedTargetId.isNotEmpty(),
@@ -1653,13 +1659,6 @@ fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "حصل تعادل في نسب الشكوك والاتهامات بين اللاعبين التالية أسماؤهم:",
-                    color = PapyrusText,
-                    fontSize = 15.sp,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(12.dp))
                 state.players.filter { it.id in state.tiedVotePlayers }.forEach { p ->
                     Text(
                         text = "• ${p.name} (${p.character?.name ?: ""})",
@@ -1672,33 +1671,11 @@ fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {
                 }
             } else {
                 Text(
-                    text = "صندوق الاقتراع فارغ أو تم التخطي بدون استبعاد.",
+                    text = "تم انتهاء فرز الاصوات وتحديث المسار القضية.",
                     color = PapyrusTextSecondary,
                     fontSize = 16.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-            HorizontalDivider(color = Color(0x3B2C1E14))
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = "توزيع وكشف الأصوات بالتفصيل:",
-                color = DarkWoodButton,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            
-            state.votes.forEach { (vId, tId) ->
-                val vName = state.players.find { it.id == vId }?.name ?: "محقق مجهول"
-                val tName = state.players.find { it.id == tId }?.name ?: "لا أحد"
-                Text(
-                    text = "• اللاعب [$vName] صوّت ضد ➔ [$tName]",
-                    color = PapyrusText,
-                    fontSize = 14.sp
                 )
             }
         }
@@ -1719,27 +1696,10 @@ fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
-                    text = if (state.tiedVotePlayers.isNotEmpty()) "بدء جولة حسم التعادل" else "متابعة مسار التحقيق",
+                    text = "متابعة مسار التحقيق",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp
-                )
-            }
-        } else {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0x3D2C1E14)),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = "في انتظار المضيف لمتابعة القضية...",
-                    color = PapyrusBgLight,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
                 )
             }
         }
@@ -1751,14 +1711,17 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
     val localId = viewModel.myPlayerId.value
     val localPlayer = state.players.find { it.id == localId }
 
+    // CRITICAL FIX: The Jury consists strictly of all ELIMINATED players
     val deadPlayers = state.players.filter { !it.isAlive }
+    
+    // The pool of remaining suspects to vote against
+    val finalTwoSuspects = state.players.filter { it.isAlive }
+
     val juryVoter = if (state.mode == "PASS_AND_PLAY") {
         deadPlayers.getOrNull(state.activePassPlayerIndex)
     } else {
         localPlayer
     }
-
-    val finalTwo = state.players.filter { it.isAlive }
 
     if (state.mode == "LAN") {
         if (localPlayer != null && localPlayer.isAlive) {
@@ -1768,12 +1731,12 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    ParchmentHeaderBanner(text = "مصيرك معلق بقفل ! ⚖️")
+                    ParchmentHeaderBanner(text = "مصيرك معلق بأصوات المحلفين ! ⚖️")
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        text = "هيئة المحلفين بتصوّت دلوقتي...",
+                        text = "أنت أحد المشتبه بهم النهائيين! اللاعبين المستبعدين يتناقشون ويصوتون ضد أحدكم الآن لحسم القضية...",
                         color = PapyrusBgLight,
-                        fontSize = 24.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
@@ -1792,9 +1755,9 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                         ParchmentHeaderBanner(text = "تم تسجيل صوتك للمحلفين! ⚖️")
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
-                            text = "مستنيين باقي اللاعبين عشان تظهر النتيجة...",
+                            text = "مستنيين باقي اللاعبين المستبعدين يخلصوا تصويت عشان تظهر النتيجة الكاملة...",
                             color = PapyrusBgLight,
-                            fontSize = 24.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         )
@@ -1813,7 +1776,7 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        ParchmentHeaderBanner(text = "هيئة المحلفين العليا ⚖️")
+        ParchmentHeaderBanner(text = "محكمة المحلفين (المستبعدين) ⚖️")
         Spacer(modifier = Modifier.height(10.dp))
         
         ParchmentCard(
@@ -1822,32 +1785,34 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
         ) {
             Box(
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(70.dp)
                     .background(Color(0x3B6E1B10), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Gavel,
-                    contentDescription = "Gavel judge",
-                    tint = RedAccent,
-                    modifier = Modifier.size(48.dp)
-                )
+                Icon(Icons.Default.Gavel, "Gavel judge", tint = RedAccent, modifier = Modifier.size(38.dp))
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "!!! لا تقلقوا ولكن احذروا !!!",
+                text = "جولة الحسم النهائي!",
                 color = Color(0xFF6E1D10),
                 fontWeight = FontWeight.ExtraBold,
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "كل اللاعبين اللي خرجوا مطلوب منكم دلوقتي تحددوا بين الاتنين دول مين المجرم الحقيقي ..ركزوا بالله عليكم",
+                color = PapyrusText,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 18.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
             
             if (juryVoter != null) {
                 Text(
-                    text = "دور اللاعب : ${juryVoter.name}",
+                    text = "دور اللاعب المحلف الحالي : ${juryVoter.name}",
                     color = RedAccent,
-                    fontSize = 18.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
@@ -1860,7 +1825,7 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(finalTwo) { candidate ->
+                    items(finalTwoSuspects) { candidate ->
                         val isSelected = candidate.id == selectedTargetId
                         Row(
                             modifier = Modifier
@@ -1876,7 +1841,10 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                         ) {
                             RadioButton(selected = isSelected, onClick = { selectedTargetId = candidate.id })
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(candidate.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Column {
+                                Text(candidate.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("الشخصية السرية: ${candidate.character?.name ?: ""}", color = PapyrusTextSecondary, fontSize = 12.sp)
+                            }
                         }
                     }
                 }
@@ -1893,7 +1861,7 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                     colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("تسجيل صوت المحلفين الجنائي ⚖️", color = GoldShine)
+                    Text("تسجيل صوت الإدانة النهائي ⚖️", color = GoldShine)
                 }
             } else {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
@@ -1926,7 +1894,7 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                 seed = 9911L
             ) {
                 Text(
-                    text = if (state.winnerSide == "MAFIA") "🔥 انهار العدل وفاز المجرم !" else "🕊️ انتصر الحق وتم القبض على الفاعل !",
+                    text = if (state.winnerSide == "MAFIA") "🔥 برافو يبلدينا برافو ,المجرم غفلكوا كلكو!" else "🕊️ الله ينور عليكم يشباب عرفتوا توقعوا المجرم!",
                     color = if (state.winnerSide == "MAFIA") RedAccent else InnocentAccent,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Black,
@@ -1995,7 +1963,6 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
             ) {
                 Button(
                     onClick = { 
-                        MysteryAudioPlayer.playButtonClick()
                         viewModel.playAgain() 
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
@@ -2034,7 +2001,7 @@ fun SettingsDialog(
 ) {
     var soundEnabled by remember { mutableStateOf(true) }
     var sliderVol by remember { mutableStateOf(0.5f) }
-    var discTimeMins by remember { mutableStateOf(3) }
+    val currentTimerMins by viewModel.discussionDurationMins.collectAsState()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2093,17 +2060,18 @@ fun SettingsDialog(
                         Text("وقت جولات المناقشة والتحقيق", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Button(
-                                onClick = { if (discTimeMins > 1) discTimeMins-- },
+                                onClick = { if (currentTimerMins > 1) viewModel.updateDiscussionTimer(currentTimerMins - 1) },
                                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton)
                             ) {
                                 Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             }
-                            Text("$discTimeMins دقائق", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("$currentTimerMins دقائق", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             Button(
-                                onClick = { if (discTimeMins < 10) discTimeMins++ },
+                                onClick = { if (currentTimerMins < 10) viewModel.updateDiscussionTimer(currentTimerMins + 1) },
                                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton)
                             ) {
                                 Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
