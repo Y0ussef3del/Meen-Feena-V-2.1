@@ -14,23 +14,16 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
 import kotlin.random.Random
 
-// ========== FIXED: @Composable helper functions ==========
-@Composable
-private fun scaledDp(value: Int): Dp = (LocalConfiguration.current.screenWidthDp * value / 360f).dp
-
-@Composable
-private fun scaledSp(value: Int): TextUnit = (LocalConfiguration.current.screenWidthDp * value / 360f).sp
+// ========== Responsive helpers are now imported from ResponsiveHelpers.kt ==========
+// We use scaledDp and scaledSp from that file (no duplicate definitions here)
 
 fun createTornPaperShape(seed: Long = 42L): GenericShape {
     return GenericShape { size, _ ->
@@ -77,6 +70,10 @@ fun ParchmentCard(
     val tornShape = remember(seed) { createTornPaperShape(seed) }
     val responsiveElevation = scaledDp(elevation.value.toInt())
 
+    // Pre-calculate responsive values for drawing (outside drawBehind)
+    val inset = scaledDp(12).value
+    val strokeWidth = scaledDp(2).value
+
     Box(
         modifier = modifier
             .shadow(
@@ -96,7 +93,6 @@ fun ParchmentCard(
             .drawBehind {
                 val path = android.graphics.Path()
                 val rand = Random(seed + 1)
-                val inset = scaledDp(12).value
                 path.moveTo(inset, inset)
                 path.lineTo(size.width - inset, inset + (rand.nextFloat() * 4f - 2f))
                 path.lineTo(size.width - inset + (rand.nextFloat() * 4f - 2f), size.height - inset)
@@ -106,7 +102,7 @@ fun ParchmentCard(
                     path = path.asComposePath(),
                     color = Color(0x3B2C1E14),
                     style = Stroke(
-                        width = scaledDp(2).value,
+                        width = strokeWidth,
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 5f), 0f)
                     )
                 )
