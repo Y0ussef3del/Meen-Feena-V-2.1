@@ -39,7 +39,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.game.model.*
+import com.example.game.viewmodel.GamePhase
+import com.example.game.viewmodel.RoomState
+import com.example.game.viewmodel.Player
+import com.example.game.viewmodel.GameCharacter
+import com.example.game.viewmodel.Case
 import com.example.game.network.LanManager
 import com.example.game.viewmodel.GameViewModel
 import com.example.ui.components.*
@@ -1995,32 +1999,26 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
 }
 
 @Composable
-fun SettingsDialog(
-    viewModel: GameViewModel,
-    onDismiss: () -> Unit
-) {
-    var soundEnabled by remember { mutableStateOf(true) }
-    var sliderVol by remember { mutableStateOf(0.5f) }
-    val currentTimerMins by viewModel.discussionDurationMins.collectAsState()
+fun SettingsDialog(viewModel: GameViewModel, onDismiss: () -> Unit) {
+    // Collect the state value as an explicit integer primitive
+    val durationMins by viewModel.discussionDurationMins.collectAsState()
 
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(
-                onClick = {
-                    MysteryAudioPlayer.setVolume(if (soundEnabled) sliderVol else 0f)
-                    onDismiss()
-                }
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton)
             ) {
-                Text("حفظ التعديلات", color = RedAccent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("حفظ وإغلاق", color = GoldShine)
             }
         },
         title = {
             Text(
-                "قواعد اللعبة والإعدادات",
+                text = "إعدادات وقواعد اللعب",
                 color = Color(0xFF4A1008),
-                fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -2031,56 +2029,62 @@ fun SettingsDialog(
                 contentPadding = PaddingValues(12.dp),
                 modifier = Modifier.wrapContentHeight()
             ) {
-                LazyColumn(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Switch(
-                                checked = soundEnabled,
-                                onCheckedChange = { soundEnabled = it },
-                                colors = SwitchDefaults.colors(checkedThumbColor = RedAccent)
-                            )
-                            Text("المؤثرات الصوتية والموسيقى", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("درجة الصوت: ${(sliderVol * 100).toInt()}%", color = PapyrusTextSecondary, fontSize = 14.sp)
-                        Slider(
-                            value = sliderVol,
-                            onValueChange = { sliderVol = it },
-                            modifier = Modifier.fillMaxWidth()
+                    // 1. التحكم في وقت عداد المناقشة والمواجهة
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "مدة جولة النقاش الحر الحالي: $durationMins دقيقة",
+                            color = PapyrusText,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
                         )
-                        HorizontalDivider(color = Color(0x3B2C1E14))
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text("وقت جولات المناقشة والتحقيق", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Button(
-                                onClick = { if (currentTimerMins > 1) viewModel.updateDiscussionTimer(currentTimerMins - 1) },
-                                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton)
+                                onClick = { if (durationMins > 1) viewModel.updateDiscussionTimer(durationMins - 1) },
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                Text("-1 دقيقة", color = GoldShine)
                             }
-                            Text("$currentTimerMins دقائق", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             Button(
-                                onClick = { if (currentTimerMins < 10) viewModel.updateDiscussionTimer(currentTimerMins + 1) },
-                                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton)
+                                onClick = { if (durationMins < 10) viewModel.updateDiscussionTimer(durationMins + 1) },
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                Text("+1 دقيقة", color = GoldShine)
                             }
                         }
                     }
+
+                    HorizontalDivider(color = Color(0x3B2C1E14), thickness = 1.dp)
+
+                    // 2. تلميحات سريعة عن شروط الفوز وقواعد المحلفين
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "📜 قواعد التحقيق الجنائي:",
+                            color = Color(0xFF4A1008),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "• إذا تم تصفية كل المجرمين يفوز الأبرياء فوراً.\n" +
+                                   "• إذا تبقى لاعبين اثنين فقط بالتحقيق، يتم فتح مجلس المحلفين لتصويت الأموات وحسم القضية بالكامل.",
+                            color = PapyrusTextSecondary,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
+                        )
+                    }
                 }
             }
-        },
-        containerColor = PapyrusBg
+        }
     )
 }
