@@ -16,7 +16,21 @@ object MysteryAudioPlayer {
     private var backgroundMusicJob: Job? = null
     private var backgroundTrack: AudioTrack? = null
 
-    // 1. playClick / playSelection: short wooden click feedback
+    // Missing function required by ViewModel / GameNavigation
+    fun playButtonClick() {
+        playSelection()
+    }
+
+    // Missing function required by ViewModel
+    fun playVote() {
+        playSelection()
+    }
+
+    // Missing function required by ViewModel
+    fun playTransition() {
+        playReveal()
+    }
+
     fun playClick() {
         playSelection()
     }
@@ -25,7 +39,7 @@ object MysteryAudioPlayer {
         scope.launch {
             try {
                 val sampleRate = 22050
-                val numSamples = (sampleRate * 0.04).toInt() // 40ms short tap
+                val numSamples = (sampleRate * 0.04).toInt()
                 val buffer = ShortArray(numSamples)
                 for (i in 0 until numSamples) {
                     val t = i.toDouble() / sampleRate
@@ -40,20 +54,19 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 2. playSuccess: happy ascending sequence
     fun playSuccess() {
         scope.launch {
             try {
                 val sampleRate = 22050
-                val duration = 0.22 // 220ms total
+                val duration = 0.22
                 val numSamples = (sampleRate * duration).toInt()
                 val buffer = ShortArray(numSamples)
                 for (i in 0 until numSamples) {
                     val t = i.toDouble() / sampleRate
                     val freq = when {
-                        t < 0.07 -> 523.25 // C5
-                        t < 0.14 -> 659.25 // E5
-                        else -> 783.99 // G5
+                        t < 0.07 -> 523.25
+                        t < 0.14 -> 659.25
+                        else -> 783.99
                     }
                     val envelope = sin(2.0 * Math.PI * freq * t) * (1.0 - t / duration)
                     buffer[i] = (envelope * 22000.0 * musicVolume).toInt().toShort()
@@ -65,12 +78,11 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 3. playError: low, harsh buzz
     fun playError() {
         scope.launch {
             try {
                 val sampleRate = 22050
-                val duration = 0.25 // 250ms total
+                val duration = 0.25
                 val numSamples = (sampleRate * duration).toInt()
                 val buffer = ShortArray(numSamples)
                 for (i in 0 until numSamples) {
@@ -91,7 +103,6 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 4. playWarning: metallic double tone beep
     fun playWarning() {
         scope.launch {
             try {
@@ -112,12 +123,11 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 5. playTimerTicking: periodic low mechanical clocks
     fun playTimerTicking() {
         scope.launch {
             try {
                 val sampleRate = 11025
-                val numSamples = (sampleRate * 0.02).toInt() // 20ms short click
+                val numSamples = (sampleRate * 0.02).toInt()
                 val buffer = ShortArray(numSamples)
                 for (i in 0 until numSamples) {
                     val t = i.toDouble() / sampleRate
@@ -131,7 +141,6 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 6. playElimination: dynamic descending pitch collapse
     fun playElimination() {
         scope.launch {
             try {
@@ -153,7 +162,6 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 7. playReveal: dramatic sweeping chord built up synthetically
     fun playReveal() {
         scope.launch {
             try {
@@ -177,7 +185,6 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 8. Static play helper
     private suspend fun playBufferStatic(buffer: ShortArray, sampleRate: Int) {
         withContext(Dispatchers.IO) {
             try {
@@ -210,7 +217,6 @@ object MysteryAudioPlayer {
         }
     }
 
-    // Volume configuration
     fun setVolume(volume: Float) {
         musicVolume = volume.coerceIn(0.0f, 1.0f)
         try {
@@ -220,19 +226,17 @@ object MysteryAudioPlayer {
         }
     }
 
-    // Loop background music implementation using standard synthesized eerie waves
     fun startMusic() {
         if (backgroundMusicJob?.isActive == true) return
         
         backgroundMusicJob = scope.launch(Dispatchers.IO) {
             val sampleRate = 22050
-            val bufferSize = sampleRate * 4 // 4-second sound loop segment
+            val bufferSize = sampleRate * 4
             val buffer = ShortArray(bufferSize)
             
-            // Build an eerie dark ambient wave profile loop
             for (i in 0 until bufferSize) {
                 val t = i.toDouble() / sampleRate
-                val darkLfo = sin(2.0 * Math.PI * 0.5 * t) // slow modulation
+                val darkLfo = sin(2.0 * Math.PI * 0.5 * t)
                 val coreFreq = 110.0 + (5.0 * darkLfo)
                 val wave = sin(2.0 * Math.PI * coreFreq * t) + 0.3 * sin(2.0 * Math.PI * (coreFreq * 1.5) * t)
                 buffer[i] = ((wave / 1.3) * 12000.0 * musicVolume * 0.4f).toInt().toShort()
@@ -259,7 +263,7 @@ object MysteryAudioPlayer {
 
                 backgroundTrack?.let { track ->
                     track.write(buffer, 0, buffer.size)
-                    track.setLoopPoints(0, buffer.size, -1) // Loop infinitely
+                    track.setLoopPoints(0, buffer.size, -1)
                     track.play()
                 }
             } catch (e: Exception) {
