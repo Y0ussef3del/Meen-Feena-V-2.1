@@ -165,8 +165,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 Player("p1", "يوسف", avatarId = 1),
                 Player("p2", "عادل", avatarId = 2),
                 Player("p3", "محمد", avatarId = 3),
-                Player("p4", "جمال", avatarId = 4),
-                Player("p5", "سارة", avatarId = 5)
+                Player("p4", "جمال", avatarId = 4)
             )
         )
         myPlayerId.value = "p1" // Pass and play manages active state sequentially

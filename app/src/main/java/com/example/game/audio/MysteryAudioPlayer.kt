@@ -1,99 +1,17 @@
 package com.example.game.audio
 
-import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
-import android.media.MediaPlayer
 import android.util.Log
-import com.example.R
-import com.example.game.model.GamePhase
 import kotlinx.coroutines.*
 import kotlin.math.sin
 
 object MysteryAudioPlayer {
     private const val TAG = "MysteryAudioPlayer"
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-    private var contextRef: Context? = null
-    
-    private var isMuted = false
     private var musicVolume = 0.5f
-    private var phaseVolumeModifier = 1.0f
-    
-    private var mediaPlayer: MediaPlayer? = null
-    private var fadeJob: Job? = null
-
-    fun initialize(context: Context) {
-        contextRef = context.applicationContext
-        synchronized(this) {
-            if (mediaPlayer == null) {
-                setupMediaPlayer()
-            }
-        }
-    }
-
-    private fun setupMediaPlayer() {
-        val context = contextRef ?: return
-        try {
-            mediaPlayer = MediaPlayer.create(context, R.raw.mystery_theme).apply {
-                isLooping = true
-                applyCurrentVolume()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize background music player (file may contain dummy content or be missing)", e)
-            mediaPlayer = null
-        }
-    }
-
-    private fun applyCurrentVolume() {
-        val targetVolume = if (isMuted) 0f else (musicVolume * phaseVolumeModifier).coerceIn(0f, 1f)
-        try {
-            mediaPlayer?.setVolume(targetVolume, targetVolume)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting mediaPlayer volume", e)
-        }
-    }
-
-    // Dynamic phase volume updates as requested under rule 4
-    fun updatePhaseVolume(phase: GamePhase) {
-        // Music behavior constraints:
-        // Game start -> starts automatically
-        // Main menu / Lobby -> Normal volume
-        // Discussion phase -> Lower volume gradually
-        // Voting phase -> Lower more
-        // Reveal / Results / Role Reveal phase -> Increase tension volume slightly
-        // End case -> Return to normal
-        val targetModifier = when (phase) {
-            GamePhase.LOBBY -> 1.0f
-            GamePhase.ROLE_REVEAL -> 0.65f // Reveal tension slightly increased
-            GamePhase.CASE_INTRO -> 1.0f
-            GamePhase.EVIDENCE_ROUND -> 1.0f
-            GamePhase.DISCUSSION -> 0.40f // Lower volume gradually
-            GamePhase.VOTING -> 0.15f     // Lower more
-            GamePhase.VOTE_RESULT -> 0.65f // Reveal tension slightly increased
-            GamePhase.JURY_ROUND -> 0.40f
-            GamePhase.ENDGAME -> 1.0f      // End case: Return to normal
-        }
-        fadeVolumeTo(targetModifier)
-    }
-
-    private fun fadeVolumeTo(targetModifier: Float) {
-        fadeJob?.cancel()
-        fadeJob = scope.launch {
-            val start = phaseVolumeModifier
-            val durationMs = 1200L
-            val steps = 12
-            val stepTime = durationMs / steps
-            for (i in 1..steps) {
-                delay(stepTime)
-                phaseVolumeModifier = start + (targetModifier - start) * (i.toFloat() / steps)
-                applyCurrentVolume()
-            }
-            phaseVolumeModifier = targetModifier
-            applyCurrentVolume()
-        }
-    }
 
     // 1. playClick / playSelection: short wooden click feedback
     fun playClick() {
@@ -101,7 +19,6 @@ object MysteryAudioPlayer {
     }
 
     fun playSelection() {
-        if (isMuted) return
         scope.launch {
             try {
                 val sampleRate = 22050
@@ -122,7 +39,6 @@ object MysteryAudioPlayer {
 
     // 2. playSuccess: happy ascending sequence
     fun playSuccess() {
-        if (isMuted) return
         scope.launch {
             try {
                 val sampleRate = 22050
@@ -148,7 +64,6 @@ object MysteryAudioPlayer {
 
     // 3. playError: low, harsh buzz
     fun playError() {
-        if (isMuted) return
         scope.launch {
             try {
                 val sampleRate = 22050
@@ -175,7 +90,6 @@ object MysteryAudioPlayer {
 
     // 4. playWarning: metallic double tone beep
     fun playWarning() {
-        if (isMuted) return
         scope.launch {
             try {
                 val sampleRate = 22050
@@ -197,7 +111,6 @@ object MysteryAudioPlayer {
 
     // 5. playVote: short thumping stamp sound
     fun playVote() {
-        if (isMuted) return
         scope.launch {
             try {
                 val sampleRate = 22050
@@ -219,7 +132,6 @@ object MysteryAudioPlayer {
 
     // 6. playTransition: suspenseful rising pitch swoop
     fun playTransition() {
-        if (isMuted) return
         scope.launch {
             try {
                 val sampleRate = 22050
@@ -246,7 +158,6 @@ object MysteryAudioPlayer {
     }
 
     fun playReveal() {
-        if (isMuted) return
         scope.launch {
             try {
                 val sampleRate = 22050
@@ -297,44 +208,14 @@ object MysteryAudioPlayer {
     // Volume configuration
     fun setVolume(volume: Float) {
         musicVolume = volume.coerceIn(0.0f, 1.0f)
-        applyCurrentVolume()
     }
 
-    // Mute/Unmute support
-    fun setMute(mute: Boolean) {
-        isMuted = mute
-        applyCurrentVolume()
-    }
-
+    // Disable loop background music as requested to save resources & eliminate background noise
     fun startMusic() {
-        synchronized(this) {
-            val mp = mediaPlayer
-            if (mp != null) {
-                try {
-                    if (!mp.isPlaying) {
-                        mp.start()
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error starting mediaPlayer background music", e)
-                }
-            } else {
-                setupMediaPlayer()
-                try {
-                    mediaPlayer?.start()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error starting recreation of page", e)
-                }
-            }
-        }
+        // Continuous looping music is disabled. Kept empty to avoid menu/game noise.
     }
 
     fun stopMusic() {
-        synchronized(this) {
-            try {
-                mediaPlayer?.pause()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error pausing background music", e)
-            }
-        }
+        // Kept empty as continuous background music is disabled.
     }
 }
