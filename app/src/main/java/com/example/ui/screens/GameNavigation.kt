@@ -1618,3 +1618,79 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
 @Composable fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {}
 @Composable fun JuryScreen(viewModel: GameViewModel, state: RoomState) {}
 @Composable fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {}
+
+@Composable
+fun SettingsDialog(
+    viewModel: GameViewModel,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "قواعد اللعبة والإعدادات",
+                color = GoldShine,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = "طريقة اللعب:",
+                    color = GoldYell,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                Text(
+                    text = "• يتم توزيع الأدوار سرياً (بريء أو مجرم).\n" +
+                           "• يتم عرض تفاصيل القضية والأدلة الجنائية تباعاً.\n" +
+                           "• يتناقش اللاعبون محاولين كشف دافع ومكان المجرم.\n" +
+                           "• في نهاية الجولات، يبدأ التصويت لتحديد القاتل الحقيقي.",
+                    color = PapyrusBgLight,
+                    fontSize = 14.sp,
+                    lineHeight = 22.sp,
+                    textAlign = TextAlign.End
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = PapyrusBgLight.copy(alpha = 0.2f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Optional placeholder for volume or other game config modifiers
+                Text(
+                    text = "نسخة التطبيق: V-2.1 <YOUSSEF ADEL>",
+                    color = PapyrusBgLight.copy(alpha = 0.5f),
+                    fontSize = 12.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(contentColor = GoldShine)
+            ) {
+                Text(
+                    text = "فهمت القواعد", 
+                    fontWeight = FontWeight.Bold, 
+                    fontSize = 16.sp
+                )
+            }
+        },
+        containerColor = Color(0xFF2C0A05), // Matches your thriller dark red background themes
+        shape = RoundedCornerShape(16.dp),
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = true
+        )
+    )
+}
