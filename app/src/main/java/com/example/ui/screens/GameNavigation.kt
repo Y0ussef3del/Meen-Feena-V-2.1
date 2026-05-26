@@ -44,6 +44,7 @@ import com.example.game.network.LanManager
 import com.example.game.viewmodel.GameViewModel
 import com.example.ui.components.*
 import com.example.ui.theme.*
+import com.example.game.audio.MysteryAudioPlayer
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -56,6 +57,8 @@ fun GameNavigation(viewModel: GameViewModel) {
     // Local temporary transition screen at startup
     var showSplash by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) {
+        // Trigger ambient loop whenever the game session is active
+        MysteryAudioPlayer.startMusic()
         kotlinx.coroutines.delay(2200)
         showSplash = false
     }
@@ -103,7 +106,6 @@ fun ThrillerTitleComponent(fontSize: androidx.compose.ui.unit.TextUnit = 80.sp) 
         modifier = Modifier.padding(16.dp)
     ) {
         Spacer(modifier = Modifier.height(12.dp))
-        
         Text(
             text = "مين فينا ؟",
             color = GoldYell,
@@ -113,7 +115,6 @@ fun ThrillerTitleComponent(fontSize: androidx.compose.ui.unit.TextUnit = 80.sp) 
             textAlign = TextAlign.Center,
             modifier = Modifier.testTag("app_logo_arabic")
         )
-        
         Spacer(modifier = Modifier.height(4.dp))
     }
 }
@@ -128,17 +129,13 @@ fun SplashScreen() {
         verticalArrangement = Arrangement.Center
     ) {
         ThrillerTitleComponent(fontSize = 54.sp)
-
         Spacer(modifier = Modifier.height(70.dp))
-
         CircularProgressIndicator(
             color = RedAccent,
             strokeWidth = 4.dp,
             modifier = Modifier.size(48.dp)
         )
-
         Spacer(modifier = Modifier.height(24.dp))
-
         Text(
             text = "الكل متهم .......ولكن ؟",
             color = PapyrusBgLight.copy(alpha = 0.5f),
@@ -160,7 +157,6 @@ fun MainMenuOrLobbyScreen(viewModel: GameViewModel, state: RoomState) {
     var showLanJoinLobby by remember { mutableStateOf(false) }
     var isSettingsOpen by remember { mutableStateOf(false) }
     
-    // Values for drafting new players
     val discoveredHosts by LanManager.discoveredHosts.collectAsState()
     val localIp = remember { LanManager.getLocalIpAddress() }
 
@@ -184,14 +180,19 @@ fun MainMenuOrLobbyScreen(viewModel: GameViewModel, state: RoomState) {
             MainMenuHomeScreen(
                 viewModel = viewModel,
                 onStartPassPlay = {
+                    MysteryAudioPlayer.playClick()
                     viewModel.setupPassAndPlayGame()
                     showPlayerSetup = true
                 },
                 onOpenLanJoin = {
+                    MysteryAudioPlayer.playClick()
                     LanManager.startDiscovery()
                     showLanJoinLobby = true
                 },
-                onOpenSettings = { isSettingsOpen = true }
+                onOpenSettings = { 
+                    MysteryAudioPlayer.playClick()
+                    isSettingsOpen = true 
+                }
             )
         }
     }
@@ -209,11 +210,8 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         ParchmentHeaderBanner(text = "غرفة المضيف")
-        
         Spacer(modifier = Modifier.height(10.dp))
-        
         ThrillerTitleComponent(fontSize = 38.sp)
-        
         Spacer(modifier = Modifier.height(10.dp))
         
         ParchmentCard(
@@ -227,9 +225,7 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center
             )
-            
             Spacer(modifier = Modifier.height(6.dp))
-            
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF2C0A05)),
                 border = BorderStroke(2.dp, GoldShine),
@@ -245,16 +241,13 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
                     textAlign = TextAlign.Center
                 )
             }
-            
             Spacer(modifier = Modifier.height(16.dp))
-            
             Text(
                 text = "اللاعبين المنضمون (${state.players.size} ) : ",
                 color = Color(0xFF4A1008),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
-            
             Spacer(modifier = Modifier.height(8.dp))
             
             LazyColumn(
@@ -282,16 +275,13 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                        
                         Spacer(modifier = Modifier.width(12.dp))
-                        
                         Text(
                             text = player.name + if (player.id == state.hostId) " (مضيف)" else "",
                             color = PapyrusText,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.weight(1f)
                         )
-                        
                         if (player.id != state.hostId) {
                             IconButton(onClick = { viewModel.removePlayerFromLobby(player.id) }) {
                                 Icon(Icons.Default.Delete, "Remove Client", tint = RedAccent)
@@ -300,9 +290,7 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
                     }
                 }
             }
-            
             Spacer(modifier = Modifier.height(10.dp))
-            
             val needed = 4 - state.players.size
             if (needed > 0) {
                 Text(
@@ -322,9 +310,7 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
                 )
             }
         }
-        
         Spacer(modifier = Modifier.height(16.dp))
-        
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -336,7 +322,6 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
             ) {
                 Text("إلغاء الغرفة", color = GoldShine)
             }
-            
             Button(
                 onClick = { viewModel.startInvestigationGame() },
                 enabled = state.players.size in 4..6,
@@ -363,11 +348,8 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         ParchmentHeaderBanner(text = "في انتظار التحقيق")
-        
         Spacer(modifier = Modifier.height(10.dp))
-        
         ThrillerTitleComponent(fontSize = 38.sp)
-        
         Spacer(modifier = Modifier.height(10.dp))
         
         ParchmentCard(
@@ -380,9 +362,7 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center
             )
-            
             Spacer(modifier = Modifier.height(4.dp))
-            
             Text(
                 text = state.roomId,
                 color = Color(0xFF4A1008),
@@ -391,9 +371,7 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
                 letterSpacing = 4.sp,
                 textAlign = TextAlign.Center
             )
-            
             Spacer(modifier = Modifier.height(12.dp))
-            
             Box(
                 modifier = Modifier.size(60.dp),
                 contentAlignment = Alignment.Center
@@ -401,9 +379,7 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
                 CircularProgressIndicator(color = RedAccent, strokeWidth = 3.dp)
                 Icon(Icons.Default.Fingerprint, "Investigating fingerprints", tint = DarkWoodButton, modifier = Modifier.size(32.dp))
             }
-            
             Spacer(modifier = Modifier.height(12.dp))
-            
             Text(
                 text = "يرجى الانتظار بينما يجمع المضيف اللاعبين الآخرين لبدء توزيع الأدلة الجنائية السرية...",
                 color = PapyrusText,
@@ -412,18 +388,14 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Medium
             )
-            
             Spacer(modifier = Modifier.height(16.dp))
-            
             Text(
                 text = " اللاعبون الحاليون باللوبي (${state.players.size}) : ",
                 color = Color(0xFF4A1008),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
-            
             Spacer(modifier = Modifier.height(6.dp))
-            
             LazyColumn(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -450,9 +422,7 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
                                 fontSize = 12.sp
                             )
                         }
-                        
                         Spacer(modifier = Modifier.width(10.dp))
-                        
                         Text(
                             text = player.name + if (player.name == myName) " (أنت)" else "",
                             color = PapyrusText,
@@ -463,9 +433,7 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
                 }
             }
         }
-        
         Spacer(modifier = Modifier.height(14.dp))
-        
         Button(
             onClick = { viewModel.resetToMainMenu() },
             colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
@@ -489,11 +457,8 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         ParchmentHeaderBanner(text = "إعداد اللاعبين")
-        
         Spacer(modifier = Modifier.height(10.dp))
-        
         ThrillerTitleComponent(fontSize = 32.sp)
-        
         Spacer(modifier = Modifier.height(10.dp))
 
         ParchmentCard(
@@ -506,14 +471,12 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
-            
             Text(
                 text = "4 - 6 لاعبين (1 مجرم في 4 لاعبين، 2 مجرم في 5+ لاعبين)",
                 color = PapyrusTextSecondary,
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center
             )
-
             Spacer(modifier = Modifier.height(10.dp))
 
             Row(
@@ -553,7 +516,6 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                     Icon(Icons.Default.Add, "Add player", tint = GoldShine)
                 }
             }
-
             Spacer(modifier = Modifier.height(14.dp))
 
             LazyColumn(
@@ -581,16 +543,13 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                        
                         Spacer(modifier = Modifier.width(12.dp))
-                        
                         Text(
                             text = player.name,
                             color = PapyrusText,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.weight(1f)
                         )
-                        
                         IconButton(onClick = { viewModel.removePlayerFromLobby(player.id) }) {
                             Icon(Icons.Default.Delete, "Remove", tint = RedAccent)
                         }
@@ -598,7 +557,6 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                 }
             }
         }
-
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(
@@ -612,7 +570,6 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
             ) {
                 Text("رجوع")
             }
-            
             Button(
                 onClick = {
                     if (state.players.size < 4) {
@@ -655,11 +612,8 @@ fun LanJoinLobbyScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         ParchmentHeaderBanner(text = "الانضمام للغرفة")
-
         Spacer(modifier = Modifier.height(10.dp))
-        
         ThrillerTitleComponent(fontSize = 32.sp)
-        
         Spacer(modifier = Modifier.height(10.dp))
 
         ParchmentCard(
@@ -671,7 +625,6 @@ fun LanJoinLobbyScreen(
                 color = PapyrusTextSecondary,
                 fontSize = 12.sp
             )
-
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
@@ -687,7 +640,6 @@ fun LanJoinLobbyScreen(
                 modifier = Modifier.fillMaxWidth().testTag("player_name_input"),
                 singleLine = true
             )
-
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
@@ -696,7 +648,6 @@ fun LanJoinLobbyScreen(
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )
-            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -740,7 +691,6 @@ fun LanJoinLobbyScreen(
                     Text("ربط", color = GoldShine)
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
@@ -749,7 +699,6 @@ fun LanJoinLobbyScreen(
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )
-
             Spacer(modifier = Modifier.height(6.dp))
 
             if (discoveredHosts.isEmpty()) {
@@ -807,10 +756,8 @@ fun LanJoinLobbyScreen(
                 }
             }
         }
-
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Back button
         Button(
             onClick = {
                 LanManager.stopDiscovery()
@@ -950,6 +897,7 @@ fun MainMenuHomeScreen(
                     .fillMaxWidth()
                     .shadow(4.dp, RoundedCornerShape(12.dp))
                     .clickable {
+                        MysteryAudioPlayer.playClick()
                         viewModel.startLanHost("مضيف التحقيق")
                     },
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF35120D)),
@@ -992,16 +940,8 @@ fun MainMenuHomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings Icon",
-                        tint = DarkWoodButton,
-                        modifier = Modifier.size(30.dp)
-                    )
-                    Column(
-                        modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
-                        horizontalAlignment = Alignment.End
-                    ) {
+                    Icon(Icons.Default.Settings, "Config preferences", tint = DarkWoodButton, modifier = Modifier.size(30.dp))
+                    Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp), horizontalAlignment = Alignment.End) {
                         Text(
                             "الإعدادات وقواعد اللعب",
                             color = Color(0xFF4A1008),
@@ -1017,7 +957,6 @@ fun MainMenuHomeScreen(
                 }
             }
         }
-
         Text(
             text = " !! القاعدة الاولي والاخيرة ... شك في الجميع",
             color = PapyrusBgLight.copy(alpha = 0.5f),
@@ -1035,6 +974,7 @@ fun MainMenuHomeScreen(
 fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
     val activePassPlayer = state.players.getOrNull(state.activePassPlayerIndex) ?: return
     var revealed by remember(state.activePassPlayerIndex) { mutableStateOf(false) }
+    val char = activePassPlayer.character ?: return
 
     Column(
         modifier = Modifier
@@ -1045,10 +985,8 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         ParchmentHeaderBanner(text = "كشف الملفات السرية")
-
         Spacer(modifier = Modifier.height(10.dp))
-
-        // Shield warnings during offline passing device sequential reveals
+        
         if (!revealed) {
             Column(
                 modifier = Modifier
@@ -1068,155 +1006,117 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                         imageVector = Icons.Default.VisibilityOff,
                         contentDescription = "Hide role cards",
                         tint = GoldShine,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.size(56.dp)
                     )
                 }
-
                 Spacer(modifier = Modifier.height(24.dp))
-
                 Text(
-                    text = "ادي التلفون ل : ",
-                    color = PapyrusBgLight.copy(alpha = 0.8f),
-                    fontSize = 16.sp,
-                    textAlign = TextAlign.Center
-                )
-                
-                Text(
-                    text = activePassPlayer.name,
-                    color = GoldShine,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.testTag("pass_name_reveal")
-                )
-
-                Spacer(modifier = Modifier.height(30.dp))
-
-                Button(
-                    onClick = { revealed = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = GoldYell),
-                    modifier = Modifier.testTag("reveal_role_button")
-                ) {
-                    Text("اكتشف الدور السري 👁️", color = Color(0xFF2C150A), fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        } else {
-            // Secret Parchment Card showing role & motive details
-            ParchmentCard(
-                modifier = Modifier.weight(1f),
-                seed = state.activePassPlayerIndex.toLong()
-            ) {
-                Text(
-                    text = "الملف السري لـ ${activePassPlayer.name}",
-                    color = DarkWoodButton,
+                    text = "دور المحقق : ${activePassPlayer.name}",
+                    color = PapyrusBgLight,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Avatar outline
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .background(DarkBg, CircleShape)
-                        .border(3.dp, GoldYell, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Person, "Avatar", tint = GoldShine, modifier = Modifier.size(50.dp))
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Character Metadata
-                val char = activePassPlayer.character
-                if (char != null) {
-                    Text("الاسم : ${char.name}", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                    Text("السن : ${char.age} سنة | المهنة: ${char.occupation}", color = PapyrusTextSecondary, fontSize = 15.sp)
-                    Text("الصفات : ${char.traits}", color = PapyrusTextSecondary, fontSize = 15.sp, fontStyle = FontStyle.Italic)
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Divider(color = Color(0x3B2C1E14), thickness = 1.dp)
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // SECRET ROLE BADGE
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (activePassPlayer.isMafia) RedAccent else InnocentAccent)
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = if (activePassPlayer.isMafia) Icons.Default.Dangerous else Icons.Default.Security,
-                            contentDescription = "Role Symbol",
-                            tint = Color.White
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (activePassPlayer.isMafia) "أنت : المجرم الحقيقية" else "أنت : بريء من الجريمة",
-                            color = Color.White,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 20.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = "دافعك المستخبي:",
-                        color = Color(0xFF4A1008),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = if (activePassPlayer.isMafia) char.hiddenMotive else "انت برئ حاول تكتشف المجرم الحقيقي !!",
-                        color = PapyrusText,
-                        fontSize = 15.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "مرر الجهاز له واضغط الزر بالأسفل لقراءة ملف القضية والهوية السرية الخاصة بك دون أن يراها أحد.",
+                    color = Color.LightGray,
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 22.sp
+                )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Action to advance
             Button(
-                onClick = {
+                onClick = { 
+                    MysteryAudioPlayer.playReveal()
+                    revealed = true 
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = RedAccent),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(54.dp)
+            ) {
+                Text("اضغط لكشف ملفي السري 🔍", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+        } else {
+            ParchmentCard(
+                modifier = Modifier.weight(1f),
+                seed = 112233L
+            ) {
+                Text(
+                    text = "ملف الشخصية: ${char.name}",
+                    color = Color(0xFF4A1008),
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(text = "الوظيفة الخلفية: ${char.occupation}", color = DarkWoodButton, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "الصفات الشخصية: ${char.traits}", color = PapyrusTextSecondary, fontSize = 15.sp, fontStyle = FontStyle.Italic)
+                Spacer(modifier = Modifier.height(12.dp))
+                Divider(color = Color(0x3B2C1E14), thickness = 1.dp)
+                Spacer(modifier = Modifier.height(10.dp))
+                
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (activePassPlayer.isMafia) RedAccent else InnocentAccent)
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = if (activePassPlayer.isMafia) Icons.Default.Dangerous else Icons.Default.Security,
+                        contentDescription = "Role Symbol",
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (activePassPlayer.isMafia) "أنت : المجرم الحقيقي" else "أنت : بريء من الجريمة",
+                        color = Color.White,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 20.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "دافعك المستخبي:",
+                    color = Color(0xFF4A1008),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Text(
+                    text = if (activePassPlayer.isMafia) char.hiddenMotive else "أنت بريء حاول تكتشف المجرم الحقيقي !!",
+                    color = PapyrusText,
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = { 
+                    MysteryAudioPlayer.playClick()
                     viewModel.confirmSecretsRevealed()
-                    revealed = false
+                    revealed = false 
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .testTag("confirm_reveal_advance"),
-                contentPadding = PaddingValues(14.dp)
+                modifier = Modifier.fillMaxWidth().height(54.dp)
             ) {
-                Text(
-                    text = if (state.activePassPlayerIndex < state.players.size - 1) "خبي ملفك وهات اللي بعده" else "يلا ندخل على تفاصيل القضية",
-                    color = GoldShine,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
+                Text("فهمت، إخفاء وقفل الملف 🔐", color = GoldShine, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
 // ==========================================
-// 4. CASE INTRO / DETAILS SCREEN
+// 4. CASE INTRO / FILE SYNOPSIS SCREEN
 // ==========================================
 @Composable
 fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
     val currentCase = state.currentCase ?: return
-
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1225,58 +1125,28 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        ParchmentHeaderBanner(text = "تفاصيل الجريمة")
-
+        ParchmentHeaderBanner(text = "ملف القضية الجنائية 📄")
         Spacer(modifier = Modifier.height(10.dp))
 
         ParchmentCard(
             modifier = Modifier.weight(1f),
-            seed = 9991L
+            seed = 5544L
         ) {
             Text(
-                text = currentCase.title,
-                color = Color(0xFF7A1B0C),
+                text = "عنوان القضية: ${currentCase.title}",
+                color = Color(0xFF6E1B10),
                 fontSize = 24.sp,
-                fontWeight = FontWeight.ExtraBold,
+                fontWeight = FontWeight.Black,
                 textAlign = TextAlign.Center
             )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Info grid boxes
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .background(Color(0x0C000000), RoundedCornerShape(8.dp))
-                        .padding(8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("المكان: ${currentCase.location}", color = PapyrusText, fontSize = 11.sp, textAlign = TextAlign.Center)
-                }
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .background(Color(0x0C000000), RoundedCornerShape(8.dp))
-                        .padding(8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("الضحية: ${currentCase.victim}", color = PapyrusText, fontSize = 11.sp, textAlign = TextAlign.Center)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Narrative scrolling body
+            Spacer(modifier = Modifier.height(12.dp))
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
                     .weight(1f)
-                    .background(Color(0x12000000), RoundedCornerShape(8.dp))
-                    .padding(12.dp)
+                    .fillMaxWidth()
+                    .background(Color(0x06000000), RoundedCornerShape(8.dp))
+                    .border(1.dp, Color(0x142C1E14), RoundedCornerShape(8.dp))
+                    .padding(10.dp)
             ) {
                 LazyColumn {
                     item {
@@ -1290,17 +1160,13 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
                     }
                 }
             }
-
             Spacer(modifier = Modifier.height(10.dp))
-
-            // Profiles list
             Text(
                 text = " المشتبه فيهم : ",
                 color = DarkWoodButton,
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp
             )
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -1325,11 +1191,12 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
                 }
             }
         }
-
         Spacer(modifier = Modifier.height(16.dp))
-
         Button(
-            onClick = { viewModel.startCaseInvestigationIntro() },
+            onClick = { 
+                MysteryAudioPlayer.playSuccess()
+                viewModel.startCaseInvestigationIntro() 
+            },
             colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
             modifier = Modifier
                 .fillMaxWidth()
@@ -1348,11 +1215,10 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
 // ==========================================
 @Composable
 fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
-    val currentCase = state.currentCase ?: return
-    val clueIndex = state.currentEvidenceIndex
-    val currentClue = currentCase.evidenceList.getOrNull(clueIndex) ?: "لا أدلة إضافية حالياً."
-    var showHint by remember(clueIndex) { mutableStateOf(false) }
-
+    val currentClue = state.currentClue ?: "لا توجد أدلة إضافية متاحة حالياً."
+    val hintText = state.currentClueHint ?: "فكر في الدوافع الخفية."
+    var showHint by remember { mutableStateOf(false) }
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1361,70 +1227,49 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        ParchmentHeaderBanner(text = "الدليل الجنائي ${clueIndex + 1} من ${currentCase.evidenceList.size}")
-
-        Spacer(modifier = Modifier.height(12.dp))
+        ParchmentHeaderBanner(text = "تقرير المعمل الجنائي 🧪")
+        Spacer(modifier = Modifier.height(10.dp))
 
         ParchmentCard(
             modifier = Modifier.weight(1f),
-            seed = (clueIndex + 10).toLong()
+            seed = 4455L
         ) {
-            Box(
-                modifier = Modifier
-                    .size(90.dp)
-                    .background(Color(0xFF35120D), CircleShape)
-                    .border(2.dp, GoldShine, CircleShape)
-                    .shadow(4.dp, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Evidence Seal",
-                    tint = GoldShine,
-                    modifier = Modifier.size(48.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
             Text(
-                text = "دليل جديد تم استنتاجه مفاجئ:",
-                color = Color(0xFF531E17),
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
+                text = "الدليل الجنائي المكتشف رقم (${state.currentRound}) :",
+                color = Color(0xFF6E1B10),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
             )
-
+            Spacer(modifier = Modifier.height(12.dp))
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
                     .weight(1f)
-                    .background(Color(0x0F000000), RoundedCornerShape(10.dp))
-                    .padding(14.dp),
+                    .fillMaxWidth()
+                    .background(Color(0x0A6E1B10), RoundedCornerShape(10.dp))
+                    .border(2.dp, RedAccent.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                    .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = currentClue,
                     color = PapyrusText,
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp,
-                    textAlign = TextAlign.Center
+                    fontSize = 18.sp,
+                    lineHeight = 26.sp,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Medium
                 )
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Animated / dynamic custom caution warning click hint
-            AnimatedVisibility(visible = showHint) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFFFF2CD))
-                        .border(1.dp, Color(0xFFFFCD56), RoundedCornerShape(8.dp))
-                        .padding(10.dp)
+            Spacer(modifier = Modifier.height(14.dp))
+            
+            if (showHint) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3CD)),
+                    border = BorderStroke(1.dp, Color(0xFFFFEBAA)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = currentCase.hint,
+                        text = "💡 تلميح استراتيجي: $hintText",
+                        modifier = Modifier.padding(10.dp),
                         color = Color(0xFF856404),
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
@@ -1432,10 +1277,12 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
                     )
                 }
             }
-
             if (!showHint) {
                 Button(
-                    onClick = { showHint = true },
+                    onClick = { 
+                        MysteryAudioPlayer.playWarning()
+                        showHint = true 
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE2A012)),
                     modifier = Modifier.testTag("clue_hint_button")
                 ) {
@@ -1444,14 +1291,14 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
                     Text("عرض تلميح 💡", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
-
             Spacer(modifier = Modifier.height(10.dp))
         }
-
         Spacer(modifier = Modifier.height(16.dp))
-
         Button(
-            onClick = { viewModel.advanceFromEvidenceToDiscussion() },
+            onClick = { 
+                MysteryAudioPlayer.playClick()
+                viewModel.advanceFromEvidenceToDiscussion() 
+            },
             colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
             modifier = Modifier
                 .fillMaxWidth()
@@ -1470,7 +1317,15 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
 // ==========================================
 @Composable
 fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
+    val context = LocalContext.current
     val suspectedByClick = remember { mutableStateListOf<String>() }
+    
+    // Auto timer ticks sound effect triggers inside standard loop countdowns
+    LaunchedEffect(state.discussionTimeLeft) {
+        if (state.discussionTimeLeft in 1..10) {
+            MysteryAudioPlayer.playTimerTicking()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -1480,71 +1335,69 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        ParchmentHeaderBanner(text = "مرحلة النقاش والمواجهة")
+        ParchmentHeaderBanner(text = "طاولة الاستجواب والنقاش 🗣️")
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Interactive Radial Clock & Circular layout of players around
+        // Radial Setup
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .weight(1.2f),
             contentAlignment = Alignment.Center
         ) {
-            // Clock Timer in the central region
-            val formattedTime = String.format("%02d:%02d", state.timerSecondsLeft / 60, state.timerSecondsLeft % 60)
-            Canvas(modifier = Modifier.size(170.dp)) {
-                // Background dark disk
-                drawCircle(color = Color(0xFF1E0604), radius = size.minDimension / 2)
-                
-                // Red sweep progress trace
-                val sweepAngle = if (state.timerTotalSeconds > 0) {
-                    (state.timerSecondsLeft.toFloat() / state.timerTotalSeconds.toFloat()) * 360f
-                } else 360f
+            // Background Canvas Clock Ring
+            val progress = state.discussionTimeLeft.toFloat() / (state.discussionDurationMins * 60f)
+            Canvas(modifier = Modifier.size(240.dp)) {
+                drawCircle(color = Color(0x1F000000), style = Stroke(width = 8.dp.toPx()))
                 drawArc(
-                    color = Color(0xFFE73224),
+                    color = if (progress < 0.2f) RedAccent else GoldShine,
                     startAngle = -90f,
-                    sweepAngle = sweepAngle,
+                    sweepAngle = progress * 360f,
                     useCenter = false,
                     style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
                 )
             }
 
-            // Central time texts
+            // Central Digital Timer display
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("متبقي", color = GoldYell, fontSize = 12.sp)
+                val mins = state.discussionTimeLeft / 60
+                val secs = state.discussionTimeLeft % 60
                 Text(
-                    text = formattedTime,
-                    color = Color.White,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.testTag("timer_countdown_display")
+                    text = String.format("%02d:%02d", mins, secs),
+                    color = if (state.discussionTimeLeft < 15) RedAccent else GoldShine,
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = HandjetFontFamily
                 )
-                Text("للإدلاء بالاستنتاج", color = PapyrusBgLight.copy(alpha = 0.5f), fontSize = 10.sp)
+                Text(
+                    text = "تبادلوا الشكوك والاتهامات",
+                    color = PapyrusBgLight.copy(alpha = 0.6f),
+                    fontSize = 11.sp
+                )
             }
 
-            // Radial distribution placement logic for players
-            val alivePlayers = state.players.filter { it.isAlive }
-            alivePlayers.forEachIndexed { index, player ->
-                val angleRad = (2 * Math.PI * index) / alivePlayers.size
-                val xOffset = (130 * cos(angleRad)).dp
-                val yOffset = (130 * sin(angleRad)).dp
-                val isClickSuspected = player.id in suspectedByClick
+            // Circular distribution layout calculation for player items
+            val radius = 130.dp
+            state.players.forEachIndexed { idx, player ->
+                val angleRad = (idx.toDouble() * (2.0 * Math.PI / state.players.size.toDouble())) - (Math.PI / 2.0)
+                val xOffset = (radius.value * cos(angleRad)).dp
+                val yOffset = (radius.value * sin(angleRad)).dp
+
+                val isClickSuspected = suspectedByClick.contains(player.id)
 
                 Box(
                     modifier = Modifier
                         .offset(x = xOffset, y = yOffset)
                         .size(68.dp)
-                        .shadow(elevation = 3.dp, shape = CircleShape)
+                        .shadow(3.dp, CircleShape)
                         .background(
-                            if (isClickSuspected) Color(0xFFC42512) else Color(0xFF421E14),
-                            CircleShape
+                            if (isClickSuspected) Color(0xFFC42512) else Color(0xFF421E14), CircleShape
                         )
                         .border(
-                            width = 2.dp,
-                            color = if (isClickSuspected) GoldShine else Color(0x3BFFFFFF),
-                            shape = CircleShape
+                            2.dp, if (isClickSuspected) GoldShine else Color(0x3BFFFFFF), CircleShape
                         )
                         .clickable {
+                            MysteryAudioPlayer.playClick()
                             if (isClickSuspected) {
                                 suspectedByClick.remove(player.id)
                             } else {
@@ -1570,8 +1423,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                         Box(
                             modifier = Modifier
                                 .background(
-                                    if (player.isMafia && isClickSuspected) GoldYell else Color(0x3B000000),
-                                    RoundedCornerShape(4.dp)
+                                    if (player.isMafia && isClickSuspected) GoldYell else Color(0x3B000000), RoundedCornerShape(4.dp)
                                 )
                                 .padding(horizontal = 4.dp, vertical = 2.dp)
                         ) {
@@ -1588,48 +1440,728 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
         }
 
         Spacer(modifier = Modifier.height(10.dp))
-        ParchmentCard(modifier = Modifier.wrapContentHeight(), seed = 771L) {
+        ParchmentCard(
+            modifier = Modifier.wrapContentHeight(),
+            seed = 771L
+        ) {
             Text(
-                text = "دوس على أي لاعب عشان تركز الشكوك عليه باللون الأحمر عشان تبدأوا تناقشوه.",
-                color = PapyrusTextSecondary,
-                fontSize = 15.sp,
-                textAlign = TextAlign.Center
+                text = "دوس على أي لاعب عشان تركز الشكوك عليه باللون الأحمر عشان تبدأوا تتناقشوا مع بعض وتزنقوه بالأسئلة !",
+                color = PapyrusText,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 18.dp
             )
         }
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
         Button(
-            onClick = { viewModel.advanceFromDiscussionToVoting() },
-            colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
-            shape = RoundedCornerShape(12.dp),
+            onClick = { 
+                MysteryAudioPlayer.playWarning()
+                viewModel.advanceFromDiscussionToVoting() 
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = RedAccent),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
-                .testTag("voting_advance_button")
+                .testTag("discussion_advance_button"),
+            contentPadding = PaddingValues(15.dp)
         ) {
-            Icon(Icons.Default.HowToVote, "Start Votes", tint = GoldShine, modifier = Modifier.size(24.dp))
+            Icon(Icons.Default.Ballot, "Vote Box", tint = Color.White)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("يلا ندخل على الاقتراع والتصويت", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Text("الذهاب لصندوق التصويت السري 🗳️", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
         }
     }
 }
 
-// Placeholder functions for screens mentioned in the phase mapping router but not fully printed
-@Composable fun VotingScreen(viewModel: GameViewModel, state: RoomState) {}
-@Composable fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {}
-@Composable fun JuryScreen(viewModel: GameViewModel, state: RoomState) {}
-@Composable fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {}
+// ==========================================
+// 7. VOTING SCREEN
+// ==========================================
+@Composable
+fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
+    val context = LocalContext.current
+    val localVoterId = viewModel.myPlayerId.value
+    val localVoter = state.players.find { it.id == localVoterId }
 
+    if (state.mode == "LAN") {
+        if (localVoter != null && !localVoter.isAlive) {
+            MysteryBackground {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    ParchmentHeaderBanner(text = "أنت ميت 💀")
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "مبروك تصفيتك! استنى تصويت باقي اللعيبة...",
+                        color = PapyrusBgLight,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+            return
+        } else if (state.votes.containsKey(localVoterId)) {
+            val activePlayers = state.players.filter { it.isAlive }
+            MysteryBackground {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    ParchmentHeaderBanner(text = "تم تسجيل صوتك بنجاح! 🗳️")
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "مستنيين باقي اللعيبة يصوتوا...",
+                        color = PapyrusBgLight,
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    ParchmentCard(modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp)) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("الشفافية والتصويت المفتوح المباشر:", color = Color(0xFF6E1B10), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            val votesCast = state.votes.mapNotNull { (vId, tId) ->
+                                val voterName = state.players.find { it.id == vId }?.name ?: return@mapNotNull null
+                                val targetName = state.players.find { it.id == tId }?.name ?: "مجهول"
+                                "$voterName ➔ $targetName"
+                            }
+                            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                items(votesCast) { textItem ->
+                                    Text("• $textItem", color = PapyrusText, fontSize = 14.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return
+        }
+    }
+
+    val activePlayers = state.players.filter { it.isAlive }
+    val voterPlayer = if (state.mode == "PASS_AND_PLAY") {
+        activePlayers.getOrNull(state.activePassPlayerIndex)
+    } else {
+        localVoter
+    }
+
+    if (voterPlayer == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("تحميل تصويت المحققين...", color = GoldShine)
+        }
+        return
+    }
+
+    var selectedTargetId by remember { mutableStateOf("") }
+    
+    // Fix empty candidate calculation layout crash if filtering yields empty collection
+    val eligibleCandidates = remember(state.votes, state.tiedVotePlayers, voterPlayer.id, state.players) {
+        val baseFiltered = if (state.tiedVotePlayers.isNotEmpty()) {
+            state.players.filter { it.id in state.tiedVotePlayers }
+        } else {
+            val aliveList = state.players.filter { it.isAlive }
+            if (aliveList.isEmpty()) state.players else aliveList
+        }
+        // Exclude the voting player themselves so they cannot self-vote
+        baseFiltered.filter { it.id != voterPlayer.id }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp)
+            .safeDrawingPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        ParchmentHeaderBanner(text = "صندوق التصويت والاتهامات")
+        Spacer(modifier = Modifier.height(10.dp))
+        
+        ParchmentCard(modifier = Modifier.weight(1f), seed = 33L) {
+            Text(
+                text = "دور اللاعب: ${voterPlayer.name}",
+                color = Color(0xFF6E1B10),
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "اختار الشخص اللي شاكك فيه تفتكر هو المجرم:",
+                color = PapyrusTextSecondary,
+                fontSize = 15.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(eligibleCandidates) { candidate ->
+                    val isSelected = candidate.id == selectedTargetId
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                if (isSelected) Color(0x3B6E1B10) else Color(0x0C000000), RoundedCornerShape(10.dp)
+                            )
+                            .border(
+                                2.dp, if (isSelected) RedAccent else Color(0x1F2C1E14), RoundedCornerShape(10.dp)
+                            )
+                            .clickable {
+                                MysteryAudioPlayer.playClick()
+                                selectedTargetId = candidate.id 
+                            }
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(if (isSelected) RedAccent else Color(0xFF421D18), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isSelected) Icons.Default.Check else Icons.Default.Person,
+                                contentDescription = "Pick status target",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                              )
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(candidate.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            candidate.character?.let {
+                                Text("المشتبه: ${it.name} | المهنة: ${it.occupation}", color = PapyrusTextSecondary, fontSize = 14.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = {
+                if (selectedTargetId.isNotEmpty()) {
+                    MysteryAudioPlayer.playSuccess()
+                    viewModel.submitVote(voterPlayer.id, selectedTargetId)
+                    selectedTargetId = ""
+                } else {
+                    Toast.makeText(context, "يجب تحديد شخص متهم لتسجيل الصوت !", Toast.LENGTH_SHORT).show()
+                }
+            },
+            enabled = selectedTargetId.isNotEmpty(),
+            colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp)
+                .testTag("submit_vote_button")
+        ) {
+            Text("تأكيد وتسجيل صوتي 🗳️", color = GoldShine, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+// ==========================================
+// 8. VOTE RESULT SCREEN
+// ==========================================
+@Composable
+fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {
+    val isHost = state.mode == "PASS_AND_PLAY" || state.hostId == viewModel.myPlayerId.value
+    
+    // Trigger elimination visual sound on first display update entry crash check
+    LaunchedEffect(state.eliminatedPlayerThisRound) {
+        if (state.eliminatedPlayerThisRound != null) {
+            MysteryAudioPlayer.playElimination()
+        }
+    }
+
+    MysteryBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .safeDrawingPadding()
+                .verticalScroll(androidx.compose.foundation.rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            ParchmentHeaderBanner(text = "نتائج الاقتراع العام")
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            ParchmentCard(
+                modifier = Modifier.fillMaxWidth(),
+                seed = 711L
+            ) {
+                if (state.tiedVotePlayers.isNotEmpty()) {
+                    Text(
+                        text = "⚠️ تعادل الأصوات !!",
+                        color = RedAccent,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "حصل تعادل في نسب الشكوك والاتهامات بين اللاعبين التالية أسماؤهم:",
+                        color = PapyrusText,
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    state.players.filter { it.id in state.tiedVotePlayers }.forEach { p ->
+                        Text(
+                            text = "• ${p.name} (${p.character?.name ?: ""})",
+                            color = Color(0xFF6E1B10),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                } else if (state.eliminatedPlayerThisRound != null) {
+                    val elim = state.players.find { it.id == state.eliminatedPlayerThisRound }
+                    Text(
+                        text = "تم استبعاد وتصفية :",
+                        color = PapyrusTextSecondary,
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = elim?.name ?: "لاعب مجهول",
+                        color = RedAccent,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (elim?.isMafia == true) RedAccent else InnocentAccent)
+                            .padding(10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (elim?.isMafia == true) "💥 اتضح أنه: هو المجرم الحقيقي !" else "🕊️ اتضح أنه: بريء تماماً ملوش ذنب !",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "صندوق الاقتراع فارغ أو تم التخطي بدون استبعاد.",
+                        color = PapyrusTextSecondary,
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+                Divider(color = Color(0x3B2C1E14))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "توزيع وكشف الأصوات بالتفصيل:",
+                    color = DarkWoodButton,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                
+                state.votes.forEach { (vId, tId) ->
+                    val vName = state.players.find { it.id == vId }?.name ?: "محقق مجهول"
+                    val tName = state.players.find { it.id == tId }?.name ?: "لا أحد"
+                    Text(
+                        text = "• اللاعب [$vName] صوّت ضد ➔ [$tName]",
+                        color = PapyrusText,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+
+            if (isHost) {
+                Button(
+                    onClick = { 
+                        MysteryAudioPlayer.playClick()
+                        viewModel.confirmVoteResultAndProceed() 
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedAccent),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .testTag("confirm_vote_result_button"),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = if (state.tiedVotePlayers.isNotEmpty()) "بدء جولة حسم التعادل" else "متابعة مسار التحقيق",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    )
+                }
+            } else {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x3D2C1E14)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "في انتظار المضيف لمتابعة القضية...",
+                        color = PapyrusBgLight,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// 9. JURY SYSTEM SCREEN
+// ==========================================
+@Composable
+fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
+    val context = LocalContext.current
+    val localId = viewModel.myPlayerId.value
+    val localPlayer = state.players.find { it.id == localId }
+
+    val deadPlayers = state.players.filter { !it.isAlive }
+    val juryVoter = if (state.mode == "PASS_AND_PLAY") {
+        deadPlayers.getOrNull(state.activePassPlayerIndex)
+    } else {
+        localPlayer
+    }
+
+    val finalTwo = state.players.filter { it.isAlive }
+
+    if (state.mode == "LAN") {
+        if (localPlayer != null && localPlayer.isAlive) {
+            MysteryBackground {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    ParchmentHeaderBanner(text = "مصيرك معلق بقفل ! ⚖️")
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "هيئة المحلفين بتصوّت دلوقتي...",
+                        color = PapyrusBgLight,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "مصيرك وصاحبك الأخير بين إيدين اللاعبين اللي خرجوا ! مين هيتبرأ ومين هيدان؟ تفتكر هيختاروا صح؟",
+                        color = Color.LightGray,
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+            return
+        } else {
+            val hasVoted = state.juryVotes.containsKey(localId)
+            if (hasVoted) {
+                MysteryBackground {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        ParchmentHeaderBanner(text = "تم تسجيل صوتك للمحلفين! ⚖️")
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "مستنيين باقي اللاعبين عشان تظهر النتيجة...",
+                            color = PapyrusBgLight,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+                return
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp)
+            .safeDrawingPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        ParchmentHeaderBanner(text = "هيئة المحلفين العليا ⚖️")
+        Spacer(modifier = Modifier.height(10.dp))
+        
+        ParchmentCard(
+            modifier = Modifier.weight(1f),
+            seed = 88L
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(Color(0x3B6E1B10), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Gavel,
+                    contentDescription = "Gavel judge",
+                    tint = RedAccent,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "!!! لا تقلقوا ولكن احذروا !!!",
+                color = Color(0xFF6E1D10),
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 22.sp,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "بما أنه لم يتبق سوى لاعبين اثنين، يعود اللاعبين الذين تم تصفيتهم سابقاً للإجماع والتصويت لإثبات الإدانة النهائية على المجرم.",
+                color = PapyrusTextSecondary,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            
+            if (juryVoter != null) {
+                Text(
+                    text = "دور اللاعب : ${juryVoter.name}",
+                    color = RedAccent,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                var selectedTargetId by remember { mutableStateOf("") }
+                
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(finalTwo) { candidate ->
+                        val isSelected = candidate.id == selectedTargetId
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(if (isSelected) Color(0x2B6E1B10) else Color(0x0C000000), RoundedCornerShape(10.dp))
+                                .border(2.dp, if (isSelected) RedAccent else Color(0x11000000), RoundedCornerShape(10.dp))
+                                .clickable {
+                                    MysteryAudioPlayer.playClick()
+                                    selectedTargetId = candidate.id
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = isSelected, onClick = { selectedTargetId = candidate.id })
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(candidate.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                    }
+                }
+                
+                Button(
+                    onClick = {
+                        if (selectedTargetId.isNotEmpty()) {
+                            MysteryAudioPlayer.playSuccess()
+                            viewModel.submitJuryVote(juryVoter.id, selectedTargetId)
+                            selectedTargetId = ""
+                        }
+                    },
+                    enabled = selectedTargetId.isNotEmpty(),
+                    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("تسجيل صوت المحلفين الجنائي ⚖️", color = GoldShine)
+                }
+            } else {
+                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = RedAccent)
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// 10. ENDGAME / RESULTS REVEAL SCREEN
+// ==========================================
+@Composable
+fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
+    val currentCase = state.currentCase
+    
+    MysteryBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .safeDrawingPadding()
+                .verticalScroll(androidx.compose.foundation.rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            ParchmentHeaderBanner(text = "إغلاق السجلات وحل اللغز 🏆")
+            Spacer(modifier = Modifier.height(14.dp))
+
+            ParchmentCard(
+                modifier = Modifier.fillMaxWidth(),
+                seed = 9911L
+            ) {
+                Text(
+                    text = if (state.winnerSide == "MAFIA") "🔥 انهار العدل وفاز المجرم !" else "🕊️ انتصر الحق وتم القبض على الفاعل !",
+                    color = if (state.winnerSide == "MAFIA") RedAccent else InnocentAccent,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                
+                Text(
+                    text = "الحقيقة الكاملة وراء الكواليس:",
+                    color = Color(0xFF6E1B10),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0x1F6E1B10)),
+                    border = BorderStroke(1.dp, Color(0x3B6E1B10)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = currentCase?.explanation ?: "لم تتوفر سجلات سردية للملف.",
+                        color = Color(0xFF1D3557),
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp,
+                        modifier = Modifier.padding(12.dp).testTag("case_explanation_text")
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = Color(0x3B2C1E14))
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "كشف هويات كل اللاعبين بغرفة التحقيق:",
+                    color = DarkWoodButton,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                state.players.forEach { p ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = if (p.isMafia) "مجرم" else "بريء ",
+                            color = if (p.isMafia) RedAccent else InnocentAccent,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                        Text(
+                            text = "${p.name} (${p.character?.name ?: ""})",
+                            color = PapyrusTextSecondary,
+                            fontSize = 15.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { 
+                        MysteryAudioPlayer.playButtonClick(); 
+                        viewModel.playAgain() 
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .testTag("play_again_button"),
+                ) {
+                    Text("لعب جولة جديدة 🔄", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
+                
+                OutlinedButton(
+                    onClick = { 
+                        MysteryAudioPlayer.playClick()
+                        viewModel.resetToMainMenu() 
+                    },
+                    border = BorderStroke(2.dp, DarkWoodButton),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldShine),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    Text("الخروج للقائمة الرئيسية", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// 11. SETTINGS DIALOG EXTENSION
+// ==========================================
 @Composable
 fun SettingsDialog(
     viewModel: GameViewModel,
     onDismiss: () -> Unit
 ) {
+    var soundEnabled by remember { mutableStateOf(true) }
+    var sliderVol by remember { mutableStateOf(0.5f) }
+    var discTimeMins by remember { mutableStateOf(3) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    MysteryAudioPlayer.setVolume(if (soundEnabled) sliderVol else 0f)
+                    onDismiss()
+                }
+            ) {
+                Text("حفظ التعديلات", color = RedAccent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        },
         title = {
             Text(
-                text = "قواعد اللعبة والإعدادات",
-                color = GoldShine,
+                "قواعد اللعبة والإعدادات",
+                color = Color(0xFF4A1008),
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 textAlign = TextAlign.Center,
@@ -1637,60 +2169,70 @@ fun SettingsDialog(
             )
         },
         text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.End
+            ParchmentCard(
+                seed = 77L,
+                contentPadding = PaddingValues(12.dp),
+                modifier = Modifier.wrapContentHeight()
             ) {
-                Text(
-                    text = "طريقة اللعب:",
-                    color = GoldYell,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-                Text(
-                    text = "• يتم توزيع الأدوار سرياً (بريء أو مجرم).\n" +
-                           "• يتم عرض تفاصيل القضية والأدلة الجنائية تباعاً.\n" +
-                           "• يتناقش اللاعبون محاولين كشف دافع ومكان المجرم.\n" +
-                           "• في نهاية الجولات، يبدأ التصويت لتحديد القاتل الحقيقي.",
-                    color = PapyrusBgLight,
-                    fontSize = 14.sp,
-                    lineHeight = 22.sp,
-                    textAlign = TextAlign.End
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                Divider(color = PapyrusBgLight.copy(alpha = 0.2f))
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Optional placeholder for volume or other game config modifiers
-                Text(
-                    text = "نسخة التطبيق: V-2.1 <YOUSSEF ADEL>",
-                    color = PapyrusBgLight.copy(alpha = 0.5f),
-                    fontSize = 12.sp,
+                LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center
-                )
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Switch(
+                                checked = soundEnabled,
+                                onCheckedChange = { soundEnabled = it },
+                                colors = SwitchDefaults.colors(checkedThumbColor = RedAccent)
+                            )
+                            Text("المؤثرات الصوتية والموسيقى", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("درجة الصوت: ${(sliderVol * 100).toInt()}%", color = PapyrusTextSecondary, fontSize = 14.sp)
+                        Slider(
+                            value = sliderVol,
+                            onValueChange = { sliderVol = it },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Divider(color = Color(0x3B2C1E14))
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("وقت جولات المناقشة والتحقيق", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            Button(
+                                onClick = { if (discTimeMins > 1) discTimeMins-- },
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton)
+                            ) {
+                                Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Text("$discTimeMins دقائق", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Button(
+                                onClick = { if (discTimeMins < 10) discTimeMins++ },
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton)
+                            ) {
+                                Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Divider(color = Color(0x3B2C1E14))
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("طريقة اللعب الحقيقية :", color = Color(0xFF6E1B10), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(
+                            text = "يتم توزيع الأدوار بشكل سري للغاية (بريء ومعه دافع فرعي مزيف أو مجرم حقيقي). في كل جولة، يصدر المعمل الجنائي دليلًا جديدًا يدين شخصًا ما. تناقشوا بحرية واكشفوا الكاذب! بعد ذلك يبدأ تصويت الاقتراع المباشر واللعيبة اللي خرجوا بترجع تلقائياً كـ (هيئة المحلفين) لحسم القرار النهائي وإدانة المجرم الحقيقية.",
+                            color = PapyrusTextSecondary,
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp
+                        )
+                    }
+                }
             }
         },
-        confirmButton = {
-            TextButton(
-                onClick = onDismiss,
-                colors = ButtonDefaults.textButtonColors(contentColor = GoldShine)
-            ) {
-                Text(
-                    text = "فهمت القواعد", 
-                    fontWeight = FontWeight.Bold, 
-                    fontSize = 16.sp
-                )
-            }
-        },
-        containerColor = Color(0xFF2C0A05), // Matches your thriller dark red background themes
-        shape = RoundedCornerShape(16.dp),
-        properties = androidx.compose.ui.window.DialogProperties(
-            usePlatformDefaultWidth = true
-        )
+        containerColor = PapyrusBg
     )
 }
