@@ -43,7 +43,7 @@ import com.example.ui.theme.*
 import kotlin.math.cos
 import kotlin.math.sin
 
-// استيراد الدوال المتجاوبة
+// استيراد دوال المساعدة المتجاوبة
 import com.example.ui.components.scaledDp
 import com.example.ui.components.scaledSp
 
@@ -738,7 +738,7 @@ fun LanJoinLobbyScreen(
                         CircularProgressIndicator(color = DarkWoodButton, modifier = Modifier.size(scaledDp(24)))
                         Spacer(modifier = Modifier.height(scaledDp(8)))
                         Text(
-                            "يبحث عن لغز نشط على الـ WiFi...",
+                            text = "يبحث عن لغز نشط على الـ WiFi...",
                             color = PapyrusTextSecondary,
                             fontSize = scaledSp(12),
                             textAlign = TextAlign.Center
@@ -1135,8 +1135,9 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
             val alivePlayers = state.players.filter { it.isAlive }
             alivePlayers.forEachIndexed { index, player ->
                 val angleRad = (2 * Math.PI * index) / alivePlayers.size
-                val xOffset = (scaledDp(130).value * cos(angleRad)).dp
-                val yOffset = (scaledDp(130).value * sin(angleRad)).dp
+                // حساب الإزاحة بحيث تكون Dp
+                val xOffset = (scaledDp(130).value * cos(angleRad)).toFloat().dp
+                val yOffset = (scaledDp(130).value * sin(angleRad)).toFloat().dp
                 val isClickSuspected = player.id in suspectedByClick
                 Box(
                     modifier = Modifier
