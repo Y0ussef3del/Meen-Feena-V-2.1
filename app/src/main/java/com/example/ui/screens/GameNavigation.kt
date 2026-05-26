@@ -1110,7 +1110,8 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
 
 @Composable
 fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
-    var suspectedByClick = remember { mutableStateListOf<String>() }
+    val suspectedByClick = remember { mutableStateListOf<String>() }
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1120,53 +1121,88 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         ParchmentHeaderBanner(text = "مرحلة النقاش والمواجهة")
-        Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+        
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f), 
+            contentAlignment = Alignment.Center
+        ) {
             val formattedTime = String.format("%02d:%02d", state.timerSecondsLeft / 60, state.timerSecondsLeft % 60)
+            
+            // Fixed Canvas issue: stroke width parameter inside DrawScope takes a Float pixel size natively
+            val strokeWidthPx = scaledDp(8).value
             Canvas(modifier = Modifier.size(scaledDp(170))) {
                 drawCircle(color = Color(0xFF1E0604), radius = size.minDimension / 2)
                 val sweepAngle = if (state.timerTotalSeconds > 0) (state.timerSecondsLeft.toFloat() / state.timerTotalSeconds.toFloat()) * 360f else 360f
-                drawArc(color = Color(0xFFE73224), startAngle = -90f, sweepAngle = sweepAngle, useCenter = false, style = Stroke(width = scaledDp(8).value, cap = StrokeCap.Round))
+                drawArc(
+                    color = Color(0xFFE73224), 
+                    startAngle = -90f, 
+                    sweepAngle = sweepAngle, 
+                    useCenter = false, 
+                    style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+                )
             }
+            
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("متبقي", color = GoldYell, fontSize = scaledSp(12))
                 Text(text = formattedTime, color = Color.White, fontSize = scaledSp(28), fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace, modifier = Modifier.testTag("timer_countdown_display"))
                 Text("للإدلاء بالاستنتاج", color = PapyrusBgLight.copy(alpha = 0.5f), fontSize = scaledSp(10))
             }
+            
             val alivePlayers = state.players.filter { it.isAlive }
             alivePlayers.forEachIndexed { index, player ->
                 val angleRad = (2 * Math.PI * index) / alivePlayers.size
-                // حساب الإزاحة بحيث تكون Dp
+                
+                // Calculating explicit Dp types safely
                 val xOffset = (scaledDp(130).value * cos(angleRad)).toFloat().dp
                 val yOffset = (scaledDp(130).value * sin(angleRad)).toFloat().dp
                 val isClickSuspected = player.id in suspectedByClick
+                
                 Box(
                     modifier = Modifier
                         .offset(x = xOffset, y = yOffset)
                         .size(scaledDp(68))
-                        .shadow(scaledDp(3), CircleShape)
+                        .shadow(elevation = scaledDp(3), shape = CircleShape)
                         .background(if (isClickSuspected) Color(0xFFC42512) else Color(0xFF421E14), CircleShape)
-                        .border(scaledDp(2), if (isClickSuspected) GoldShine else Color(0x3BFFFFFF), CircleShape)
+                        .border(width = scaledDp(2), color = if (isClickSuspected) GoldShine else Color(0x3BFFFFFF), shape = CircleShape)
                         .clickable {
                             if (isClickSuspected) suspectedByClick.remove(player.id) else suspectedByClick.add(player.id)
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.padding(scaledDp(4))) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally, 
+                        verticalArrangement = Arrangement.Center, 
+                        modifier = Modifier.padding(scaledDp(4))
+                    ) {
                         Text(text = player.name.take(6), color = Color.White, fontSize = scaledSp(10), fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(modifier = Modifier.height(scaledDp(2)))
-                        Box(modifier = Modifier.background(if (player.isMafia && isClickSuspected) GoldYell else Color(0x3B000000), RoundedCornerShape(scaledDp(4))).padding(horizontal = scaledDp(4), vertical = scaledDp(2))) {
+                        
+                        Box(
+                            modifier = Modifier
+                                .background(if (player.isMafia && isClickSuspected) GoldYell else Color(0x3B000000), RoundedCornerShape(scaledDp(4)))
+                                .padding(horizontal = scaledDp(4), vertical = scaledDp(2))
+                        ) {
                             Text(text = if (isClickSuspected) "متهم ⚠️" else "قيد السؤال", color = if (isClickSuspected) Color.Black else Color.White, fontSize = scaledSp(8), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
         }
+        
         Spacer(modifier = Modifier.height(scaledDp(10)))
         ParchmentCard(modifier = Modifier.wrapContentHeight(), seed = 771L) {
             Text(text = "دوس على أي لاعب عشان تركز الشكوك عليه باللون الأحمر عشان تبدأوا تناقشوه.", color = PapyrusTextSecondary, fontSize = scaledSp(15), textAlign = TextAlign.Center)
         }
         Spacer(modifier = Modifier.height(scaledDp(16)))
-        Button(onClick = { viewModel.advanceFromDiscussionToVoting() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), shape = RoundedCornerShape(scaledDp(12)), modifier = Modifier.fillMaxWidth().height(scaledDp(56)).testTag("voting_advance_button")) {
+        
+        Button(
+            onClick = { viewModel.advanceFromDiscussionToVoting() }, 
+            colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), 
+            shape = RoundedCornerShape(scaledDp(12)), 
+            modifier = Modifier.fillMaxWidth().height(scaledDp(56)).testTag("voting_advance_button")
+        ) {
             Icon(Icons.Default.HowToVote, "Start Votes", tint = GoldShine, modifier = Modifier.size(scaledDp(24)))
             Spacer(modifier = Modifier.width(scaledDp(8)))
             Text("يلا ندخل على الاقتراع والتصويت", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = scaledSp(20))
