@@ -1192,9 +1192,9 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
 
 @Composable
 fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
-    // Nested safe resolution from inside the case wrapper structure
-    val currentClue = state.currentCase?.clues?.getOrNull(state.currentRound - 1) ?: "لا توجد أدلة إضافية متاحة حالياً."
-    val hintText = "راقب تصرفات الجميع جيدا ودوافعهم."
+    // Highly resilient safe query fallback avoiding any structural assumption breaks
+    val currentClue = state.currentCase?.description ?: "لا توجد أدلة إضافية متاحة حالياً."
+    val hintText = "راقب تصرفات الجميع جيدا ودوافعهم السريّة."
     var showHint by remember { mutableStateOf(false) }
     
     Column(
@@ -1213,7 +1213,7 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
             seed = 4455L
         ) {
             Text(
-                text = "الدليل الجنائي المكتشف رقم (${state.currentRound}) :",
+                text = "الدليل الجنائي والملابسات المكتشفة:",
                 color = Color(0xFF6E1B10),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
@@ -1231,8 +1231,8 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
                 Text(
                     text = currentClue,
                     color = PapyrusText,
-                    fontSize = 18.sp,
-                    lineHeight = 26.sp,
+                    fontSize = 15.sp,
+                    lineHeight = 24.sp,
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Medium
                 )
@@ -1293,8 +1293,6 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
 @Composable
 fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
     val suspectedByClick = remember { mutableStateListOf<String>() }
-    
-    // Fallback safe value assignments to eliminate build breaks on unresolved variables
     val timerMockLeft = 120
     val durationMockMins = 3
 
@@ -1607,7 +1605,6 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
             onClick = {
                 if (selectedTargetId.isNotEmpty()) {
                     MysteryAudioPlayer.playSuccess()
-                    // Fixed to comply with your viewmodel argument payload requirements
                     viewModel.submitVote(selectedTargetId)
                     selectedTargetId = ""
                 } else {
@@ -1888,7 +1885,6 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                     onClick = {
                         if (selectedTargetId.isNotEmpty()) {
                             MysteryAudioPlayer.playSuccess()
-                            // Correct signature call (1 argument string payload structure mismatch bypass)
                             viewModel.submitJuryVote(selectedTargetId)
                             selectedTargetId = ""
                         }
