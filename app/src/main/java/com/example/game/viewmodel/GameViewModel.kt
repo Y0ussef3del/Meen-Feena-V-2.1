@@ -162,10 +162,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             hostId = "LOCAL_HOST",
             phase = GamePhase.LOBBY,
             players = listOf(
-                Player("p1", "أحمد", avatarId = 1),
-                Player("p2", "كريم", avatarId = 2),
-                Player("p3", "نهى", avatarId = 3),
-                Player("p4", "طارق", avatarId = 4),
+                Player("p1", "يوسف", avatarId = 1),
+                Player("p2", "عادل", avatarId = 2),
+                Player("p3", "محمد", avatarId = 3),
+                Player("p4", "جمال", avatarId = 4),
                 Player("p5", "سارة", avatarId = 5)
             )
         )
