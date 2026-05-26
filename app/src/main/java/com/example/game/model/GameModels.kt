@@ -3,7 +3,7 @@ package com.example.game.model
 import org.json.JSONArray
 import org.json.JSONObject
 
-// Game settings
+// إعدادات اللعبة
 data class GameSettings(
     val discussionTimeMinutes: Int = 2,
     val votingTimeMinutes: Int = 1,
@@ -31,7 +31,7 @@ data class GameSettings(
     }
 }
 
-// Player details
+// بيانات اللاعب
 data class Player(
     val id: String,
     val name: String,
@@ -49,27 +49,30 @@ data class Player(
             put("isAlive", isAlive)
             put("isConnected", isConnected)
             put("avatarId", avatarId)
-            character?.let { put("character", it.toJsonObject()) }
+            if (character != null) {
+                put("character", character.toJsonObject())
+            }
         }
     }
 
     companion object {
         fun fromJsonObject(json: JSONObject): Player {
-            val charJson = json.optJSONObject("character")
+            val charObj = json.optJSONObject("character")
+            val character = if (charObj != null) Character.fromJsonObject(charObj) else null
             return Player(
-                id = json.getString("id"),
-                name = json.getString("name"),
+                id = json.optString("id", ""),
+                name = json.optString("name", ""),
                 isMafia = json.optBoolean("isMafia", false),
                 isAlive = json.optBoolean("isAlive", true),
                 isConnected = json.optBoolean("isConnected", true),
                 avatarId = json.optInt("avatarId", 0),
-                character = charJson?.let { Character.fromJsonObject(it) }
+                character = character
             )
         }
     }
 }
 
-// Character detail matching a suspicious biography
+// بيانات الشخصية داخل القضية
 data class Character(
     val name: String,
     val age: Int,
@@ -77,57 +80,58 @@ data class Character(
     val background: String,
     val traits: String,
     val hiddenMotive: String,
-    val fullName: String = name,
-    val personalitySummary: String = traits,
-    val socialStatus: String = "طبقة مخملية راقية",
-    val relationshipToVictim: String = "صديق مقرب سابق",
-    val relationshipToOtherSuspects: String = "شريك تجاري ومنافس شرس",
-    val possibleMotive: String = hiddenMotive,
-    val relevantHistory: String = "سجل خالي من السوابق الجنائية ولكن يحيطه الغموض المالي"
+    val fullName: String,
+    val personalitySummary: String,
+    val socialStatus: String,
+    val relationshipToVictim: String,
+    val relationshipToOtherSuspects: String,
+    val possibleMotive: String,
+    val relevantHistory: String
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
             put("name", name)
             put("age", age)
-            put("occupation", occupation)
-            put("background", background)
-            put("traits", traits)
-            put("hiddenMotive", hiddenMotive)
+            put("job", occupation)
+            put("description", background)
+            put("personality", traits)
+            put("motive", hiddenMotive)
             put("fullName", fullName)
             put("personalitySummary", personalitySummary)
-            put("socialStatus", socialStatus)
-            put("relationshipToVictim", relationshipToVictim)
-            put("relationshipToOtherSuspects", relationshipToOtherSuspects)
+            put("financialStatus", socialStatus)
+            put("relation", relationshipToVictim)
+            put("notes", relationshipToOtherSuspects)
             put("possibleMotive", possibleMotive)
-            put("relevantHistory", relevantHistory)
+            put("hiddenTrait", relevantHistory)
         }
     }
 
     companion object {
         fun fromJsonObject(json: JSONObject): Character {
-            val n = json.getString("name")
-            val tr = json.getString("traits")
-            val hm = json.getString("hiddenMotive")
+            val n = json.optString("name", "مجهول")
+            val tr = json.optString("personality", json.optString("traits", "غامض")) 
+            val hm = json.optString("motive", json.optString("hiddenMotive", "غير معروف")) 
+            
             return Character(
                 name = n,
-                age = json.getInt("age"),
-                occupation = json.getString("occupation"),
-                background = json.getString("background"),
+                age = json.optInt("age", 30),
+                occupation = json.optString("job", json.optString("occupation", "مجهول")),
+                background = json.optString("description", json.optString("background", "")),
                 traits = tr,
                 hiddenMotive = hm,
                 fullName = json.optString("fullName", n),
                 personalitySummary = json.optString("personalitySummary", tr),
-                socialStatus = json.optString("socialStatus", "طبقة مخملية راقية"),
-                relationshipToVictim = json.optString("relationshipToVictim", "صديق مقرب سابق"),
-                relationshipToOtherSuspects = json.optString("relationshipToOtherSuspects", "شريك تجاري ومنافس شرس"),
+                socialStatus = json.optString("financialStatus", "متوسط الحال"),
+                relationshipToVictim = json.optString("relation", json.optString("relationshipToVictim", "مجهول")),
+                relationshipToOtherSuspects = json.optString("notes", json.optString("relationshipToOtherSuspects", "")),
                 possibleMotive = json.optString("possibleMotive", hm),
-                relevantHistory = json.optString("relevantHistory", "سجل خالي من السوابق الجنائية ولكن يحيطه الغموض المالي")
+                relevantHistory = json.optString("hiddenTrait", json.optString("relevantHistory", "سجل خالي من السوابق"))
             )
         }
     }
 }
 
-// Game Case including deep evidence progress
+// بيانات القضية بالكامل
 data class Case(
     val title: String,
     val location: String,
@@ -135,11 +139,8 @@ data class Case(
     val victim: String,
     val victimProfile: String,
     val description: String,
-    val characters: List<Character>, // Candidate suspects list
-    val evidenceList: List<String>, // Progressive clues
-    val suspicionDistribution: String, // Hints about who to watch out for
-    val hint: String, // Warning / hidden tip
-    val explanation: String = "" // Ending detailed closure history
+    val characters: List<Character>,
+    val evidenceList: List<String>
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
@@ -149,13 +150,10 @@ data class Case(
             put("victim", victim)
             put("victimProfile", victimProfile)
             put("description", description)
-            put("suspicionDistribution", suspicionDistribution)
-            put("hint", hint)
-            put("explanation", explanation)
             
-            val charsArray = JSONArray()
-            characters.forEach { charsArray.put(it.toJsonObject()) }
-            put("characters", charsArray)
+            val charArray = JSONArray()
+            characters.forEach { charArray.put(it.toJsonObject()) }
+            put("characters", charArray)
             
             val evArray = JSONArray()
             evidenceList.forEach { evArray.put(it) }
@@ -165,11 +163,11 @@ data class Case(
 
     companion object {
         fun fromJsonObject(json: JSONObject): Case {
-            val charsList = mutableListOf<Character>()
-            val charsArray = json.optJSONArray("characters")
-            if (charsArray != null) {
-                for (i in 0 until charsArray.length()) {
-                    charsList.add(Character.fromJsonObject(charsArray.getJSONObject(i)))
+            val charList = mutableListOf<Character>()
+            val charArray = json.optJSONArray("characters")
+            if (charArray != null) {
+                for (i in 0 until charArray.length()) {
+                    charList.add(Character.fromJsonObject(charArray.getJSONObject(i)))
                 }
             }
             
@@ -182,124 +180,125 @@ data class Case(
             }
 
             return Case(
-                title = json.getString("title"),
-                location = json.getString("location"),
-                time = json.getString("time"),
-                victim = json.getString("victim"),
-                victimProfile = json.getString("victimProfile"),
-                description = json.getString("description"),
-                characters = charsList,
-                evidenceList = evList,
-                suspicionDistribution = json.optString("suspicionDistribution", ""),
-                hint = json.optString("hint", ""),
-                explanation = json.optString("explanation", "")
+                title = json.optString("title", ""),
+                location = json.optString("location", ""),
+                time = json.optString("time", ""),
+                victim = json.optString("victim", ""),
+                victimProfile = json.optString("victimProfile", ""),
+                description = json.optString("description", ""),
+                characters = charList,
+                evidenceList = evList
             )
         }
     }
 }
 
-// Current game phase enumeration
+// مراحل اللعبة
 enum class GamePhase {
     LOBBY,
     ROLE_REVEAL,
-    CASE_INTRO,
-    EVIDENCE_ROUND,
+    INVESTIGATION,
     DISCUSSION,
     VOTING,
-    VOTE_RESULT,
-    JURY_ROUND,
-    ENDGAME
+    RESULT
 }
 
-// The comprehensive shared room game state
+// حالة الغرفة المشتركة
 data class RoomState(
     val roomId: String = "",
-    val mode: String = "PASS_AND_PLAY", // PASS_AND_PLAY or LAN
+    val mode: String = "PASS_AND_PLAY",
     val hostId: String = "",
     val phase: GamePhase = GamePhase.LOBBY,
     val players: List<Player> = emptyList(),
     val currentCase: Case? = null,
     val currentEvidenceIndex: Int = 0,
-    val activePassPlayerIndex: Int = 0, // In Pass and Play, whose turn to look
-    val rulesRevealed: Boolean = false, // Pass and Play temp shield toggle
+    val activePassPlayerIndex: Int = 0,
+    val rulesRevealed: Boolean = false,
     val timerSecondsLeft: Int = 0,
     val timerTotalSeconds: Int = 0,
-    val votes: Map<String, String> = emptyMap(), // VoterId -> TargetPlayerId
-    val juryVotes: Map<String, String> = emptyMap(), // JuryVoterId -> SuspectPlayerId
+    val votes: Map<String, String> = emptyMap(),
+    val juryVotes: Map<String, String> = emptyMap(),
     val settings: GameSettings = GameSettings(),
     val gameNumber: Int = 0,
-    val winnerSide: String = "", // "MAFIA" or "INNOCENTS"
+    val winnerSide: String = "",
     val tiedVotePlayers: List<String> = emptyList(),
     val lastEliminatedResult: String = ""
 ) {
-    fun toSharedJsonString(): String {
-        val root = JSONObject().apply {
+    fun toJsonObject(): JSONObject {
+        return JSONObject().apply {
             put("roomId", roomId)
             put("mode", mode)
             put("hostId", hostId)
             put("phase", phase.name)
+            
+            val pArray = JSONArray()
+            players.forEach { pArray.put(it.toJsonObject()) }
+            put("players", pArray)
+            
+            if (currentCase != null) {
+                put("currentCase", currentCase.toJsonObject())
+            }
+            
             put("currentEvidenceIndex", currentEvidenceIndex)
             put("activePassPlayerIndex", activePassPlayerIndex)
             put("rulesRevealed", rulesRevealed)
             put("timerSecondsLeft", timerSecondsLeft)
             put("timerTotalSeconds", timerTotalSeconds)
+            
+            val vObj = JSONObject()
+            votes.forEach { (k, v) -> vObj.put(k, v) }
+            put("votes", vObj)
+            
+            val jObj = JSONObject()
+            juryVotes.forEach { (k, v) -> jObj.put(k, v) }
+            put("juryVotes", jObj)
+            
+            put("settings", settings.toJsonObject())
             put("gameNumber", gameNumber)
             put("winnerSide", winnerSide)
-            put("lastEliminatedResult", lastEliminatedResult)
-            put("settings", settings.toJsonObject())
             
             val tvArray = JSONArray()
             tiedVotePlayers.forEach { tvArray.put(it) }
             put("tiedVotePlayers", tvArray)
             
-            currentCase?.let { put("currentCase", it.toJsonObject()) }
-            
-            val playersArray = JSONArray()
-            players.forEach { playersArray.put(it.toJsonObject()) }
-            put("players", playersArray)
-            
-            val votesObj = JSONObject()
-            votes.forEach { (k, v) -> votesObj.put(k, v) }
-            put("votes", votesObj)
-            
-            val jVotesObj = JSONObject()
-            juryVotes.forEach { (k, v) -> jVotesObj.put(k, v) }
-            put("juryVotes", jVotesObj)
+            put("lastEliminatedResult", lastEliminatedResult)
         }
-        return root.toString()
     }
 
     companion object {
-        fun fromSharedJsonString(jsonStr: String): RoomState {
-            val root = JSONObject(jsonStr)
+        fun fromJsonObject(jsonString: String): RoomState {
+            val root = JSONObject(jsonString)
+            
             val playersList = mutableListOf<Player>()
-            val playersArr = root.getJSONArray("players")
-            for (i in 0 until playersArr.length()) {
-                playersList.add(Player.fromJsonObject(playersArr.getJSONObject(i)))
-            }
-            
-            val votesMap = mutableMapOf<String, String>()
-            val votesObj = root.optJSONObject("votes")
-            if (votesObj != null) {
-                val keys = votesObj.keys()
-                while (keys.hasNext()) {
-                    val k = keys.next()
-                    votesMap[k] = votesObj.getString(k)
-                }
-            }
-            
-            val jVotesMap = mutableMapOf<String, String>()
-            val jVotesObj = root.optJSONObject("juryVotes")
-            if (jVotesObj != null) {
-                val keys = jVotesObj.keys()
-                while (keys.hasNext()) {
-                    val k = keys.next()
-                    jVotesMap[k] = jVotesObj.getString(k)
+            val pArray = root.optJSONArray("players")
+            if (pArray != null) {
+                for (i in 0 until pArray.length()) {
+                    playersList.add(Player.fromJsonObject(pArray.getJSONObject(i)))
                 }
             }
 
             val caseObj = root.optJSONObject("currentCase")
-            val case = caseObj?.let { Case.fromJsonObject(it) }
+            val case = if (caseObj != null) Case.fromJsonObject(caseObj) else null
+
+            val votesMap = mutableMapOf<String, String>()
+            val vObj = root.optJSONObject("votes")
+            if (vObj != null) {
+                val keys = vObj.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    votesMap[key] = vObj.getString(key)
+                }
+            }
+
+            val jVotesMap = mutableMapOf<String, String>()
+            val jObj = root.optJSONObject("juryVotes")
+            if (jObj != null) {
+                val keys = jObj.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    jVotesMap[key] = jObj.getString(key)
+                }
+            }
 
             val settingsObj = root.optJSONObject("settings")
             val settings = if (settingsObj != null) GameSettings.fromJsonObject(settingsObj) else GameSettings()

@@ -1,7 +1,5 @@
 package com.example.game.network
 
-import android.content.Context
-import android.net.wifi.WifiManager
 import android.util.Log
 import com.example.game.model.RoomState
 import kotlinx.coroutines.*
@@ -26,23 +24,16 @@ object LanManager {
     private var clientSocket: Socket? = null
     private var clientReadJob: Job? = null
 
-    // For Host to manage client connections
     private val clientConnections = Collections.synchronizedList(mutableListOf<ClientConnection>())
 
-    // LAN discovery results. Maps HostIP -> HostName
     val discoveredHosts = MutableStateFlow<Map<String, String>>(emptyMap())
+    val incomingCommands = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 64)
 
-    // Ingress TCP packets flow to be handled in the main ViewModel
-    val incomingCommands = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 64) // Pair<playerId/IP, CommandJSON>
-
-    // Client connection state tracking
     val isClientConnected = MutableStateFlow(false)
     val clientConnectionError = MutableStateFlow<String?>(null)
 
-    // Current local device ID for unique routing
     val localDeviceId: String = UUID.randomUUID().toString().substring(0, 8)
 
-    // Retrieve local private IPv4 address
     fun getLocalIpAddress(): String {
         try {
             val interfaces = NetworkInterface.getNetworkInterfaces()
@@ -62,18 +53,13 @@ object LanManager {
         return "127.0.0.1"
     }
 
-    // --- HOST METHODS ---
-
     fun startHost(hostName: String, roomCode: String) {
         stopAll()
         Log.d(TAG, "Starting Host at Port $TCP_PORT...")
         
-        // Start TCP Server Socket
         tcpServerJob = CoroutineScope(Dispatchers.IO).launch {
             try {
-                serverSocket = ServerSocket(TCP_PORT).apply {
-                    reuseAddress = true
-                }
+                serverSocket = ServerSocket(TCP_PORT).apply { reuseAddress = true }
                 while (isActive) {
                     val socket = serverSocket?.accept() ?: break
                     Log.d(TAG, "Client connected: ${socket.inetAddress.hostAddress}")
@@ -90,23 +76,18 @@ object LanManager {
             }
         }
 
-        // Start UDP Broadcaster
         udpBroadcastJob = CoroutineScope(Dispatchers.IO).launch {
             try {
-                val broadcastSocket = DatagramSocket().apply {
-                    broadcast = true
-                }
+                val broadcastSocket = DatagramSocket().apply { broadcast = true }
                 val broadcastMsg = "WHO_AMONG_US_HOST|$hostName|${getLocalIpAddress()}|$roomCode"
                 val packetData = broadcastMsg.toByteArray()
                 
                 while (isActive) {
                     try {
-                        // Try broadcasting to general address
                         val address = InetAddress.getByName("255.255.255.255")
                         val packet = DatagramPacket(packetData, packetData.size, address, UDP_PORT)
                         broadcastSocket.send(packet)
                     } catch (e: Throwable) {
-                        // Fallback to local subnet if general fails
                         try {
                             val subnetAddr = getBroadcastAddress()
                             if (subnetAddr != null) {
@@ -162,11 +143,8 @@ object LanManager {
     }
 
     fun stopHost() {
-        Log.d(TAG, "Stopping host server...")
         stopAll()
     }
-
-    // --- CLIENT METHODS ---
 
     fun startDiscovery() {
         discoveredHosts.value = emptyMap()
@@ -174,9 +152,7 @@ object LanManager {
         udpDiscoveryJob = CoroutineScope(Dispatchers.IO).launch {
             var ds: DatagramSocket? = null
             try {
-                ds = DatagramSocket(UDP_PORT).apply {
-                    reuseAddress = true
-                }
+                ds = DatagramSocket(UDP_PORT).apply { reuseAddress = true }
                 val buffer = ByteArray(1024)
                 while (isActive) {
                     val packet = DatagramPacket(buffer, buffer.size)
@@ -188,17 +164,9 @@ object LanManager {
                             val name = parts[1]
                             val ip = parts[2]
                             val rCode = parts[3]
-                            if (ip != getLocalIpAddress()) { // Don't discover self
-                                val current = discoveredHosts.value.toMutableMap()
-                                current[ip] = "$name|$rCode"
-                                discoveredHosts.value = current
-                            }
-                        } else if (parts.size == 3) {
-                            val name = parts[1]
-                            val ip = parts[2]
                             if (ip != getLocalIpAddress()) {
                                 val current = discoveredHosts.value.toMutableMap()
-                                current[ip] = "$name|99999" // Fallback code
+                                current[ip] = "$name|$rCode"
                                 discoveredHosts.value = current
                             }
                         }
@@ -226,14 +194,11 @@ object LanManager {
             try {
                 Log.d(TAG, "Connecting to Host: $hostIp...")
                 val socket = withContext(Dispatchers.IO) {
-                    Socket().apply {
-                        connect(InetSocketAddress(hostIp, TCP_PORT), 4000)
-                    }
+                    Socket().apply { connect(InetSocketAddress(hostIp, TCP_PORT), 4000) }
                 }
                 clientSocket = socket
                 isClientConnected.value = true
                 
-                // Immediately send JOIN Command
                 val joinCommand = JSONObject().apply {
                     put("type", "JOIN")
                     put("playerName", playerName)
@@ -243,7 +208,6 @@ object LanManager {
                 val writer = PrintWriter(socket.getOutputStream(), true)
                 writer.println(joinCommand)
                 
-                // Keep reading messages from host
                 val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
                 while (isActive) {
                     val line = reader.readLine() ?: break
@@ -255,6 +219,11 @@ object LanManager {
                 isClientConnected.value = false
             } finally {
                 disconnectFromHost()
+                // [إصلاح حرج]: إرسال إشعار فوري للـ ViewModel بأن الاتصال بالمضيف انقطع
+                CoroutineScope(Dispatchers.IO).launch {
+                    val disconnectPayload = JSONObject().apply { put("type", "HOST_DISCONNECTED") }.toString()
+                    incomingCommands.emit(Pair("HOST", disconnectPayload))
+                }
             }
         }
     }
@@ -274,15 +243,12 @@ object LanManager {
     }
 
     fun disconnectFromHost() {
-        Log.d(TAG, "Disconnecting from host...")
         clientReadJob?.cancel()
         clientReadJob = null
         try { clientSocket?.close() } catch (e: Exception) {}
         clientSocket = null
         isClientConnected.value = false
     }
-
-    // --- LIFECYCLE HELPER ---
 
     private fun stopAll() {
         tcpServerJob?.cancel()
@@ -308,7 +274,6 @@ object LanManager {
         isClientConnected.value = false
     }
 
-    // --- CLIENT WRAPPER CLASS ---
     private class ClientConnection(val socket: Socket) {
         val ip: String = socket.inetAddress.hostAddress ?: ""
         private var writer: PrintWriter? = null
