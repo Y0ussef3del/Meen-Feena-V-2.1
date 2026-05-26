@@ -47,10 +47,9 @@ import kotlin.math.sin
 
 // Helper functions for responsive scaling (based on 360dp baseline)
 @Composable
-private fun scaledDp(value: Int) = (LocalConfiguration.current.screenWidthDp * value / 360f).dp
-
+private fun scaledDp(value: Int): Dp = (LocalConfiguration.current.screenWidthDp * value / 360f).dp
 @Composable
-private fun scaledSp(value: Int) = (LocalConfiguration.current.screenWidthDp * value / 360f).sp
+private fun scaledSp(value: Int): TextUnit = (LocalConfiguration.current.screenWidthDp * value / 360f).sp
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable

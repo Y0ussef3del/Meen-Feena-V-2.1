@@ -5,7 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -13,21 +14,29 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
 import kotlin.random.Random
 
-// Creates a realistic torn papyrus border shape procedurally
+// ========== FIXED: @Composable helper functions ==========
+@Composable
+private fun scaledDp(value: Int): Dp = (LocalConfiguration.current.screenWidthDp * value / 360f).dp
+
+@Composable
+private fun scaledSp(value: Int): TextUnit = (LocalConfiguration.current.screenWidthDp * value / 360f).sp
+
 fun createTornPaperShape(seed: Long = 42L): GenericShape {
     return GenericShape { size, _ ->
         val rand = Random(seed)
         val numPoints = 60
-        
+
         moveTo(0f, 0f)
         for (i in 0..numPoints) {
             val fraction = i.toFloat() / numPoints
@@ -66,8 +75,8 @@ fun ParchmentCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val tornShape = remember(seed) { createTornPaperShape(seed) }
-    val responsiveElevation = rememberScaledDp(elevation)
-    
+    val responsiveElevation = scaledDp(elevation.value.toInt())
+
     Box(
         modifier = modifier
             .shadow(
@@ -96,7 +105,7 @@ fun ParchmentCard(
                 drawPath(
                     path = path.asComposePath(),
                     color = Color(0x3B2C1E14),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    style = Stroke(
                         width = scaledDp(2).value,
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 5f), 0f)
                     )

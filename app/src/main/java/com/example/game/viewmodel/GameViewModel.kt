@@ -44,6 +44,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Audio feedback functions
     fun playButtonClick() { MysteryAudioPlayer.playSelection() }
     fun playSelection() { MysteryAudioPlayer.playSelection() }
     fun playSuccess() { MysteryAudioPlayer.playSuccess() }
@@ -349,92 +350,102 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // داخل GameViewModel.kt - استبدل دوال Jury بالكامل
+    fun submitJuryVote(targetId: String) {
+        playVoteSound()
+        val state = _roomState.value
+        val voterId = myPlayerId.value
+        if (state.mode == "PASS_AND_PLAY") {
+            val eliminatedPlayers = state.players.filter { !it.isAlive }
+            val juryVoter = eliminatedPlayers.firstOrNull { it.id !in state.juryVotes.keys } ?: return
+            val newJVotes = state.juryVotes.toMutableMap()
+            newJVotes[juryVoter.id] = targetId
+            _roomState.value = state.copy(juryVotes = newJVotes)
+            val nextJuryVoter = eliminatedPlayers.firstOrNull { it.id !in newJVotes.keys }
+            if (nextJuryVoter == null) {
+                resolveJuryVotingTally()
+            }
+        } else {
+            if (state.hostId == voterId) {
+                castJuryVote(voterId, targetId)
+            } else {
+                val cmd = JSONObject().apply {
+                    put("type", "JURY_VOTE")
+                    put("voterId", voterId)
+                    put("targetId", targetId)
+                }.toString()
+                LanManager.sendCommandToHost(cmd)
+            }
+        }
+    }
 
-fun submitJuryVote(targetId: String) {
-    playVoteSound()
-    val state = _roomState.value
-    val voterId = myPlayerId.value
-    if (state.mode == "PASS_AND_PLAY") {
-        val eliminatedPlayers = state.players.filter { !it.isAlive }
-        // نأخذ أول لاعب مقصى لم يصوت بعد
-        val juryVoter = eliminatedPlayers.firstOrNull { it.id !in state.juryVotes.keys } ?: return
+    private fun castJuryVote(voterId: String, targetId: String) {
+        val state = _roomState.value
         val newJVotes = state.juryVotes.toMutableMap()
-        newJVotes[juryVoter.id] = targetId
+        newJVotes[voterId] = targetId
         _roomState.value = state.copy(juryVotes = newJVotes)
-        // التحقق إذا كان كل المقصين صوتوا
-        val allVoted = eliminatedPlayers.all { it.id in newJVotes.keys }
-        if (allVoted) {
+        val jurySize = state.players.count { !it.isAlive }
+        if (newJVotes.size >= jurySize) {
             resolveJuryVotingTally()
         } else {
-            // تحديث الواجهة لتمرير الجهاز للاعب المقصى التالي
             LanManager.broadcastStateToClients(_roomState.value)
         }
-    } else {
-        // LAN Mode
-        if (state.hostId == voterId) {
-            castJuryVote(voterId, targetId)
+    }
+
+    // ========== FIXED: resolveVotingTally (was missing) ==========
+    private fun resolveVotingTally() {
+        stopTimer()
+        val state = _roomState.value
+        val voteCounts = mutableMapOf<String, Int>()
+        state.votes.values.forEach { targetId ->
+            voteCounts[targetId] = voteCounts.getOrDefault(targetId, 0) + 1
+        }
+        val maxVotes = voteCounts.values.maxOrNull() ?: 0
+        val tiedPlayers = voteCounts.filter { it.value == maxVotes }.keys.toList()
+
+        if (tiedPlayers.size >= 2 && voteCounts.isNotEmpty()) {
+            val tiedNames = state.players.filter { it.id in tiedPlayers }.joinToString(" و ") { it.name }
+            _roomState.value = state.copy(
+                phase = GamePhase.VOTE_RESULT,
+                tiedVotePlayers = tiedPlayers,
+                lastEliminatedResult = "حصل تعادل في الأصوات بين ($tiedNames)! محدش خرج وهنعيد التصويت تاني."
+            )
         } else {
-            val cmd = JSONObject().apply {
-                put("type", "JURY_VOTE")
-                put("voterId", voterId)
-                put("targetId", targetId)
-            }.toString()
-            LanManager.sendCommandToHost(cmd)
+            val targetId = tiedPlayers.firstOrNull()
+            var eliminatedPlayer: Player? = null
+            if (targetId != null) {
+                val currentPlayers = state.players.map { player ->
+                    if (player.id == targetId) {
+                        val updated = player.copy(isAlive = false)
+                        eliminatedPlayer = updated
+                        updated
+                    } else {
+                        player
+                    }
+                }
+                val resultText = "${eliminatedPlayer?.name} خرج وكان ${if (eliminatedPlayer?.isMafia == true) "مافيا" else "بريء"}"
+                _roomState.value = state.copy(
+                    phase = GamePhase.VOTE_RESULT,
+                    players = currentPlayers,
+                    tiedVotePlayers = emptyList(),
+                    lastEliminatedResult = resultText
+                )
+            } else {
+                _roomState.value = state.copy(
+                    phase = GamePhase.VOTE_RESULT,
+                    tiedVotePlayers = emptyList(),
+                    lastEliminatedResult = "محدش صوّت ومحدش خرج!"
+                )
+            }
+        }
+        if (state.mode == "LAN") {
+            LanManager.broadcastStateToClients(_roomState.value)
         }
     }
-}
-
-private fun castJuryVote(voterId: String, targetId: String) {
-    val state = _roomState.value
-    val newJVotes = state.juryVotes.toMutableMap()
-    newJVotes[voterId] = targetId
-    _roomState.value = state.copy(juryVotes = newJVotes)
-
-    val eliminatedPlayers = state.players.filter { !it.isAlive }
-    val allVoted = eliminatedPlayers.all { it.id in newJVotes.keys }
-    if (allVoted) {
-        resolveJuryVotingTally()
-    } else {
-        LanManager.broadcastStateToClients(_roomState.value)
-    }
-}
-
-private fun resolveJuryVotingTally() {
-    val state = _roomState.value
-    val alivePlayers = state.players.filter { it.isAlive }
-    if (alivePlayers.size != 2) {
-        // أمان: يجب أن يكون هناك اثنان بالضبط
-        _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
-        return
-    }
-
-    val voteCounts = mutableMapOf<String, Int>()
-    state.juryVotes.values.forEach { targetId ->
-        voteCounts[targetId] = voteCounts.getOrDefault(targetId, 0) + 1
-    }
-
-    // ترتيب الأصوات تنازليًا
-    val sorted = voteCounts.entries.sortedByDescending { it.value }
-    val finalAccusedId = sorted.firstOrNull()?.key
-
-    val accusedPlayer = alivePlayers.find { it.id == finalAccusedId }
-    val winnerSide = if (accusedPlayer?.isMafia == true) "INNOCENTS" else "MAFIA"
-
-    _roomState.value = state.copy(
-        phase = GamePhase.ENDGAME,
-        winnerSide = winnerSide
-    )
-    if (_roomState.value.mode == "LAN") {
-        LanManager.broadcastStateToClients(_roomState.value)
-    }
-}
 
     fun confirmVoteResultAndProceed() {
         playTransitionSound()
         val state = _roomState.value
         if (state.tiedVotePlayers.isNotEmpty()) {
-            // ✅ Tiebreaker: الانتقال إلى جولة تصويت مع الاحتفاظ بقائمة المتعادلين
             _roomState.value = state.copy(
                 phase = GamePhase.VOTING,
                 votes = emptyMap()
@@ -448,27 +459,26 @@ private fun resolveJuryVotingTally() {
         }
     }
 
+    // ========== FIXED: resolveJuryVotingTally (duplicate removed) ==========
     private fun resolveJuryVotingTally() {
         val state = _roomState.value
+        val alivePlayers = state.players.filter { it.isAlive }
+        if (alivePlayers.size != 2) {
+            _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
+            return
+        }
         val voteCounts = mutableMapOf<String, Int>()
         state.juryVotes.values.forEach { targetId ->
             voteCounts[targetId] = voteCounts.getOrDefault(targetId, 0) + 1
         }
-        val sortedVotes = voteCounts.entries.sortedByDescending { it.value }
-        val finalAccusedEntry = sortedVotes.firstOrNull()
-        if (finalAccusedEntry != null) {
-            val accusedId = finalAccusedEntry.key
-            val accusedPlayer = state.players.find { it.id == accusedId }
-            if (accusedPlayer != null) {
-                if (accusedPlayer.isMafia) {
-                    _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENTS")
-                } else {
-                    _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
-                }
-            }
-        } else {
-            _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
-        }
+        val sorted = voteCounts.entries.sortedByDescending { it.value }
+        val finalAccusedId = sorted.firstOrNull()?.key
+        val accusedPlayer = alivePlayers.find { it.id == finalAccusedId }
+        val winnerSide = if (accusedPlayer?.isMafia == true) "INNOCENTS" else "MAFIA"
+        _roomState.value = state.copy(
+            phase = GamePhase.ENDGAME,
+            winnerSide = winnerSide
+        )
         if (_roomState.value.mode == "LAN") {
             LanManager.broadcastStateToClients(_roomState.value)
         }
@@ -565,4 +575,3 @@ private fun resolveJuryVotingTally() {
         LanManager.stopDiscovery()
     }
 }
-
