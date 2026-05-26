@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.game.audio.MysteryAudioPlayer  // استيراد اللازم
 import com.example.game.data.CaseRepository
 import com.example.game.viewmodel.GameViewModel
 import com.example.ui.screens.GameNavigation
@@ -26,6 +27,9 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+
+        // تهيئة مشغل الصوتيات (الموسيقى والمؤثرات)
+        MysteryAudioPlayer.init(this)
 
         setContent {
             MyApplicationTheme {

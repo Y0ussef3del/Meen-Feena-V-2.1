@@ -1,9 +1,11 @@
 package com.example.game.audio
 
+import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.media.MediaPlayer
 import android.util.Log
 import kotlinx.coroutines.*
 import kotlin.math.sin
@@ -12,6 +14,16 @@ object MysteryAudioPlayer {
     private const val TAG = "MysteryAudioPlayer"
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var musicVolume = 0.5f
+
+    // Background music player
+    private var mediaPlayer: MediaPlayer? = null
+    private var isMusicPrepared = false
+    private var context: Context? = null
+
+    // يجب استدعاء هذه الدالة من Application أو Activity لتعيين Context
+    fun init(context: Context) {
+        this.context = context.applicationContext
+    }
 
     // 1. playClick / playSelection: short wooden click feedback
     fun playClick() {
@@ -166,8 +178,8 @@ object MysteryAudioPlayer {
                 val buffer = ShortArray(numSamples)
                 for (i in 0 until numSamples) {
                     val t = i.toDouble() / sampleRate
-                    val chord = sin(2.0 * Math.PI * 220.0 * t) + 
-                                0.7 * sin(2.0 * Math.PI * 311.13 * t) + 
+                    val chord = sin(2.0 * Math.PI * 220.0 * t) +
+                                0.7 * sin(2.0 * Math.PI * 311.13 * t) +
                                 0.5 * sin(2.0 * Math.PI * 55.0 * t)
                     val envelope = chord * Math.exp(-3.5 * t)
                     buffer[i] = (envelope * 24000.0 * musicVolume).toInt().toShort()
@@ -205,17 +217,64 @@ object MysteryAudioPlayer {
         try { audioTrack.release() } catch (ex: Throwable) {}
     }
 
-    // Volume configuration
+    // --- Background Music Methods (NEW) ---
+    @Synchronized
+    fun startMusic() {
+        val ctx = context ?: run {
+            Log.e(TAG, "Context not initialized. Call init() first.")
+            return
+        }
+        // إذا كانت الموسيقى مفعلة والمشغل جاهز، ابدأ التشغيل
+        if (musicVolume > 0f && mediaPlayer == null) {
+            try {
+                // استخدام resource ID للموسيقى، يجب وضع ملف mp3 في res/raw/background_music.mp3
+                val musicResId = ctx.resources.getIdentifier("background_music", "raw", ctx.packageName)
+                if (musicResId == 0) {
+                    Log.w(TAG, "Background music file not found in res/raw/")
+                    return
+                }
+                mediaPlayer = MediaPlayer.create(ctx, musicResId)?.apply {
+                    isLooping = true
+                    setVolume(musicVolume, musicVolume)
+                    prepare()
+                    start()
+                    isMusicPrepared = true
+                    Log.d(TAG, "Background music started")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start background music", e)
+                mediaPlayer = null
+            }
+        } else if (mediaPlayer?.isPlaying == true && musicVolume <= 0f) {
+            stopMusic()
+        } else if (mediaPlayer?.isPlaying == false && musicVolume > 0f && isMusicPrepared) {
+            mediaPlayer?.start()
+        }
+    }
+
+    @Synchronized
+    fun stopMusic() {
+        try {
+            mediaPlayer?.stop()
+            mediaPlayer?.release()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping music", e)
+        }
+        mediaPlayer = null
+        isMusicPrepared = false
+        Log.d(TAG, "Background music stopped")
+    }
+
+    // Volume configuration (تؤثر على الموسيقى والمؤثرات)
     fun setVolume(volume: Float) {
         musicVolume = volume.coerceIn(0.0f, 1.0f)
-    }
-
-    // Disable loop background music as requested to save resources & eliminate background noise
-    fun startMusic() {
-        // Continuous looping music is disabled. Kept empty to avoid menu/game noise.
-    }
-
-    fun stopMusic() {
-        // Kept empty as continuous background music is disabled.
+        // ضبط مستوى صوت الموسيقى إذا كان mediaPlayer موجوداً
+        mediaPlayer?.setVolume(musicVolume, musicVolume)
+        // إذا كان مستوى الصوت صفراً والموسيقى مشتغلة، أوقفها
+        if (musicVolume <= 0f && mediaPlayer?.isPlaying == true) {
+            stopMusic()
+        } else if (musicVolume > 0f && mediaPlayer?.isPlaying == false && isMusicPrepared) {
+            startMusic()
+        }
     }
 }

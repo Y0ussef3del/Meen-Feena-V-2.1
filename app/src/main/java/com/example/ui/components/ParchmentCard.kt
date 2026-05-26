@@ -28,41 +28,31 @@ fun createTornPaperShape(seed: Long = 42L): GenericShape {
         val rand = Random(seed)
         val numPoints = 60
         
-        // Start top-left
         moveTo(0f, 0f)
-        
-        // Top edge: wiggle
         for (i in 0..numPoints) {
             val fraction = i.toFloat() / numPoints
             val x = size.width * fraction
             val y = if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f)
             lineTo(x, y)
         }
-        
-        // Right edge: wiggle
         for (i in 0..numPoints) {
             val fraction = i.toFloat() / numPoints
             val y = size.height * fraction
             val x = size.width + (if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f))
             lineTo(x, y)
         }
-        
-        // Bottom edge: wiggle
         for (i in numPoints downTo 0) {
             val fraction = i.toFloat() / numPoints
             val x = size.width * fraction
             val y = size.height + (if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f))
             lineTo(x, y)
         }
-        
-        // Left edge: wiggle
         for (i in numPoints downTo 0) {
             val fraction = i.toFloat() / numPoints
             val y = size.height * fraction
             val x = if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f)
             lineTo(x, y)
         }
-        
         close()
     }
 }
@@ -72,15 +62,16 @@ fun ParchmentCard(
     modifier: Modifier = Modifier,
     seed: Long = 100L,
     elevation: Dp = 6.dp,
-    contentPadding: PaddingValues = PaddingValues(16.dp),
+    contentPadding: PaddingValues = PaddingValues(scaledDp(16)),
     content: @Composable ColumnScope.() -> Unit
 ) {
     val tornShape = remember(seed) { createTornPaperShape(seed) }
+    val responsiveElevation = rememberScaledDp(elevation)
     
     Box(
         modifier = modifier
             .shadow(
-                elevation = elevation,
+                elevation = responsiveElevation,
                 shape = tornShape,
                 clip = false,
                 ambientColor = Color.Black,
@@ -94,28 +85,19 @@ fun ParchmentCard(
                 )
             )
             .drawBehind {
-                // Procedural vintage papyrus frame ink lines
                 val path = android.graphics.Path()
                 val rand = Random(seed + 1)
-                
-                // Draw a rustic inner frame line with fine hand-drawn jitters
-                val inset = 12f
+                val inset = scaledDp(12).value
                 path.moveTo(inset, inset)
-                
-                // Top inner side
                 path.lineTo(size.width - inset, inset + (rand.nextFloat() * 4f - 2f))
-                // Right inner side
                 path.lineTo(size.width - inset + (rand.nextFloat() * 4f - 2f), size.height - inset)
-                // Bottom inner side
                 path.lineTo(inset, size.height - inset + (rand.nextFloat() * 4f - 2f))
-                // Left inner side
                 path.lineTo(inset + (rand.nextFloat() * 4f - 2f), inset)
-                
                 drawPath(
                     path = path.asComposePath(),
                     color = Color(0x3B2C1E14),
                     style = androidx.compose.ui.graphics.drawscope.Stroke(
-                        width = 2.dp.toPx(),
+                        width = scaledDp(2).value,
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 5f), 0f)
                     )
                 )
@@ -124,7 +106,7 @@ fun ParchmentCard(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(scaledDp(8)),
             content = content
         )
     }
@@ -140,16 +122,16 @@ fun ParchmentHeaderBanner(
     Box(
         modifier = modifier
             .wrapContentSize()
-            .shadow(3.dp, tornShape)
+            .shadow(scaledDp(3), tornShape)
             .background(PapyrusBgLight)
-            .border(1.dp, Color(0xFF422112), tornShape)
-            .padding(horizontal = 24.dp, vertical = 6.dp),
+            .border(scaledDp(1), Color(0xFF422112), tornShape)
+            .padding(horizontal = scaledDp(24), vertical = scaledDp(6)),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
             color = Color(0xFF4E160E),
-            fontSize = 22.sp,
+            fontSize = scaledSp(22),
             fontWeight = FontWeight.ExtraBold,
             fontFamily = HandjetFontFamily,
             textAlign = TextAlign.Center
