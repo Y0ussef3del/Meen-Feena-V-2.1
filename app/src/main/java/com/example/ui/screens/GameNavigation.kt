@@ -22,12 +22,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -44,6 +42,8 @@ import com.example.ui.components.*
 import com.example.ui.theme.*
 import kotlin.math.cos
 import kotlin.math.sin
+
+// استيراد الدوال المتجاوبة
 import com.example.ui.components.scaledDp
 import com.example.ui.components.scaledSp
 
@@ -53,38 +53,43 @@ fun GameNavigation(viewModel: GameViewModel) {
     val state by viewModel.roomState.collectAsState()
     val context = LocalContext.current
 
-    var showSplash by remember { mutableStateOf(true) }
+    var showCompanySplash by remember { mutableStateOf(true) }
+    var showOldSplash by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(2200)
-        showSplash = false
+        kotlinx.coroutines.delay(1500)
+        showCompanySplash = false
+        showOldSplash = true
     }
 
-    MysteryBackground(drawBloodDrips = showSplash || state.phase == GamePhase.LOBBY) {
-        AnimatedContent(
-            targetState = if (showSplash) GamePhase.LOBBY else state.phase,
-            transitionSpec = {
-                val duration = 800
-                (fadeIn(animationSpec = androidx.compose.animation.core.tween(duration)) +
-                 slideInVertically(initialOffsetY = { 80 }, animationSpec = androidx.compose.animation.core.tween(duration)) +
-                 scaleIn(initialScale = 0.95f, animationSpec = androidx.compose.animation.core.tween(duration))) with
-                (fadeOut(animationSpec = androidx.compose.animation.core.tween(500)) +
-                 scaleOut(targetScale = 1.05f, animationSpec = androidx.compose.animation.core.tween(500)))
-            },
-            label = "PhaseTransition"
-        ) { phase ->
-            if (showSplash) {
-                SplashScreen()
-            } else {
-                when (phase) {
-                    GamePhase.LOBBY -> MainMenuOrLobbyScreen(viewModel, state)
-                    GamePhase.ROLE_REVEAL -> RoleRevealScreen(viewModel, state)
-                    GamePhase.CASE_INTRO -> CaseIntroScreen(viewModel, state)
-                    GamePhase.EVIDENCE_ROUND -> EvidenceScreen(viewModel, state)
-                    GamePhase.DISCUSSION -> DiscussionScreen(viewModel, state)
-                    GamePhase.VOTING -> VotingScreen(viewModel, state)
-                    GamePhase.VOTE_RESULT -> VoteResultScreen(viewModel, state)
-                    GamePhase.JURY_ROUND -> JuryScreen(viewModel, state)
-                    GamePhase.ENDGAME -> EndgameScreen(viewModel, state)
+    MysteryBackground(drawBloodDrips = showCompanySplash || showOldSplash || state.phase == GamePhase.LOBBY) {
+        when {
+            showCompanySplash -> CompanySplashScreen()
+            showOldSplash -> OldSplashScreen(onFinished = { showOldSplash = false })
+            else -> {
+                AnimatedContent(
+                    targetState = state.phase,
+                    transitionSpec = {
+                        val duration = 800
+                        (fadeIn(animationSpec = androidx.compose.animation.core.tween(duration)) +
+                                slideInVertically(initialOffsetY = { 80 }, animationSpec = androidx.compose.animation.core.tween(duration)) +
+                                scaleIn(initialScale = 0.95f, animationSpec = androidx.compose.animation.core.tween(duration))) with
+                                (fadeOut(animationSpec = androidx.compose.animation.core.tween(500)) +
+                                        scaleOut(targetScale = 1.05f, animationSpec = androidx.compose.animation.core.tween(500)))
+                    },
+                    label = "PhaseTransition"
+                ) { phase ->
+                    when (phase) {
+                        GamePhase.LOBBY -> MainMenuOrLobbyScreen(viewModel, state)
+                        GamePhase.ROLE_REVEAL -> RoleRevealScreen(viewModel, state)
+                        GamePhase.CASE_INTRO -> CaseIntroScreen(viewModel, state)
+                        GamePhase.EVIDENCE_ROUND -> EvidenceScreen(viewModel, state)
+                        GamePhase.DISCUSSION -> DiscussionScreen(viewModel, state)
+                        GamePhase.VOTING -> VotingScreen(viewModel, state)
+                        GamePhase.VOTE_RESULT -> VoteResultScreen(viewModel, state)
+                        GamePhase.JURY_ROUND -> JuryScreen(viewModel, state)
+                        GamePhase.ENDGAME -> EndgameScreen(viewModel, state)
+                    }
                 }
             }
         }
@@ -92,29 +97,63 @@ fun GameNavigation(viewModel: GameViewModel) {
 }
 
 @Composable
-fun ThrillerTitleComponent(fontSize: androidx.compose.ui.unit.TextUnit? = null) {
-    val effectiveFontSize = fontSize ?: scaledSp(80)
+fun CompanySplashScreen() {
     Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(scaledDp(24)),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier.padding(scaledDp(16))
+        verticalArrangement = Arrangement.Center
     ) {
+        Card(
+            modifier = Modifier
+                .size(scaledDp(180))
+                .shadow(scaledDp(8), shape = CircleShape),
+            shape = CircleShape,
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF2C0A05)),
+            border = BorderStroke(scaledDp(2), GoldShine)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.Security,
+                    contentDescription = "Company Logo",
+                    tint = GoldYell,
+                    modifier = Modifier.size(scaledDp(80))
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(scaledDp(24)))
+        Text(
+            text = "Mystery Games",
+            color = GoldYell,
+            fontSize = scaledSp(32),
+            fontWeight = FontWeight.Bold,
+            fontFamily = HandjetFontFamily,
+            textAlign = TextAlign.Center
+        )
         Spacer(modifier = Modifier.height(scaledDp(12)))
         Text(
-            text = "مين فينا ؟",
-            color = GoldYell,
-            fontSize = effectiveFontSize,
-            fontWeight = FontWeight.Black,
-            fontFamily = HandjetFontFamily,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.testTag("app_logo_arabic")
+            text = "Investigative Thrillers",
+            color = PapyrusBgLight.copy(alpha = 0.7f),
+            fontSize = scaledSp(16),
+            fontStyle = FontStyle.Italic,
+            textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(scaledDp(4)))
+        Spacer(modifier = Modifier.height(scaledDp(40)))
+        CircularProgressIndicator(
+            color = RedAccent,
+            strokeWidth = scaledDp(3).value,
+            modifier = Modifier.size(scaledDp(36))
+        )
     }
 }
 
 @Composable
-fun SplashScreen() {
+fun OldSplashScreen(onFinished: () -> Unit) {
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(2200)
+        onFinished()
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -138,6 +177,28 @@ fun SplashScreen() {
             textAlign = TextAlign.Center,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+@Composable
+fun ThrillerTitleComponent(fontSize: androidx.compose.ui.unit.TextUnit? = null) {
+    val effectiveFontSize = fontSize ?: scaledSp(80)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.padding(scaledDp(16))
+    ) {
+        Spacer(modifier = Modifier.height(scaledDp(12)))
+        Text(
+            text = "مين فينا ؟",
+            color = GoldYell,
+            fontSize = effectiveFontSize,
+            fontWeight = FontWeight.Black,
+            fontFamily = HandjetFontFamily,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.testTag("app_logo_arabic")
+        )
+        Spacer(modifier = Modifier.height(scaledDp(4)))
     }
 }
 
@@ -225,7 +286,7 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
             }
             Spacer(modifier = Modifier.height(scaledDp(16)))
             Text(
-                text = "اللاعبين المنضمون (${state.players.size} ) : ",
+                text = "اللاعبين المنضمون (${state.players.size}) : ",
                 color = Color(0xFF4A1008),
                 fontSize = scaledSp(16),
                 fontWeight = FontWeight.Bold
@@ -627,7 +688,7 @@ fun LanJoinLobbyScreen(
             ) {
                 OutlinedTextField(
                     value = inputCode,
-                    onValueChange = { 
+                    onValueChange = {
                         if (it.length <= 5) {
                             inputCode = it.filter { char -> char.isDigit() }
                         }

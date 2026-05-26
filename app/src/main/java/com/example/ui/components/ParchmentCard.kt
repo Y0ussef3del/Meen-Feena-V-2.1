@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke  // ✅ إضافة الاستيراد المفقود
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -22,8 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.example.ui.theme.*
 import kotlin.random.Random
 
-// ========== Responsive helpers are now imported from ResponsiveHelpers.kt ==========
-// We use scaledDp and scaledSp from that file (no duplicate definitions here)
+// Note: scaledDp and scaledSp are imported from ResponsiveHelpers.kt (no redefinition)
 
 fun createTornPaperShape(seed: Long = 42L): GenericShape {
     return GenericShape { size, _ ->
