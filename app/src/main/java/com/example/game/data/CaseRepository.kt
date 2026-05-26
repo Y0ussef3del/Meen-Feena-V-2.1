@@ -13,6 +13,8 @@ object CaseRepository {
             val jsonArray = JSONArray(jsonString)
             for (i in 0 until jsonArray.length()) {
                 val jsonObject = jsonArray.getJSONObject(i)
+                
+                // هنا نستخدم الدالة الجاهزة من ملف GameModels الخاص بك مباشرة
                 val caseItem = Case.fromJsonObject(jsonObject)
                 casesList.add(caseItem)
             }
@@ -23,19 +25,17 @@ object CaseRepository {
         }
     }
 
-    fun getUniqueCase(completedCaseTitles: Set<String>, playerCount: Int): Case? = synchronized(this) {
+    fun getUniqueCase(completedCaseTitles: Set<String>, playerCount: Int): Case? {
         val available = cachedCases.filter { it.title !in completedCaseTitles }
         val pool = if (available.isNotEmpty()) available else cachedCases
         
-        if (pool.isEmpty()) return null
-
-        // تصفية مرنة: اختيار القضايا التي تملك عدداً كافياً من الشخصيات لاستيعاب اللاعبين
-        val matchingCases = pool.filter { it.characters.size >= playerCount }
+        // تصفية القضايا التي عدد شخصياتها يساوي عدد اللاعبين بالضبط
+        val matchingCases = pool.filter { it.characters.size == playerCount }
         
         return if (matchingCases.isNotEmpty()) {
             matchingCases.random(Random(System.currentTimeMillis()))
         } else {
-            pool.random(Random(System.currentTimeMillis()))
+            null
         }
     }
 

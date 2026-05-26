@@ -1631,8 +1631,9 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
     }
 }
 
+
 // ==========================================
-// 7. VOTING SCREEN
+// 7. VOTING SCREEN (مع دعم Tiebreaker)
 // ==========================================
 @Composable
 fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
@@ -1674,9 +1675,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                         onClick = { isDevicePassed = true },
                         colors = ButtonDefaults.buttonColors(containerColor = RedAccent),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
                     ) {
                         Text("يلا نصوّت", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     }
@@ -1685,9 +1684,13 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
             return
         }
 
-        // Show the actual voting options card
         var selectedTargetId by remember { mutableStateOf("") }
-        val eligibleCandidates = state.players.filter { it.isAlive && it.id != voterPlayer.id }
+        // ✅ Tiebreaker: إذا كانت هناك قائمة متعادلين، نقتصر عليهم فقط
+        val eligibleCandidates = if (state.tiedVotePlayers.isNotEmpty()) {
+            state.players.filter { it.id in state.tiedVotePlayers && it.id != voterPlayer.id }
+        } else {
+            state.players.filter { it.isAlive && it.id != voterPlayer.id }
+        }
 
         Column(
             modifier = Modifier
@@ -1698,13 +1701,8 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             ParchmentHeaderBanner(text = "صندوق التصويت والاتهامات")
-
             Spacer(modifier = Modifier.height(10.dp))
-
-            ParchmentCard(
-                modifier = Modifier.weight(1f),
-                seed = 33L
-            ) {
+            ParchmentCard(modifier = Modifier.weight(1f), seed = 33L) {
                 Text(
                     text = "دور اللاعب: ${voterPlayer.name}",
                     color = Color(0xFF6E1B10),
@@ -1712,20 +1710,15 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
-                
                 Text(
                     text = "اختار الشخص اللي شاكك فيه تفتكر هو المجرم:",
                     color = PapyrusTextSecondary,
                     fontSize = 15.sp,
                     textAlign = TextAlign.Center
                 )
-
                 Spacer(modifier = Modifier.height(12.dp))
-
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(eligibleCandidates) { candidate ->
@@ -1759,9 +1752,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
-
                             Spacer(modifier = Modifier.width(14.dp))
-
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(candidate.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                                 candidate.character?.let {
@@ -1772,9 +1763,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                     }
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-
             Button(
                 onClick = {
                     if (selectedTargetId.isBlank()) {
@@ -1786,10 +1775,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .testTag("submit_vote_action_button")
+                modifier = Modifier.fillMaxWidth().height(56.dp).testTag("submit_vote_action_button")
             ) {
                 Text("أكد صوتك يلا", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
             }
@@ -1799,13 +1785,9 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
         val localVoter = state.players.find { it.id == viewModel.myPlayerId.value } ?: return
         
         if (!localVoter.isAlive) {
-            // Dead players cannot vote
             MysteryBackground {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp)
-                        .safeDrawingPadding(),
+                    modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -1821,17 +1803,12 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                 }
             }
         } else if (state.votes.containsKey(localVoter.id)) {
-            // Player already voted, show awaiting progress and list of players who did and who did not vote
             val activePlayers = state.players.filter { it.isAlive }
             val votedPlayers = activePlayers.filter { it.id in state.votes.keys }
             val waitingPlayers = activePlayers.filter { it.id !in state.votes.keys }
-
             MysteryBackground {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp)
-                        .safeDrawingPadding(),
+                    modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -1845,35 +1822,22 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(20.dp))
-                    ParchmentCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 350.dp)
-                    ) {
+                    ParchmentCard(modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp)) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text("الشفافية والتصويت المفتوح المباشر:", color = Color(0xFF6E1B10), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(8.dp))
-                            
                             val votesCast = state.votes.mapNotNull { (vId, tId) ->
                                 val voterName = state.players.find { it.id == vId }?.name ?: return@mapNotNull null
                                 val targetName = state.players.find { it.id == tId }?.name ?: return@mapNotNull null
                                 "👈 اللاعب $voterName صوّت ضد $targetName"
                             }
-                            
                             if (votesCast.isEmpty()) {
                                 Text("في انتظار الصوت العلني الأول لبدء كشف التواطؤ... 🗳️", color = PapyrusTextSecondary, fontSize = 14.sp)
                             } else {
                                 votesCast.forEach { voteLine ->
-                                    Text(
-                                        text = voteLine,
-                                        color = PapyrusText,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(vertical = 4.dp)
-                                    )
+                                    Text(text = voteLine, color = PapyrusText, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
                                 }
                             }
-                            
                             Spacer(modifier = Modifier.height(16.dp))
                             Text("مين اللي لسه مصوّتش:", color = Color(0xFF6E1B10), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             val waitingNames = waitingPlayers.joinToString { it.name }.ifEmpty { "الجميع أدلى بصوته علناً!" }
@@ -1883,26 +1847,22 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                 }
             }
         } else {
-            // Show the options for the local player on their own device
             var selectedTargetId by remember { mutableStateOf("") }
-            val eligibleCandidates = state.players.filter { it.isAlive && it.id != localVoter.id }
+            // ✅ Tiebreaker: إذا كانت هناك قائمة متعادلين، نقتصر عليهم فقط
+            val eligibleCandidates = if (state.tiedVotePlayers.isNotEmpty()) {
+                state.players.filter { it.id in state.tiedVotePlayers && it.id != localVoter.id }
+            } else {
+                state.players.filter { it.isAlive && it.id != localVoter.id }
+            }
 
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(20.dp)
-                    .safeDrawingPadding(),
+                modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 ParchmentHeaderBanner(text = "صندوق التصويت والاتهامات")
-
                 Spacer(modifier = Modifier.height(10.dp))
-
-                ParchmentCard(
-                    modifier = Modifier.weight(1f),
-                    seed = 33L
-                ) {
+                ParchmentCard(modifier = Modifier.weight(1f), seed = 33L) {
                     Text(
                         text = "دورك في التصويت: ${localVoter.name}",
                         color = Color(0xFF6E1B10),
@@ -1910,20 +1870,15 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
-
                     Text(
                         text = "اختار الشخص اللي شاكك فيه تفتكر هو المجرم:",
                         color = PapyrusTextSecondary,
                         fontSize = 15.sp,
                         textAlign = TextAlign.Center
                     )
-
                     Spacer(modifier = Modifier.height(12.dp))
-
                     LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
+                        modifier = Modifier.fillMaxWidth().weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(eligibleCandidates) { candidate ->
@@ -1957,9 +1912,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
-
                                 Spacer(modifier = Modifier.width(14.dp))
-
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(candidate.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                                     candidate.character?.let {
@@ -1970,9 +1923,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                         }
                     }
                 }
-
                 Spacer(modifier = Modifier.height(16.dp))
-
                 Button(
                     onClick = {
                         if (selectedTargetId.isBlank()) {
@@ -1983,10 +1934,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .testTag("submit_vote_action_button")
+                    modifier = Modifier.fillMaxWidth().height(56.dp).testTag("submit_vote_action_button")
                 ) {
                     Text("أكد صوتك يلا", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
                 }
@@ -1994,6 +1942,8 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
         }
     }
 }
+
+
 
 // ==========================================
 // 8. JURY ENDGAME MECHANIC SCREEN
