@@ -35,11 +35,9 @@ object CaseRepository {
         return if (matchingCases.isNotEmpty()) {
             matchingCases.random(Random(System.currentTimeMillis()))
         } else {
-            // كخيار احتياطي لمنع توقف زر ابدأ: نختار أي قضية متاحة إذا لم يتطابق العدد بدقة
             pool.random(Random(System.currentTimeMillis()))
         }
     }
 
     fun getAllCases(): List<Case> = cachedCases
 }
-

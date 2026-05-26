@@ -140,7 +140,9 @@ data class Case(
     val victimProfile: String,
     val description: String,
     val characters: List<Character>,
-    val evidenceList: List<String>
+    val evidenceList: List<String>,
+    val hint: String = "",
+    val explanation: String = ""
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
@@ -150,6 +152,8 @@ data class Case(
             put("victim", victim)
             put("victimProfile", victimProfile)
             put("description", description)
+            put("hint", hint)
+            put("explanation", explanation)
             
             val charArray = JSONArray()
             characters.forEach { charArray.put(it.toJsonObject()) }
@@ -187,23 +191,28 @@ data class Case(
                 victimProfile = json.optString("victimProfile", ""),
                 description = json.optString("description", ""),
                 characters = charList,
-                evidenceList = evList
+                evidenceList = evList,
+                hint = json.optString("hint", ""),
+                explanation = json.optString("explanation", "")
             )
         }
     }
 }
 
-// مراحل اللعبة
+// جميع مراحل اللعبة متطابقة تماماً مع الـ ViewModel والـ UI Navigation
 enum class GamePhase {
     LOBBY,
     ROLE_REVEAL,
-    INVESTIGATION,
+    CASE_INTRO,
+    EVIDENCE_ROUND,
     DISCUSSION,
     VOTING,
-    RESULT
+    VOTE_RESULT,
+    JURY_ROUND,
+    ENDGAME
 }
 
-// حالة الغرفة المشتركة
+// حالة الغرفة المشتركة والربط عبر الشبكة المحلية
 data class RoomState(
     val roomId: String = "",
     val mode: String = "PASS_AND_PLAY",
@@ -224,6 +233,10 @@ data class RoomState(
     val tiedVotePlayers: List<String> = emptyList(),
     val lastEliminatedResult: String = ""
 ) {
+    fun toSharedJsonString(): String {
+        return toJsonObject().toString()
+    }
+
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
             put("roomId", roomId)
@@ -266,9 +279,17 @@ data class RoomState(
     }
 
     companion object {
+        fun fromSharedJsonString(jsonString: String): RoomState {
+            val root = JSONObject(jsonString)
+            return fromJsonObject(root)
+        }
+
         fun fromJsonObject(jsonString: String): RoomState {
             val root = JSONObject(jsonString)
-            
+            return fromJsonObject(root)
+        }
+
+        fun fromJsonObject(root: JSONObject): RoomState {
             val playersList = mutableListOf<Player>()
             val pArray = root.optJSONArray("players")
             if (pArray != null) {

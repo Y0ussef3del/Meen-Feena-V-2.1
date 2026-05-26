@@ -24,7 +24,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     val roomState: StateFlow<RoomState> = _roomState.asStateFlow()
 
     val myPlayerId = MutableStateFlow("")
-    val myPlayerName = MutableStateFlow("اللاعب)
+    val myPlayerName = MutableStateFlow("اللاعب")
 
     private val completedCaseTitles = mutableSetOf<String>()
     val newLobbyPlayerName = MutableStateFlow("")
