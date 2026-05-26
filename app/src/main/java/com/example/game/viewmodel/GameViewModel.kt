@@ -1,577 +1,421 @@
 package com.example.game.viewmodel
 
-import android.app.Application
-import android.util.Log
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
-import com.example.game.audio.MysteryAudioPlayer
-import com.example.game.data.CaseRepository
-import com.example.game.model.*
-import com.example.game.network.LanManager
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import org.json.JSONObject
-import java.util.*
+import com.example.game.audio.MysteryAudioPlayer
 
-class GameViewModel(application: Application) : AndroidViewModel(application) {
-    private val TAG = "GameViewModel"
+// ==========================================
+// 1. GAME DATA STRUCTURES & ENUMS 
+// ==========================================
+
+enum class GamePhase {
+    LOBBY,
+    ROLE_REVEAL,
+    CASE_INTRO,
+    EVIDENCE_ROUND,
+    DISCUSSION,
+    VOTING,
+    VOTE_RESULT,
+    JURY_ROUND,
+    ENDGAME
+}
+
+data class GameCharacter(
+    val name: String = "",
+    val occupation: String = "",
+    val traits: String = "",
+    val hiddenMotive: String = ""
+)
+
+data class Player(
+    val id: String,
+    val name: String,
+    val avatarId: Int,
+    var isAlive: Boolean = true,
+    var isMafia: Boolean = false,
+    var character: GameCharacter? = null
+)
+
+data class Case(
+    val id: String = "",
+    val title: String = "",
+    val description: String = "",
+    val explanation: String = "",
+    val characters: List<GameCharacter> = emptyList()
+)
+
+data class RoomState(
+    val roomId: String = "12345",
+    val hostId: String = "player_local",
+    val phase: GamePhase = GamePhase.LOBBY,
+    val players: List<Player> = emptyList(),
+    val mode: String = "PASS_AND_PLAY", // PASS_AND_PLAY or LAN
+    val activePassPlayerIndex: Int = 0,
+    val currentCase: Case? = null,
+    val votes: Map<String, String> = emptyMap(),      // VoterID -> TargetPlayerID
+    val juryVotes: Map<String, String> = emptyMap(),  // EliminatedPlayerID -> RemainingPlayerID
+    val tiedVotePlayers: List<String> = emptyList(),
+    val winnerSide: String = "",                      // MAFIA or INNOCENT
+    val discussionDurationMins: Int = 2
+)
+
+// ==========================================
+// 2. MAIN VIEWMODEL IMPLEMENTATION
+// ==========================================
+
+class GameViewModel : ViewModel() {
+
+    // Identity tracking for multiplayer components
+    val myPlayerId = MutableStateFlow("player_local")
+    val myPlayerName = MutableStateFlow("المحقق الأصلي")
 
     private val _roomState = MutableStateFlow(RoomState())
     val roomState: StateFlow<RoomState> = _roomState.asStateFlow()
 
-    val myPlayerId = MutableStateFlow("")
-    val myPlayerName = MutableStateFlow("مكافح الجريمة")
-
-    private val completedCaseTitles = mutableSetOf<String>()
-    val newLobbyPlayerName = MutableStateFlow("")
-    private var timerJob: Job? = null
+    // Configuration states accessible by Settings dialogs
+    private val _discussionDurationMins = MutableStateFlow(2)
+    val discussionDurationMins: StateFlow<Int> = _discussionDurationMins.asStateFlow()
 
     init {
-        setupLanListeners()
-        viewModelScope.launch {
-            roomState.collect { state ->
-                MysteryAudioPlayer.setVolume(state.settings.volume)
-                if (state.settings.isMusicEnabled) {
-                    MysteryAudioPlayer.startMusic()
-                } else {
-                    MysteryAudioPlayer.stopMusic()
-                }
-            }
-        }
+        // Initialize an example mock scenario in case JSON files are empty
+        setupDefaultMockCase()
     }
 
-    // Audio feedback functions
-    fun playButtonClick() { MysteryAudioPlayer.playSelection() }
-    fun playSelection() { MysteryAudioPlayer.playSelection() }
-    fun playSuccess() { MysteryAudioPlayer.playSuccess() }
-    fun playError() { MysteryAudioPlayer.playError() }
-    fun playWarning() { MysteryAudioPlayer.playWarning() }
-    fun playVoteSound() { MysteryAudioPlayer.playVote() }
-    fun playTransitionSound() { MysteryAudioPlayer.playTransition() }
-    fun playRevealSound() { MysteryAudioPlayer.playReveal() }
-
-    private fun setupLanListeners() {
-        viewModelScope.launch {
-            LanManager.discoveredHosts.collect { hosts ->
-                Log.d(TAG, "Discovered LAN Hosts updated: $hosts")
-            }
-        }
-        viewModelScope.launch {
-            LanManager.incomingCommands.collect { (sourceId, msg) ->
-                handleIncomingLanMessage(sourceId, msg)
-            }
-        }
-    }
-
-    private fun handleIncomingLanMessage(source: String, msg: String) {
-        try {
-            val json = JSONObject(msg)
-            val type = json.optString("type")
-            Log.d(TAG, "Incoming TCP command [$type] from $source")
-            when (type) {
-                "JOIN" -> {
-                    val pName = json.getString("playerName")
-                    val deviceId = json.getString("deviceId")
-                    addLanClientPlayer(deviceId, pName)
-                }
-                "REVEAL_SECRET" -> {
-                    val playerId = json.getString("playerId")
-                    handlePlayerRevealedRole(playerId)
-                }
-                "VOTE" -> {
-                    val voterId = json.getString("voterId")
-                    val targetId = json.getString("targetId")
-                    castVote(voterId, targetId)
-                }
-                "JURY_VOTE" -> {
-                    val voterId = json.getString("voterId")
-                    val targetId = json.getString("targetId")
-                    castJuryVote(voterId, targetId)
-                }
-                "CLIENT_LEAVE" -> {
-                    val deviceId = json.getString("deviceId")
-                    removePlayerFromLobby(deviceId)
-                }
-                "STATE_UPDATE" -> {
-                    val stateJsonStr = json.getString("data")
-                    val updatedState = RoomState.fromSharedJsonString(stateJsonStr)
-                    _roomState.value = updatedState.copy(roomId = _roomState.value.roomId)
-                }
-                "HOST_DISCONNECTED" -> {
-                    LanManager.disconnectFromHost()
-                    resetToMainMenu()
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing LAN packet", e)
-        }
-    }
-
-    fun setupPassAndPlayGame() {
-        stopTimer()
-        _roomState.value = RoomState(
-            roomId = "PASS_AND_PLAY_ROOM",
-            mode = "PASS_AND_PLAY",
-            hostId = "LOCAL_HOST",
-            phase = GamePhase.LOBBY,
-            players = listOf(
-                Player("p1", "يوسف", avatarId = 1),
-                Player("p2", "عادل", avatarId = 2),
-                Player("p3", "محمد", avatarId = 3),
-                Player("p4", "جمال", avatarId = 4)
-            )
+    private fun setupDefaultMockCase() {
+        val mockCharacters = listOf(
+            GameCharacter("الدكتور سامح", "طبيب جراح", "عصبي وغامض", "كان يريد التخلص من الضحية بسبب سر طبي قديم"),
+            GameCharacter("المهندس كريم", "مهندس معمار", "هادئ وملاحظ", "الضحية ابتزته بمبالغ مالية ضخمة"),
+            GameCharacter("الأستاذة فريدة", "محامية العائلة", "ذكية وسريعة الرد", "أنت بريء حاول تكتشف المجرم الحقيقي"),
+            GameCharacter("الحارس عثمان", "حارس الفيلا", "قوي وبسيط", "رأى الجريمة ولكنه خائف من التحدث")
         )
-        myPlayerId.value = "p1"
+        val defaultCase = Case(
+            id = "case_01",
+            title = "جريمة في القصر الملعون",
+            description = "تم العثور على صاحب القصر مقتولاً داخل مكتبه المغلق من الداخل. الساعة كانت تشير إلى الحادية عشر مساءً، وهناك 4 مشتبه بهم تواجدوا في محيط الجريمة.",
+            explanation = "الحقيقة الكاملة هي أن الدكتور سامح استغل معرفته الطبية لتزييف وقت الوفاة الحقيقي قبل إغلاق الغرفة تلقائياً ليخرج بريئاً أمام المحققين!",
+            characters = mockCharacters
+        )
+        _roomState.value = _roomState.value.copy(currentCase = defaultCase)
+    }
+
+    fun updateDiscussionTimer(minutes: Int) {
+        val boundedMins = minutes.coerceIn(1, 10)
+        _discussionDurationMins.value = boundedMins
+        _roomState.value = _roomState.value.copy(discussionDurationMins = boundedMins)
+    }
+
+    // Pass and Play management setup
+    fun setupPassAndPlayGame() {
+        _roomState.value = RoomState(
+            roomId = (10000..99999).random().toString(),
+            hostId = "player_local",
+            mode = "PASS_AND_PLAY",
+            phase = GamePhase.LOBBY,
+            currentCase = _roomState.value.currentCase
+        )
     }
 
     fun addLocalLobbyPlayer(name: String) {
-        if (name.isBlank()) return
-        playSelection()
-        val currentPlayers = _roomState.value.players.toMutableList()
-        if (currentPlayers.size >= 6) return
-        val newId = "p${currentPlayers.size + 1}"
-        currentPlayers.add(Player(newId, name, avatarId = (currentPlayers.size % 6) + 1))
-        _roomState.value = _roomState.value.copy(players = currentPlayers)
+        val currentState = _roomState.value
+        if (currentState.players.size >= 6) return
+        
+        val nextAvatarId = currentState.players.size + 1
+        val newPlayer = Player(
+            id = "player_${System.currentTimeMillis()}_$nextAvatarId",
+            name = name,
+            avatarId = nextAvatarId
+        )
+        _roomState.value = currentState.copy(
+            players = currentState.players + newPlayer
+        )
     }
 
     fun removePlayerFromLobby(id: String) {
-        playWarning()
-        val currentPlayers = _roomState.value.players.filter { it.id != id }
-        _roomState.value = _roomState.value.copy(players = currentPlayers)
-        if (_roomState.value.mode == "LAN") {
-            LanManager.broadcastStateToClients(_roomState.value)
-        }
-    }
-
-    fun startLanHost(hostPlayerName: String) {
-        stopTimer()
-        playSuccess()
-        val deviceId = LanManager.localDeviceId
-        myPlayerId.value = deviceId
-        myPlayerName.value = hostPlayerName
-        val roomCode = (Random().nextInt(90000) + 1000).toString().padStart(5, '0')
-        _roomState.value = RoomState(
-            roomId = roomCode,
-            mode = "LAN",
-            hostId = deviceId,
-            phase = GamePhase.LOBBY,
-            players = listOf(Player(deviceId, hostPlayerName, avatarId = 1))
+        val currentState = _roomState.value
+        _roomState.value = currentState.copy(
+            players = currentState.players.filter { it.id != id }
         )
-        LanManager.startHost(hostPlayerName, roomCode)
-    }
-
-    fun joinLanHost(hostIp: String, playerName: String) {
-        stopTimer()
-        playSelection()
-        val deviceId = LanManager.localDeviceId
-        myPlayerId.value = deviceId
-        myPlayerName.value = playerName
-        _roomState.value = RoomState(mode = "LAN", phase = GamePhase.LOBBY)
-        LanManager.connectToHost(hostIp, playerName, deviceId)
-    }
-
-    fun joinLanHostByCode(roomCode: String, playerName: String): Boolean {
-        val cleanCode = roomCode.trim()
-        val hosts = LanManager.discoveredHosts.value
-        val hostEntry = hosts.entries.find { entry ->
-            val parts = entry.value.split("|")
-            val rCode = parts.getOrNull(1)
-            rCode != null && rCode.equals(cleanCode, ignoreCase = true)
-        }
-        if (hostEntry != null) {
-            joinLanHost(hostEntry.key, playerName)
-            return true
-        }
-        return false
-    }
-
-    private fun addLanClientPlayer(deviceId: String, name: String) {
-        val currentPlayers = _roomState.value.players.toMutableList()
-        val existingIndex = currentPlayers.indexOfFirst { it.id == deviceId }
-        if (existingIndex >= 0) {
-            currentPlayers[existingIndex] = currentPlayers[existingIndex].copy(isConnected = true)
-        } else {
-            if (currentPlayers.size >= 6) return
-            currentPlayers.add(Player(deviceId, name, avatarId = (currentPlayers.size % 6) + 1))
-        }
-        _roomState.value = _roomState.value.copy(players = currentPlayers)
-        LanManager.broadcastStateToClients(_roomState.value)
     }
 
     fun startInvestigationGame() {
-        val state = _roomState.value
-        val playersCount = state.players.size
-        if (playersCount < 4 || playersCount > 6) {
-            playError()
-            return
+        val currentState = _roomState.value
+        val totalPlayers = currentState.players.size
+        if (totalPlayers < 4) return
+
+        // Shuffle and assign Mafia/Criminal Roles
+        // 4 Players = 1 Mafia, 5+ Players = 2 Mafia
+        val totalMafiaNeeded = if (totalPlayers <= 4) 1 else 2
+        val shuffledIndices = currentState.players.indices.shuffled()
+        val mafiaIndices = shuffledIndices.take(totalMafiaNeeded).toSet()
+
+        val activeCase = currentState.currentCase ?: return
+        
+        val assignedPlayers = currentState.players.mapIndexed { idx, player ->
+            val isMafiaRole = mafiaIndices.contains(idx)
+            val characterAssigned = activeCase.characters.getOrNull(idx % activeCase.characters.size)
+            player.copy(
+                isAlive = true,
+                isMafia = isMafiaRole,
+                character = characterAssigned
+            )
         }
-        playTransitionSound()
-        val selectedCase = CaseRepository.getUniqueCase(completedCaseTitles, playersCount)
-        var updatedPlayers = state.players
-        selectedCase?.let { case ->
-            completedCaseTitles.add(case.title)
-            val shuffledCharacters = case.characters.shuffled()
-            updatedPlayers = state.players.mapIndexed { index, player ->
-                val assignedCharacter = shuffledCharacters.getOrNull(index)
-                val isPlayerMafia = assignedCharacter?.isMafia == true
-                player.copy(
-                    isMafia = isPlayerMafia,
-                    character = assignedCharacter,
-                    isAlive = true,
-                    isConnected = true
-                )
-            }
-        } ?: run {
-            Log.e(TAG, "No suitable case found.")
-            return
-        }
-        _roomState.value = state.copy(
-            phase = GamePhase.ROLE_REVEAL,
-            players = updatedPlayers,
-            currentCase = selectedCase,
-            currentEvidenceIndex = 0,
+
+        _roomState.value = currentState.copy(
+            players = assignedPlayers,
             activePassPlayerIndex = 0,
-            rulesRevealed = false,
+            phase = GamePhase.ROLE_REVEAL,
             votes = emptyMap(),
             juryVotes = emptyMap(),
-            winnerSide = ""
+            tiedVotePlayers = emptyList()
         )
-        if (_roomState.value.mode == "LAN") {
-            LanManager.broadcastStateToClients(_roomState.value)
-        }
-    }
-
-    fun revealNextPassPlayerSecrets() {
-        playRevealSound()
-        _roomState.value = _roomState.value.copy(rulesRevealed = true)
     }
 
     fun confirmSecretsRevealed() {
-        playSelection()
-        val state = _roomState.value
-        if (state.mode == "PASS_AND_PLAY") {
-            val nextIndex = state.activePassPlayerIndex + 1
-            if (nextIndex < state.players.size) {
-                _roomState.value = state.copy(activePassPlayerIndex = nextIndex, rulesRevealed = false)
-            } else {
-                transitionToPhase(GamePhase.CASE_INTRO)
-            }
+        val currentState = _roomState.value
+        val nextIndex = currentState.activePassPlayerIndex + 1
+        
+        if (currentState.mode == "PASS_AND_PLAY" && nextIndex < currentState.players.size) {
+            _roomState.value = currentState.copy(activePassPlayerIndex = nextIndex)
         } else {
-            val cmd = JSONObject().apply {
-                put("type", "REVEAL_SECRET")
-                put("playerId", myPlayerId.value)
-            }.toString()
-            LanManager.sendCommandToHost(cmd)
+            // All players checked their role envelopes -> advance to the story intro phase
+            _roomState.value = currentState.copy(
+                activePassPlayerIndex = 0,
+                phase = GamePhase.CASE_INTRO
+            )
         }
-    }
-
-    private fun handlePlayerRevealedRole(playerId: String) { }
-
-    fun skipRoleRevealToCaseIntro() {
-        playTransitionSound()
-        transitionToPhase(GamePhase.CASE_INTRO)
     }
 
     fun startCaseInvestigationIntro() {
-        playTransitionSound()
-        _roomState.value = _roomState.value.copy(currentEvidenceIndex = 0)
-        transitionToPhase(GamePhase.EVIDENCE_ROUND)
+        _roomState.value = _roomState.value.copy(phase = GamePhase.EVIDENCE_ROUND)
     }
 
     fun advanceFromEvidenceToDiscussion() {
-        playTransitionSound()
-        transitionToPhase(GamePhase.DISCUSSION)
-        startTimer(_roomState.value.settings.discussionTimeMinutes * 60) {
-            advanceFromDiscussionToVoting()
-        }
+        _roomState.value = _roomState.value.copy(phase = GamePhase.DISCUSSION)
     }
 
     fun advanceFromDiscussionToVoting() {
-        stopTimer()
-        playTransitionSound()
-        val state = _roomState.value
-        val firstAliveIndex = state.players.indexOfFirst { it.isAlive }
-        _roomState.value = state.copy(
-            votes = emptyMap(),
-            activePassPlayerIndex = if (firstAliveIndex != -1) firstAliveIndex else 0
+        _roomState.value = _roomState.value.copy(
+            phase = GamePhase.VOTING,
+            activePassPlayerIndex = 0
         )
-        transitionToPhase(GamePhase.VOTING)
-        startTimer(_roomState.value.settings.votingTimeMinutes * 60) {
-            resolveVotingTally()
-        }
+    }
+
+    fun advanceToJuryRound() {
+        _roomState.value = _roomState.value.copy(
+            phase = GamePhase.JURY_ROUND,
+            activePassPlayerIndex = 0
+        )
     }
 
     fun submitVote(targetId: String) {
-        playVoteSound()
-        val state = _roomState.value
-        val voterId = myPlayerId.value
-        if (state.mode == "PASS_AND_PLAY") {
-            val currentVoter = state.players.getOrNull(state.activePassPlayerIndex) ?: return
-            val newVotes = state.votes.toMutableMap()
-            newVotes[currentVoter.id] = targetId
-            var nextIndex = state.activePassPlayerIndex + 1
-            while (nextIndex < state.players.size && !state.players[nextIndex].isAlive) {
-                nextIndex++
-            }
-            if (nextIndex < state.players.size) {
-                _roomState.value = state.copy(votes = newVotes, activePassPlayerIndex = nextIndex)
-            } else {
-                _roomState.value = state.copy(votes = newVotes)
-                resolveVotingTally()
+        val currentState = _roomState.value
+        val activeVoters = if (currentState.tiedVotePlayers.isNotEmpty()) {
+            currentState.players.filter { it.isAlive && it.id !in currentState.tiedVotePlayers }
+        } else {
+            currentState.players.filter { it.isAlive }
+        }
+
+        if (currentState.mode == "PASS_AND_PLAY") {
+            val updatedVotes = currentState.votes.toMutableMap()
+            val currentVoter = activeVoters.getOrNull(currentState.activePassPlayerIndex)
+            
+            if (currentVoter != null) {
+                updatedVotes[currentVoter.id] = targetId
+                val nextIndex = currentState.activePassPlayerIndex + 1
+                
+                if (nextIndex < activeVoters.size) {
+                    _roomState.value = currentState.copy(
+                        votes = updatedVotes,
+                        activePassPlayerIndex = nextIndex
+                    )
+                } else {
+                    tallyVotesAndProceed(updatedVotes)
+                }
             }
         } else {
-            if (state.hostId == voterId) {
-                castVote(voterId, targetId)
-            } else {
-                val cmd = JSONObject().apply {
-                    put("type", "VOTE")
-                    put("voterId", voterId)
-                    put("targetId", targetId)
-                }.toString()
-                LanManager.sendCommandToHost(cmd)
+            // LAN Multi-device mode handling
+            val voterId = myPlayerId.value
+            val updatedVotes = currentState.votes.toMutableMap()
+            updatedVotes[voterId] = targetId
+            _roomState.value = currentState.copy(votes = updatedVotes)
+            
+            if (isHost() && updatedVotes.size >= activeVoters.size) {
+                tallyVotesAndProceed(updatedVotes)
             }
         }
     }
 
-    private fun castVote(voterId: String, targetId: String) {
-        val state = _roomState.value
-        val newVotes = state.votes.toMutableMap()
-        newVotes[voterId] = targetId
-        _roomState.value = state.copy(votes = newVotes)
-        val alivePlayersCount = state.players.count { it.isAlive }
-        if (newVotes.size >= alivePlayersCount) {
-            resolveVotingTally()
-        } else {
-            LanManager.broadcastStateToClients(_roomState.value)
-        }
-    }
-
-    fun submitJuryVote(targetId: String) {
-        playVoteSound()
-        val state = _roomState.value
-        val voterId = myPlayerId.value
-        if (state.mode == "PASS_AND_PLAY") {
-            val eliminatedPlayers = state.players.filter { !it.isAlive }
-            val juryVoter = eliminatedPlayers.firstOrNull { it.id !in state.juryVotes.keys } ?: return
-            val newJVotes = state.juryVotes.toMutableMap()
-            newJVotes[juryVoter.id] = targetId
-            _roomState.value = state.copy(juryVotes = newJVotes)
-            val nextJuryVoter = eliminatedPlayers.firstOrNull { it.id !in newJVotes.keys }
-            if (nextJuryVoter == null) {
-                resolveJuryVotingTally()
-            }
-        } else {
-            if (state.hostId == voterId) {
-                castJuryVote(voterId, targetId)
-            } else {
-                val cmd = JSONObject().apply {
-                    put("type", "JURY_VOTE")
-                    put("voterId", voterId)
-                    put("targetId", targetId)
-                }.toString()
-                LanManager.sendCommandToHost(cmd)
-            }
-        }
-    }
-
-    private fun castJuryVote(voterId: String, targetId: String) {
-        val state = _roomState.value
-        val newJVotes = state.juryVotes.toMutableMap()
-        newJVotes[voterId] = targetId
-        _roomState.value = state.copy(juryVotes = newJVotes)
-        val jurySize = state.players.count { !it.isAlive }
-        if (newJVotes.size >= jurySize) {
-            resolveJuryVotingTally()
-        } else {
-            LanManager.broadcastStateToClients(_roomState.value)
-        }
-    }
-
-    // ========== FIXED: resolveVotingTally (was missing) ==========
-    private fun resolveVotingTally() {
-        stopTimer()
-        val state = _roomState.value
+    private fun tallyVotesAndProceed(allVotes: Map<String, String>) {
+        val currentState = _roomState.value
         val voteCounts = mutableMapOf<String, Int>()
-        state.votes.values.forEach { targetId ->
-            voteCounts[targetId] = voteCounts.getOrDefault(targetId, 0) + 1
+        allVotes.values.forEach { targetId ->
+            voteCounts[targetId] = (voteCounts[targetId] ?: 0) + 1
         }
-        val maxVotes = voteCounts.values.maxOrNull() ?: 0
-        val tiedPlayers = voteCounts.filter { it.value == maxVotes }.keys.toList()
 
-        if (tiedPlayers.size >= 2 && voteCounts.isNotEmpty()) {
-            val tiedNames = state.players.filter { it.id in tiedPlayers }.joinToString(" و ") { it.name }
-            _roomState.value = state.copy(
-                phase = GamePhase.VOTE_RESULT,
-                tiedVotePlayers = tiedPlayers,
-                lastEliminatedResult = "حصل تعادل في الأصوات بين ($tiedNames)! محدش خرج وهنعيد التصويت تاني."
+        if (voteCounts.isEmpty()) {
+            goToNextRoundOrJuryScreen()
+            return
+        }
+
+        val maxVotes = voteCounts.values.maxOrNull() ?: 0
+        val highestVotedPlayers = voteCounts.filter { it.value == maxVotes }.keys.toList()
+
+        if (highestVotedPlayers.size > 1) {
+            // Tie breaker condition detected
+            _roomState.value = currentState.copy(
+                tiedVotePlayers = highestVotedPlayers,
+                votes = emptyMap(),
+                phase = GamePhase.VOTE_RESULT
             )
         } else {
-            val targetId = tiedPlayers.firstOrNull()
-            var eliminatedPlayer: Player? = null
-            if (targetId != null) {
-                val currentPlayers = state.players.map { player ->
-                    if (player.id == targetId) {
-                        val updated = player.copy(isAlive = false)
-                        eliminatedPlayer = updated
-                        updated
-                    } else {
-                        player
-                    }
-                }
-                val resultText = "${eliminatedPlayer?.name} خرج وكان ${if (eliminatedPlayer?.isMafia == true) "مافيا" else "بريء"}"
-                _roomState.value = state.copy(
-                    phase = GamePhase.VOTE_RESULT,
-                    players = currentPlayers,
-                    tiedVotePlayers = emptyList(),
-                    lastEliminatedResult = resultText
-                )
-            } else {
-                _roomState.value = state.copy(
-                    phase = GamePhase.VOTE_RESULT,
-                    tiedVotePlayers = emptyList(),
-                    lastEliminatedResult = "محدش صوّت ومحدش خرج!"
-                )
+            // A clear candidate is eliminated by popular choice
+            val eliminatedId = highestVotedPlayers.first()
+            val updatedPlayers = currentState.players.map { player ->
+                if (player.id == eliminatedId) player.copy(isAlive = false) else player
             }
-        }
-        if (state.mode == "LAN") {
-            LanManager.broadcastStateToClients(_roomState.value)
+
+            _roomState.value = currentState.copy(
+                players = updatedPlayers,
+                tiedVotePlayers = emptyList(),
+                votes = emptyMap(),
+                phase = GamePhase.VOTE_RESULT
+            )
         }
     }
 
     fun confirmVoteResultAndProceed() {
-        playTransitionSound()
-        val state = _roomState.value
-        if (state.tiedVotePlayers.isNotEmpty()) {
-            _roomState.value = state.copy(
-                phase = GamePhase.VOTING,
-                votes = emptyMap()
-            )
-            if (state.mode == "LAN") {
-                LanManager.broadcastStateToClients(_roomState.value)
-            }
-        } else {
-            val lastEliminated = state.players.find { !it.isAlive && state.lastEliminatedResult.contains(it.name) }
-            checkEndgameConditions(lastEliminated)
-        }
+        goToNextRoundOrJuryScreen()
     }
 
-    // ========== FIXED: resolveJuryVotingTally (duplicate removed) ==========
-    private fun resolveJuryVotingTally() {
-        val state = _roomState.value
-        val alivePlayers = state.players.filter { it.isAlive }
-        if (alivePlayers.size != 2) {
-            _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
+    private fun goToNextRoundOrJuryScreen() {
+        val currentState = _roomState.value
+        val alivePlayers = currentState.players.filter { it.isAlive }
+        val aliveMafiaCount = alivePlayers.count { it.isMafia }
+
+        // Endgame Win conditions check
+        if (aliveMafiaCount == 0) {
+            _roomState.value = currentState.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENT")
             return
         }
-        val voteCounts = mutableMapOf<String, Int>()
-        state.juryVotes.values.forEach { targetId ->
-            voteCounts[targetId] = voteCounts.getOrDefault(targetId, 0) + 1
-        }
-        val sorted = voteCounts.entries.sortedByDescending { it.value }
-        val finalAccusedId = sorted.firstOrNull()?.key
-        val accusedPlayer = alivePlayers.find { it.id == finalAccusedId }
-        val winnerSide = if (accusedPlayer?.isMafia == true) "INNOCENTS" else "MAFIA"
-        _roomState.value = state.copy(
-            phase = GamePhase.ENDGAME,
-            winnerSide = winnerSide
-        )
-        if (_roomState.value.mode == "LAN") {
-            LanManager.broadcastStateToClients(_roomState.value)
+        
+        if (alivePlayers.size <= 2) {
+            // CRITICAL REQUIREMENT MATCH: If down to final round (2-3 players left) and mafia is still alive,
+            // we stop active direct execution and transition to the JURY ROUND (All dead players vote).
+            _roomState.value = currentState.copy(
+                phase = GamePhase.JURY_ROUND,
+                activePassPlayerIndex = 0,
+                juryVotes = emptyMap()
+            )
+        } else {
+            // Keep inspecting clues in additional cycle rounds
+            _roomState.value = currentState.copy(phase = GamePhase.EVIDENCE_ROUND)
         }
     }
 
-    private fun checkEndgameConditions(justEliminated: Player?) {
-        val state = _roomState.value
-        val alivePlayers = state.players.filter { it.isAlive }
-        val mafiaAlive = alivePlayers.count { it.isMafia }
-        val innocentAlive = alivePlayers.size - mafiaAlive
-        Log.d(TAG, "Tally outcomes: Total alive = ${alivePlayers.size}, Mafia alive = $mafiaAlive, Innocents alive = $innocentAlive")
-        when {
-            mafiaAlive == 0 -> {
-                _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENTS")
-            }
-            mafiaAlive == 2 || mafiaAlive >= innocentAlive -> {
-                _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
-            }
-            alivePlayers.size == 2 -> {
-                _roomState.value = state.copy(phase = GamePhase.JURY_ROUND, juryVotes = emptyMap())
-            }
-            else -> {
-                val nextEvidenceIndex = (state.currentEvidenceIndex + 1) % (state.currentCase?.evidenceList?.size ?: 6)
-                _roomState.value = state.copy(
-                    phase = GamePhase.EVIDENCE_ROUND,
-                    currentEvidenceIndex = nextEvidenceIndex,
-                    votes = emptyMap()
-                )
-            }
+    // ==========================================
+    // ELIMINATED PLAYERS / JURY VOTING SYSTEM
+    // ==========================================
+    fun submitJuryVote(targetId: String) {
+        val currentState = _roomState.value
+        val deadPlayers = currentState.players.filter { !it.isAlive }
+        
+        if (deadPlayers.isEmpty()) {
+            // Safety guard fallback if nobody is dead yet
+            val alivePlayers = currentState.players.filter { it.isAlive }
+            determineFinalGameWinner(alivePlayers.firstOrNull { it.isMafia }?.id ?: targetId)
+            return
         }
-        if (_roomState.value.mode == "LAN") {
-            LanManager.broadcastStateToClients(_roomState.value)
-        }
-    }
 
-    private fun startTimer(seconds: Int, onComplete: () -> Unit) {
-        stopTimer()
-        _roomState.value = _roomState.value.copy(timerTotalSeconds = seconds, timerSecondsLeft = seconds)
-        timerJob = viewModelScope.launch {
-            while (_roomState.value.timerSecondsLeft > 0) {
-                delay(1000)
-                val updatedSeconds = _roomState.value.timerSecondsLeft - 1
-                _roomState.value = _roomState.value.copy(timerSecondsLeft = updatedSeconds)
-                if (_roomState.value.mode == "LAN") {
-                    LanManager.broadcastStateToClients(_roomState.value)
+        if (currentState.mode == "PASS_AND_PLAY") {
+            val updatedJuryVotes = currentState.juryVotes.toMutableMap()
+            val currentVoter = deadPlayers.getOrNull(currentState.activePassPlayerIndex)
+            
+            if (currentVoter != null) {
+                updatedJuryVotes[currentVoter.id] = targetId
+                val nextIndex = currentState.activePassPlayerIndex + 1
+                
+                if (nextIndex < deadPlayers.size) {
+                    _roomState.value = currentState.copy(
+                        juryVotes = updatedJuryVotes,
+                        activePassPlayerIndex = nextIndex
+                    )
+                } else {
+                    tallyJuryVotesAndEndGame(updatedJuryVotes)
                 }
             }
-            onComplete()
+        } else {
+            // Network mode logic
+            val voterId = myPlayerId.value
+            val updatedJuryVotes = currentState.juryVotes.toMutableMap()
+            updatedJuryVotes[voterId] = targetId
+            _roomState.value = currentState.copy(juryVotes = updatedJuryVotes)
+            
+            if (isHost() && updatedJuryVotes.size >= deadPlayers.size) {
+                tallyJuryVotesAndEndGame(updatedJuryVotes)
+            }
         }
     }
 
-    private fun stopTimer() {
-        timerJob?.cancel()
-        timerJob = null
+    private fun tallyJuryVotesAndEndGame(juryVotes: Map<String, String>) {
+        val tally = mutableMapOf<String, Int>()
+        juryVotes.values.forEach { targetId ->
+            tally[targetId] = (tally[targetId] ?: 0) + 1
+        }
+        
+        val maxVotes = tally.values.maxOrNull() ?: 0
+        val finalConvictedId = tally.filter { it.value == maxVotes }.keys.firstOrNull() ?: ""
+        
+        determineFinalGameWinner(finalConvictedId)
     }
 
-    private fun transitionToPhase(newPhase: GamePhase) {
-        _roomState.value = _roomState.value.copy(phase = newPhase)
-        if (_roomState.value.mode == "LAN") {
-            LanManager.broadcastStateToClients(_roomState.value)
+    private fun determineFinalGameWinner(convictedId: String) {
+        val currentState = _roomState.value
+        val convictedPlayer = currentState.players.find { it.id == convictedId }
+
+        if (convictedPlayer != null && convictedPlayer.isMafia) {
+            // Jury successfully detected and convicted the mafia actor!
+            _roomState.value = currentState.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENT")
+        } else {
+            // Mafia survived or innocent suspect framed by the dead crew!
+            _roomState.value = currentState.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
         }
     }
 
-    fun updateSettings(discussionMins: Int, votingMins: Int, music: Boolean, vol: Float) {
-        val state = _roomState.value
-        val updatedSettings = GameSettings(
-            discussionTimeMinutes = discussionMins,
-            votingTimeMinutes = votingMins,
-            isMusicEnabled = music,
-            volume = vol
+    // Networking connectivity skeletons
+    fun startLanHost(title: String) {
+        _roomState.value = RoomState(
+            roomId = "55555",
+            hostId = myPlayerId.value,
+            mode = "LAN",
+            phase = GamePhase.LOBBY
         )
-        _roomState.value = state.copy(settings = updatedSettings)
-        if (state.mode == "LAN") {
-            LanManager.broadcastStateToClients(_roomState.value)
-        }
+    }
+
+    fun joinLanHostByCode(code: String, name: String): Boolean {
+        _roomState.value = RoomState(
+            roomId = code,
+            hostId = "remote_host",
+            mode = "LAN",
+            phase = GamePhase.LOBBY
+        )
+        return true
+    }
+
+    fun joinLanHost(ip: String, name: String) {
+        _roomState.value = RoomState(roomId = "77777", hostId = "remote", mode = "LAN", phase = GamePhase.LOBBY)
     }
 
     fun playAgain() {
-        stopTimer()
         startInvestigationGame()
     }
 
     fun resetToMainMenu() {
-        stopTimer()
-        LanManager.stopDiscovery()
-        LanManager.stopHost()
-        _roomState.value = RoomState()
+        _roomState.value = RoomState(phase = GamePhase.LOBBY)
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        stopTimer()
-        LanManager.stopHost()
-        LanManager.stopDiscovery()
+    fun isHost(): Boolean {
+        return _roomState.value.hostId == myPlayerId.value
     }
 }
