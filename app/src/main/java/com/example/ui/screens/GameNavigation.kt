@@ -270,7 +270,7 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
                 )
             } else {
                 Text(
-                    text = "الغرفة جاهزة لبدء القضية!",
+                    text = "الاوضة جاهزة لبدء القضية!",
                     color = InnocentAccent,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
@@ -288,7 +288,7 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4A1008)),
                 modifier = Modifier.weight(1f)
             ) {
-                Text("إلغاء الغرفة", color = GoldShine)
+                Text("إلغاء الاوضة", color = GoldShine)
             }
             Button(
                 onClick = { viewModel.startInvestigationGame() },
@@ -317,7 +317,7 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
         Spacer(modifier = Modifier.height(10.dp))
         ParchmentCard(modifier = Modifier.weight(1f), seed = 999L) {
             Text(
-                text = "أنت منضم للغرفة رقم:",
+                text = "أنت منضم للاوضة رقم:",
                 color = PapyrusTextSecondary,
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center
@@ -446,7 +446,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                                 viewModel.addLocalLobbyPlayer(tempPlayerName)
                                 tempPlayerName = ""
                             } else {
-                                Toast.makeText(context, "الحد الأقصى هو 6 لاعبين", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "اخرك 6 لاعيبة", Toast.LENGTH_SHORT).show()
                             }
                         }
                     },
@@ -499,7 +499,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
             }
             Button(
                 onClick = {
-                    if (state.players.size < 4) Toast.makeText(context, "يجب توافر 4 لاعبين كحد أدنى للبدء", Toast.LENGTH_SHORT).show()
+                    if (state.players.size < 4) Toast.makeText(context, "اقل حاجة 4 لاعيبة", Toast.LENGTH_SHORT).show()
                     else viewModel.startInvestigationGame()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
@@ -529,7 +529,7 @@ fun LanJoinLobbyScreen(
         modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        ParchmentHeaderBanner(text = "الانضمام للغرفة")
+        ParchmentHeaderBanner(text = "الانضمام للاوضة")
         Spacer(modifier = Modifier.height(10.dp))
         ThrillerTitleComponent(fontSize = 32.sp)
         Spacer(modifier = Modifier.height(10.dp))
@@ -582,7 +582,7 @@ fun LanJoinLobbyScreen(
                     onClick = {
                         if (inputCode.length == 5) {
                             val success = viewModel.joinLanHostByCode(inputCode, playerNameInput)
-                            if (!success) Toast.makeText(context, "يبدو أن الرمز غير نشط بالشبكة حالياً. تأكد من تشغيل الغرفة من المضيف.", Toast.LENGTH_LONG).show()
+                            if (!success) Toast.makeText(context, "يبدو أن الرمز غير نشط بالشبكة حالياً. تأكد من تشغيل الاوضة من المضيف.", Toast.LENGTH_LONG).show()
                         } else Toast.makeText(context, "الرمز يجب أن يتكون من 5 أرقام", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
@@ -593,7 +593,7 @@ fun LanJoinLobbyScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "أو اختر غرفة من كشف الشبكة (UDP):",
+                text = "أو اختر اوضة من كشف الشبكة (UDP):",
                 color = DarkWoodButton,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
@@ -614,7 +614,7 @@ fun LanJoinLobbyScreen(
                 ) {
                     discoveredHosts.forEach { (ip, hostDetails) ->
                         val parts = hostDetails.split("|")
-                        val hostName = parts.getOrNull(0) ?: "غرفة مجهولة"
+                        val hostName = parts.getOrNull(0) ?: "اوضة مجهولة"
                         val rCode = parts.getOrNull(1) ?: "----"
                         item {
                             Row(
@@ -630,7 +630,7 @@ fun LanJoinLobbyScreen(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(hostName, color = PapyrusText, fontWeight = FontWeight.Bold)
-                                    Text("رمز الغرفة: $rCode | IP: $ip", color = PapyrusTextSecondary, fontSize = 11.sp)
+                                    Text("رمز الاوضة: $rCode | IP: $ip", color = PapyrusTextSecondary, fontSize = 11.sp)
                                 }
                                 Icon(Icons.Default.ArrowForward, "Join details", tint = DarkWoodButton)
                             }
@@ -719,7 +719,7 @@ fun MainMenuHomeScreen(
                 ) {
                     Icon(Icons.Default.AddBox, "Host Game", tint = GoldShine)
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("إنشاء ومشاركة غرفة جديدة (Host)", color = GoldShine, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text("إنشاء ومشاركة اوضة جديدة (Host)", color = GoldShine, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Card(
@@ -1078,7 +1078,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                 Column(modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     ParchmentHeaderBanner(text = " أنت برة اللعب دلوقتي 💀")
                     Spacer(modifier = Modifier.height(24.dp))
-                    Text(text = "مبروك تصفيتك! استنى تصويت باقي اللعيبة...", color = PapyrusBgLight, fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    Text(text = "الف مبرووك اقعد جمب اخواتك", color = PapyrusBgLight, fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                 }
             }
         } else if (state.votes.containsKey(localVoter.id)) {
@@ -1125,7 +1125,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                 Spacer(modifier = Modifier.height(10.dp))
                 ParchmentCard(modifier = Modifier.weight(1f), seed = 33L) {
                     Text(text = "دورك في التصويت: ${localVoter.name}", color = Color(0xFF6E1B10), fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                    Text(text = "اختار الشخص اللي شاكك فيه تفتكر هو المجرم:", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                    Text(text = "اختار الشخص اللي شاكك فيه ان هو المجرم:", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                     Spacer(modifier = Modifier.height(12.dp))
                     LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(eligibleCandidates) { candidate ->
@@ -1171,25 +1171,50 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
     val eliminatedPlayers = state.players.filter { !it.isAlive }
     val remainingSuspects = state.players.filter { it.isAlive }
     val localPlayer = state.players.find { it.id == viewModel.myPlayerId.value }
+
     if (state.mode == "PASS_AND_PLAY") {
+        // Find the first eliminated player who hasn't voted yet
         val juryVoter = eliminatedPlayers.firstOrNull { it.id !in state.juryVotes.keys }
         var isDevicePassed by remember(juryVoter?.id) { mutableStateOf(false) }
+
         if (juryVoter != null && !isDevicePassed) {
             MysteryBackground {
-                Column(modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
                     ParchmentHeaderBanner(text = "مرر الموبايل")
                     Spacer(modifier = Modifier.height(30.dp))
-                    Text(text = "هات الموبايل ووريه ل /  ${juryVoter.name}", color = PapyrusBgLight, fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    Text(
+                        text = "هات الموبايل ووريه لـ / ${juryVoter.name}",
+                        color = PapyrusBgLight,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "تصويتك هيكون مهم ومصير الباقيين في إيدك .... متبقاش غبي !!", color = Color.LightGray, fontSize = 15.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
+                    Text(
+                        text = "تصويتك هيكون مهم ومصير الباقيين في إيدك .... متبقاش غبي !!",
+                        color = Color.LightGray,
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(16.dp)
+                    )
                     Spacer(modifier = Modifier.height(30.dp))
-                    Button(onClick = { isDevicePassed = true }, colors = ButtonDefaults.buttonColors(containerColor = RedAccent), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(56.dp)) {
+                    Button(
+                        onClick = { isDevicePassed = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = RedAccent),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                    ) {
                         Text("ادخل صوّت ", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
             return
         }
+
         Column(
             modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -1198,31 +1223,74 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
             ParchmentHeaderBanner(text = "هيئة المحلفين العليا ⚖️")
             Spacer(modifier = Modifier.height(10.dp))
             ParchmentCard(modifier = Modifier.weight(1f), seed = 88L) {
-                Box(modifier = Modifier.size(80.dp).background(Color(0x3B6E1B10), CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Gavel, contentDescription = "Gavel judge", tint = RedAccent, modifier = Modifier.size(48.dp))
+                Box(
+                    modifier = Modifier.size(80.dp).background(Color(0x3B6E1B10), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Gavel, "Gavel judge", tint = RedAccent, modifier = Modifier.size(48.dp))
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "!!! لا تقلقوا ولكن احذروا !!!", color = Color(0xFF6E1D10), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, textAlign = TextAlign.Center)
-                Text(text = "بما أنه لم يتبق سوى لاعبين اثنين، يعود اللاعبين الذين تم تصفيتهم سابقاً للإجماع والتصويت لإثبات الإدانة النهائية على المجرم.", color = PapyrusTextSecondary, fontSize = 14.sp, textAlign = TextAlign.Center)
+                Text(
+                    text = "!!! لا تقلقوا ولكن احذروا !!!",
+                    color = Color(0xFF6E1D10),
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 22.sp,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "بما ان فضل اتنين فبالله عليكم نفوق شوية ونركز عشان نعرف نطلع المجرم",
+                    color = PapyrusTextSecondary,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center
+                )
                 Spacer(modifier = Modifier.height(10.dp))
+
                 if (juryVoter != null) {
-                    Text(text = "دور اللاعب : ${juryVoter.name}", color = RedAccent, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.testTag("jury_voter_title"))
+                    Text(
+                        text = "دور اللاعب : ${juryVoter.name}",
+                        color = RedAccent,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        modifier = Modifier.testTag("jury_voter_title")
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
-                    LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         items(remainingSuspects) { suspect ->
-                            Row(modifier = Modifier.fillMaxWidth().background(Color(0x0C000000), RoundedCornerShape(10.dp)).border(1.dp, Color(0x3B2C1E14), RoundedCornerShape(10.dp)).padding(12.dp).clickable { viewModel.submitJuryVote(suspect.id) }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0x0C000000), RoundedCornerShape(10.dp))
+                                    .border(1.dp, Color(0x3B2C1E14), RoundedCornerShape(10.dp))
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(suspect.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                                    suspect.character?.let { Text("الشخصية: ${it.name} | المهنة: ${it.occupation}", color = PapyrusTextSecondary, fontSize = 14.sp) }
+                                    suspect.character?.let {
+                                        Text("الشخصية: ${it.name} | المهنة: ${it.occupation}", color = PapyrusTextSecondary, fontSize = 14.sp)
+                                    }
                                 }
-                                Button(onClick = { viewModel.submitJuryVote(suspect.id) }, colors = ButtonDefaults.buttonColors(containerColor = RedAccent)) {
+                                Button(
+                                    onClick = { viewModel.submitJuryVote(suspect.id) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = RedAccent)
+                                ) {
                                     Text("إدانة", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                 }
                             }
                         }
                     }
                 } else {
-                    Text(text = "تم جمع كافة استنتاجات اللاعبين بنجاح. سنعلن النتيجة الآن!", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 18.sp, textAlign = TextAlign.Center)
+                    Text(
+                        text = "تم جمع كافة استنتاجات اللاعبين بنجاح. سنعلن النتيجة الآن!",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -1231,6 +1299,7 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
         if (localPlayer == null) return
         val isAlive = localPlayer.isAlive
         val hasVoted = state.juryVotes.containsKey(localPlayer.id)
+
         MysteryBackground {
             Column(
                 modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
@@ -1240,28 +1309,67 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                 if (isAlive) {
                     ParchmentHeaderBanner(text = "هيئة المحلفين العليا ⚖️")
                     Spacer(modifier = Modifier.height(24.dp))
-                    Text(text = "هيئة المحلفين بتصوّت دلوقتي...", color = PapyrusBgLight, fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    Text(
+                        text = "هيئة المحلفين بتصوّت دلوقتي...",
+                        color = PapyrusBgLight,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = "مصيرك وصاحبك الأخير بين إيدين  اللاعبين اللي خرجوا ! مين هيتبرأ ومين هيدان؟ تفتكر هيختاروا صح؟", color = Color.LightGray, fontSize = 16.sp, textAlign = TextAlign.Center)
+                    Text(
+                        text = "مصيرك وصاحبك الأخير بين إيدين اللاعبين اللي خرجوا! مين هيتبرأ ومين هيدان؟ تفتكر هيختاروا صح؟",
+                        color = Color.LightGray,
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center
+                    )
                 } else {
                     if (hasVoted) {
                         ParchmentHeaderBanner(text = "تم تسجيل صوتك للمحلفين! ⚖️")
                         Spacer(modifier = Modifier.height(24.dp))
-                        Text(text = "مستنيين باقي اللاعبين عشان تظهر النتيجة...", color = PapyrusBgLight, fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                        Text(
+                            text = "مستنيين باقي اللاعبين عشان تظهر النتيجة...",
+                            color = PapyrusBgLight,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
                     } else {
                         ParchmentHeaderBanner(text = "هيئة المحلفين العليا ⚖️")
                         Spacer(modifier = Modifier.height(16.dp))
                         ParchmentCard(modifier = Modifier.weight(1f), seed = 88L) {
-                            Text(text = "اضغط إدانة على المجرم الحقيقي عشان تحسم الجريمة وترجع حق الضحية!", color = Color(0xFF6E1D10), fontWeight = FontWeight.Bold, fontSize = 18.sp, textAlign = TextAlign.Center)
+                            Text(
+                                text = "اضغط إدانة على المجرم الحقيقي عشان تحسم الجريمة وترجع حق الضحية!",
+                                color = Color(0xFF6E1D10),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                textAlign = TextAlign.Center
+                            )
                             Spacer(modifier = Modifier.height(16.dp))
-                            LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxWidth().weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 items(remainingSuspects) { suspect ->
-                                    Row(modifier = Modifier.fillMaxWidth().background(Color(0x0C000000), RoundedCornerShape(10.dp)).border(1.dp, Color(0x3B2C1E14), RoundedCornerShape(10.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color(0x0C000000), RoundedCornerShape(10.dp))
+                                            .border(1.dp, Color(0x3B2C1E14), RoundedCornerShape(10.dp))
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(suspect.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                                            suspect.character?.let { Text("الشخصية: ${it.name} | المهنة: ${it.occupation}", color = PapyrusTextSecondary, fontSize = 14.sp) }
+                                            suspect.character?.let {
+                                                Text("الشخصية: ${it.name} | المهنة: ${it.occupation}", color = PapyrusTextSecondary, fontSize = 14.sp)
+                                            }
                                         }
-                                        Button(onClick = { viewModel.submitJuryVote(suspect.id) }, colors = ButtonDefaults.buttonColors(containerColor = RedAccent)) {
+                                        Button(
+                                            onClick = { viewModel.submitJuryVote(suspect.id) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = RedAccent)
+                                        ) {
                                             Text("إدانة", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                         }
                                     }
@@ -1294,7 +1402,7 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                 Icon(Icons.Default.EmojiEvents, contentDescription = "Trophy logo endgame", tint = GoldYell, modifier = Modifier.size(64.dp))
             }
             Spacer(modifier = Modifier.height(10.dp))
-            Text(text = if (isInnocentsWinner) "!!الف مبرووك عرفتوا تطلعوا المجرم الفاشل!!" else "!المجرم انتصر وضحك على الكل!", color = if (isInnocentsWinner) GreenAccent else RedAccent, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, modifier = Modifier.testTag("endgame_victory_title"))
+            Text(text = if (isInnocentsWinner) "!!الف مبرووك عرفتوا تطلعوا المجرم الفاشل!!" else "!المجرم كسب وضحك على الكل!", color = if (isInnocentsWinner) GreenAccent else RedAccent, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, modifier = Modifier.testTag("endgame_victory_title"))
             Spacer(modifier = Modifier.height(10.dp))
             Box(modifier = Modifier.fillMaxWidth().weight(1f).background(Color(0x0C000000), RoundedCornerShape(10.dp)).padding(14.dp)) {
                 LazyColumn(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {

@@ -19,7 +19,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // قراءة ملف JSON
         try {
             val inputStream = resources.openRawResource(R.raw.cases)
             val jsonString = inputStream.bufferedReader().use { it.readText() }
@@ -28,7 +27,7 @@ class MainActivity : ComponentActivity() {
             e.printStackTrace()
         }
 
-        // تهيئة مشغل الصوتيات (للمؤثرات الصوتية والموسيقى الخلفية)
+        // تهيئة مشغل الصوتيات
         MysteryAudioPlayer.init(applicationContext)
 
         setContent {
