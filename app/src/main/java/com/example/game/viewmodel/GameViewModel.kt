@@ -44,6 +44,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Audio feedback functions (all are already in MysteryAudioPlayer)
     fun playButtonClick() { MysteryAudioPlayer.playSelection() }
     fun playSelection() { MysteryAudioPlayer.playSelection() }
     fun playSuccess() { MysteryAudioPlayer.playSuccess() }
@@ -268,7 +269,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun handlePlayerRevealedRole(playerId: String) { }
+    private fun handlePlayerRevealedRole(playerId: String) {
+        // Not used in current logic, but kept for future
+    }
 
     fun skipRoleRevealToCaseIntro() {
         playTransitionSound()
