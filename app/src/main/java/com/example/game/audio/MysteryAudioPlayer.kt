@@ -22,7 +22,7 @@ object MysteryAudioPlayer {
     }
 
     fun playClick() = playSelection()
-    
+
     fun playSelection() {
         scope.launch {
             try {
@@ -216,7 +216,7 @@ object MysteryAudioPlayer {
             try {
                 val resId = ctx.resources.getIdentifier("background_music", "raw", ctx.packageName)
                 if (resId == 0) {
-                    Log.w(TAG, "Background music not found in res/raw/. Place background_music.mp3 there.")
+                    Log.w(TAG, "background_music.mp3 not found in res/raw/")
                     return
                 }
                 mediaPlayer = MediaPlayer.create(ctx, resId)?.apply {

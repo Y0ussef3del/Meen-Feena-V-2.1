@@ -30,19 +30,15 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     val newLobbyPlayerName = MutableStateFlow("")
     private var timerJob: Job? = null
 
-    init {
-        setupLanListeners()
-        viewModelScope.launch {
-            roomState.collect { state ->
-                MysteryAudioPlayer.setVolume(state.settings.volume)
-                if (state.settings.isMusicEnabled) {
-                    MysteryAudioPlayer.startMusic()
-                } else {
-                    MysteryAudioPlayer.stopMusic()
-                }
-            }
+ init {
+    setupLanListeners()
+    viewModelScope.launch {
+        roomState.collect { state ->
+            MysteryAudioPlayer.setVolume(state.settings.volume)
+            MysteryAudioPlayer.enableMusic(state.settings.isMusicEnabled) // استبدل startMusic/stopMusic بـ enableMusic
         }
     }
+}
 
     // All audio functions are directly calling MysteryAudioPlayer methods
     fun playButtonClick() { MysteryAudioPlayer.playSelection() }
@@ -458,58 +454,58 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun resolveJuryVotingTally() {
-        val state = _roomState.value
-        val alivePlayers = state.players.filter { it.isAlive }
-        if (alivePlayers.size != 2) {
-            _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
-            return
-        }
-        val voteCounts = mutableMapOf<String, Int>()
-        state.juryVotes.values.forEach { targetId ->
-            voteCounts[targetId] = voteCounts.getOrDefault(targetId, 0) + 1
-        }
-        val sorted = voteCounts.entries.sortedByDescending { it.value }
-        val finalAccusedId = sorted.firstOrNull()?.key
-        val accusedPlayer = alivePlayers.find { it.id == finalAccusedId }
-        val winnerSide = if (accusedPlayer?.isMafia == true) "INNOCENTS" else "MAFIA"
-        _roomState.value = state.copy(
-            phase = GamePhase.ENDGAME,
-            winnerSide = winnerSide
-        )
-        if (_roomState.value.mode == "LAN") {
-            LanManager.broadcastStateToClients(_roomState.value)
-        }
+    val state = _roomState.value
+    val alivePlayers = state.players.filter { it.isAlive }
+    if (alivePlayers.size != 2) {
+        _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
+        return
     }
+    val voteCounts = mutableMapOf<String, Int>()
+    state.juryVotes.values.forEach { targetId ->
+        voteCounts[targetId] = voteCounts.getOrDefault(targetId, 0) + 1
+    }
+    val sorted = voteCounts.entries.sortedByDescending { it.value }
+    val finalAccusedId = sorted.firstOrNull()?.key
+    val accusedPlayer = alivePlayers.find { it.id == finalAccusedId }
+    val winnerSide = if (accusedPlayer?.isMafia == true) "INNOCENTS" else "MAFIA"
+    _roomState.value = state.copy(
+        phase = GamePhase.ENDGAME,
+        winnerSide = winnerSide
+    )
+    if (_roomState.value.mode == "LAN") {
+        LanManager.broadcastStateToClients(_roomState.value)
+    }
+}
 
     private fun checkEndgameConditions(justEliminated: Player?) {
-        val state = _roomState.value
-        val alivePlayers = state.players.filter { it.isAlive }
-        val mafiaAlive = alivePlayers.count { it.isMafia }
-        val innocentAlive = alivePlayers.size - mafiaAlive
-        Log.d(TAG, "Tally outcomes: Total alive = ${alivePlayers.size}, Mafia alive = $mafiaAlive, Innocents alive = $innocentAlive")
-        when {
-            mafiaAlive == 0 -> {
-                _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENTS")
-            }
-            mafiaAlive == 2 || mafiaAlive >= innocentAlive -> {
-                _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
-            }
-            alivePlayers.size == 2 -> {
-                _roomState.value = state.copy(phase = GamePhase.JURY_ROUND, juryVotes = emptyMap())
-            }
-            else -> {
-                val nextEvidenceIndex = (state.currentEvidenceIndex + 1) % (state.currentCase?.evidenceList?.size ?: 6)
-                _roomState.value = state.copy(
-                    phase = GamePhase.EVIDENCE_ROUND,
-                    currentEvidenceIndex = nextEvidenceIndex,
-                    votes = emptyMap()
-                )
-            }
+    val state = _roomState.value
+    val alivePlayers = state.players.filter { it.isAlive }
+    val mafiaAlive = alivePlayers.count { it.isMafia }
+    val innocentAlive = alivePlayers.size - mafiaAlive
+    Log.d(TAG, "Tally outcomes: Total alive = ${alivePlayers.size}, Mafia alive = $mafiaAlive, Innocents alive = $innocentAlive")
+    when {
+        mafiaAlive == 0 -> {
+            _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENTS")
         }
-        if (_roomState.value.mode == "LAN") {
-            LanManager.broadcastStateToClients(_roomState.value)
+        mafiaAlive == 2 || mafiaAlive >= innocentAlive -> {
+            _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
+        }
+        alivePlayers.size == 2 -> {
+            _roomState.value = state.copy(phase = GamePhase.JURY_ROUND, juryVotes = emptyMap())
+        }
+        else -> {
+            val nextEvidenceIndex = (state.currentEvidenceIndex + 1) % (state.currentCase?.evidenceList?.size ?: 6)
+            _roomState.value = state.copy(
+                phase = GamePhase.EVIDENCE_ROUND,
+                currentEvidenceIndex = nextEvidenceIndex,
+                votes = emptyMap()
+            )
         }
     }
+    if (_roomState.value.mode == "LAN") {
+        LanManager.broadcastStateToClients(_roomState.value)
+    }
+}
 
     private fun startTimer(seconds: Int, onComplete: () -> Unit) {
         stopTimer()
