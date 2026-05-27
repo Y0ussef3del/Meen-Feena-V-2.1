@@ -17,7 +17,7 @@ data class GameSettings(
     }
 
     companion object {
-        fun fromJsonObject(json: JSONObject) = GameSettings(
+        fun fromJsonObject(json: JSONObject): GameSettings = GameSettings(
             discussionTimeMinutes = json.optInt("discussionTimeMinutes", 2),
             votingTimeMinutes = json.optInt("votingTimeMinutes", 1),
             isMusicEnabled = json.optBoolean("isMusicEnabled", true),
@@ -173,7 +173,9 @@ data class Case(
     }
 }
 
-enum class GamePhase { LOBBY, ROLE_REVEAL, CASE_INTRO, EVIDENCE_ROUND, DISCUSSION, VOTING, VOTE_RESULT, JURY_ROUND, ENDGAME }
+enum class GamePhase {
+    LOBBY, ROLE_REVEAL, CASE_INTRO, EVIDENCE_ROUND, DISCUSSION, VOTING, VOTE_RESULT, JURY_ROUND, ENDGAME
+}
 
 data class RoomState(
     val roomId: String = "",
