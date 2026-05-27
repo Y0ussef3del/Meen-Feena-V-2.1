@@ -1,6 +1,7 @@
 package com.example.game.data
 
-import com.example.game.model.Case
+// Change the old model import to target the unified Case structure inside your ViewModel file
+import com.example.game.viewmodel.Case
 import org.json.JSONArray
 import kotlin.random.Random
 
@@ -14,7 +15,7 @@ object CaseRepository {
             for (i in 0 until jsonArray.length()) {
                 val jsonObject = jsonArray.getJSONObject(i)
                 
-                // هنا نستخدم الدالة الجاهزة من ملف GameModels الخاص بك مباشرة
+                // Calls Case.fromJsonObject from com.example.game.viewmodel.Case
                 val caseItem = Case.fromJsonObject(jsonObject)
                 casesList.add(caseItem)
             }
@@ -29,7 +30,7 @@ object CaseRepository {
         val available = cachedCases.filter { it.title !in completedCaseTitles }
         val pool = if (available.isNotEmpty()) available else cachedCases
         
-        // تصفية القضايا التي عدد شخصياتها يساوي عدد اللاعبين بالضبط
+        // Filter out cases where the characters count matches the local players count exactly
         val matchingCases = pool.filter { it.characters.size == playerCount }
         
         return if (matchingCases.isNotEmpty()) {
