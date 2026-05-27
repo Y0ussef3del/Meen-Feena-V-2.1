@@ -51,6 +51,11 @@ import com.example.ui.theme.*
 import com.example.game.audio.MysteryAudioPlayer
 import kotlin.math.cos
 import kotlin.math.sin
+import com.example.game.model.Case
+import com.example.game.model.GamePhase
+import com.example.game.model.RoomState
+import com.example.game.model.Player
+import com.example.game.model.Character
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -1976,8 +1981,9 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
 
 @Composable
 fun SettingsDialog(viewModel: GameViewModel, onDismiss: () -> Unit) {
-    // Collect the state value as an explicit integer primitive
-    val durationMins by viewModel.discussionDurationMins.collectAsState()
+    // Read the settings from the View Model's Flow
+    val state by viewModel.roomState.collectAsState()
+    val durationMins = state.settings.discussionTimeMinutes
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2009,10 +2015,9 @@ fun SettingsDialog(viewModel: GameViewModel, onDismiss: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // 1. التحكم في وقت عداد المناقشة والمواجهة
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "مدة جولة النقاش الحر الحالي: $durationMins دقيقة",
+                            text = "مدة جولة النقاش: $durationMins دقيقة",
                             color = PapyrusText,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
@@ -2024,40 +2029,22 @@ fun SettingsDialog(viewModel: GameViewModel, onDismiss: () -> Unit) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Button(
-                                onClick = { if (durationMins > 1) viewModel.updateDiscussionTimer(durationMins - 1) },
+                                // Explicitly update passing all config params over
+                                onClick = { 
+                                    if (durationMins > 1) viewModel.updateSettings(durationMins - 1, state.settings.votingTimeMinutes, state.settings.isMusicEnabled, state.settings.volume) 
+                                },
                                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                                 modifier = Modifier.weight(1f)
-                            ) {
-                                Text("-1 دقيقة", color = GoldShine)
-                            }
+                            ) { Text("-1 دقيقة", color = GoldShine) }
+                            
                             Button(
-                                onClick = { if (durationMins < 10) viewModel.updateDiscussionTimer(durationMins + 1) },
+                                onClick = { 
+                                    if (durationMins < 10) viewModel.updateSettings(durationMins + 1, state.settings.votingTimeMinutes, state.settings.isMusicEnabled, state.settings.volume) 
+                                },
                                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                                 modifier = Modifier.weight(1f)
-                            ) {
-                                Text("+1 دقيقة", color = GoldShine)
-                            }
+                            ) { Text("+1 دقيقة", color = GoldShine) }
                         }
-                    }
-
-                    HorizontalDivider(color = Color(0x3B2C1E14), thickness = 1.dp)
-
-                    // 2. تلميحات سريعة عن شروط الفوز وقواعد المحلفين
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = "📜 قواعد التحقيق الجنائي:",
-                            color = Color(0xFF4A1008),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "• إذا تم تصفية كل المجرمين يفوز الأبرياء فوراً.\n" +
-                                   "• إذا تبقى لاعبين اثنين فقط بالتحقيق، يتم فتح مجلس المحلفين لتصويت الأموات وحسم القضية بالكامل.",
-                            color = PapyrusTextSecondary,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp
-                        )
                     }
                 }
             }

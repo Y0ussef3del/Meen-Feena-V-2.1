@@ -130,18 +130,136 @@ data class Case(
     }
 }
 
+// Replace RoomState completely in com.example.game.model.GameModels.kt
 data class RoomState(
-    val roomId: String = "12345",
-    val hostId: String = "player_local",
+    val roomId: String = "",
+    val mode: String = "PASS_AND_PLAY",
+    val hostId: String = "",
     val phase: GamePhase = GamePhase.LOBBY,
     val players: List<Player> = emptyList(),
-    val mode: String = "PASS_AND_PLAY",
-    val activePassPlayerIndex: Int = 0,
     val currentCase: Case? = null,
+    val currentEvidenceIndex: Int = 0,
+    val activePassPlayerIndex: Int = 0,
+    val rulesRevealed: Boolean = false,
+    val timerSecondsLeft: Int = 0,
+    val timerTotalSeconds: Int = 0,
     val votes: Map<String, String> = emptyMap(),
     val juryVotes: Map<String, String> = emptyMap(),
-    val tiedVotePlayers: List<String> = emptyList(),
-    val winnerSide: String = "",
     val settings: GameSettings = GameSettings(),
+    val gameNumber: Int = 0,
+    val winnerSide: String = "",
+    val tiedVotePlayers: List<String> = emptyList(),
+    val lastEliminatedResult: String = "",
     val lastEliminatedPlayer: Player? = null
-)
+) {
+    fun toSharedJsonString(): String {
+        val root = JSONObject().apply {
+            put("roomId", roomId)
+            put("mode", mode)
+            put("hostId", hostId)
+            put("phase", phase.name)
+            put("currentEvidenceIndex", currentEvidenceIndex)
+            put("activePassPlayerIndex", activePassPlayerIndex)
+            put("rulesRevealed", rulesRevealed)
+            put("timerSecondsLeft", timerSecondsLeft)
+            put("timerTotalSeconds", timerTotalSeconds)
+            put("gameNumber", gameNumber)
+            put("winnerSide", winnerSide)
+            put("lastEliminatedResult", lastEliminatedResult)
+            put("settings", settings.toJsonObject())
+
+            val tvArray = JSONArray()
+            tiedVotePlayers.forEach { tvArray.put(it) }
+            put("tiedVotePlayers", tvArray)
+
+            currentCase?.let { put("currentCase", it.toJsonObject()) }
+            lastEliminatedPlayer?.let { put("lastEliminatedPlayer", it.toJsonObject()) }
+
+            val playersArray = JSONArray()
+            players.forEach { playersArray.put(it.toJsonObject()) }
+            put("players", playersArray)
+
+            val votesObj = JSONObject()
+            votes.forEach { (k, v) -> votesObj.put(k, v) }
+            put("votes", votesObj)
+
+            val jVotesObj = JSONObject()
+            juryVotes.forEach { (k, v) -> jVotesObj.put(k, v) }
+            put("juryVotes", jVotesObj)
+        }
+        return root.toString()
+    }
+
+    companion object {
+        fun fromSharedJsonString(jsonStr: String): RoomState {
+            val root = JSONObject(jsonStr)
+            val playersList = mutableListOf<Player>()
+            val playersArr = root.optJSONArray("players")
+            if (playersArr != null) {
+                for (i in 0 until playersArr.length()) {
+                    playersList.add(Player.fromJsonObject(playersArr.getJSONObject(i)))
+                }
+            }
+
+            val votesMap = mutableMapOf<String, String>()
+            val votesObj = root.optJSONObject("votes")
+            if (votesObj != null) {
+                val keys = votesObj.keys()
+                while (keys.hasNext()) {
+                    val k = keys.next()
+                    votesMap[k] = votesObj.getString(k)
+                }
+            }
+
+            val jVotesMap = mutableMapOf<String, String>()
+            val jVotesObj = root.optJSONObject("juryVotes")
+            if (jVotesObj != null) {
+                val keys = jVotesObj.keys()
+                while (keys.hasNext()) {
+                    val k = keys.next()
+                    jVotesMap[k] = jVotesObj.getString(k)
+                }
+            }
+
+            val caseObj = root.optJSONObject("currentCase")
+            val case = caseObj?.let { Case.fromJsonObject(it) }
+
+            val eliminatedObj = root.optJSONObject("lastEliminatedPlayer")
+            val eliminatedPlayer = eliminatedObj?.let { Player.fromJsonObject(it) }
+
+            val settingsObj = root.optJSONObject("settings")
+            val settings = if (settingsObj != null) GameSettings.fromJsonObject(settingsObj) else GameSettings()
+
+            val lastResult = root.optString("lastEliminatedResult", "")
+            val tvList = mutableListOf<String>()
+            val tvArray = root.optJSONArray("tiedVotePlayers")
+            if (tvArray != null) {
+                for (i in 0 until tvArray.length()) {
+                    tvList.add(tvArray.getString(i))
+                }
+            }
+
+            return RoomState(
+                roomId = root.optString("roomId", ""),
+                mode = root.optString("mode", "PASS_AND_PLAY"),
+                hostId = root.optString("hostId", ""),
+                phase = GamePhase.valueOf(root.optString("phase", GamePhase.LOBBY.name)),
+                players = playersList,
+                currentCase = case,
+                currentEvidenceIndex = root.optInt("currentEvidenceIndex", 0),
+                activePassPlayerIndex = root.optInt("activePassPlayerIndex", 0),
+                rulesRevealed = root.optBoolean("rulesRevealed", false),
+                timerSecondsLeft = root.optInt("timerSecondsLeft", 0),
+                timerTotalSeconds = root.optInt("timerTotalSeconds", 0),
+                votes = votesMap,
+                juryVotes = jVotesMap,
+                settings = settings,
+                gameNumber = root.optInt("gameNumber", 0),
+                winnerSide = root.optString("winnerSide", ""),
+                tiedVotePlayers = tvList,
+                lastEliminatedResult = lastResult,
+                lastEliminatedPlayer = eliminatedPlayer
+            )
+        }
+    }
+}

@@ -1,5 +1,6 @@
 package com.example.game.network
 
+import com.example.game.model.RoomState
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.util.Log
