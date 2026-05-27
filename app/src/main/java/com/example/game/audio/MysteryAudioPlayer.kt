@@ -216,27 +216,27 @@ object MysteryAudioPlayer {
         }
     }
 
-    // تم تعديل الدالة لتستقبل Context وتُشغل ملف الـ mp3 من الـ res/raw
-// تم تعديل الدالة لتقرأ الملف ديناميكياً وتتجنب مشاكل الـ R class وتداخل الـ setVolume
+// دالة تشغيل الموسيقى الديناميكية الآمنة تماماً
     fun startMusic(context: android.content.Context) {
         if (mediaPlayer == null) {
             try {
-                // ⚠️ اكتب اسم ملف الـ mp3 بتاعك هنا بين القوسين (بدون كتابة امتداد .mp3)
-                val fileName = "music_background.mp3" 
+                // ⚠️ ضع اسم ملف الـ mp3 الفعلي الموجود داخل res/raw بدون امتداد (مثل: "game_theme")
+                val fileName = "music_background" 
                 
+                // جلب الـ Resource ID ديناميكياً لتفادي مشاكل الحزم الـ R class تماماً
                 val resId = context.resources.getIdentifier(fileName, "raw", context.packageName)
                 
                 if (resId != 0) {
                     val mp = android.media.MediaPlayer.create(context, resId)
                     if (mp != null) {
                         mp.isLooping = true
-                        // هنا بنادي على setVolume بتاعة الـ MediaPlayer بشكل صريح بـ 2 parameters
                         mp.setVolume(musicVolume, musicVolume)
                         mp.start()
                         mediaPlayer = mp
+                        Log.d(TAG, "Background music started successfully.")
                     }
                 } else {
-                    Log.e(TAG, "الملف الصوتي '$fileName' غير موجود في res/raw")
+                    Log.e(TAG, "Error: Audio file '$fileName' not found in res/raw")
                 }
             } catch (e: Throwable) {
                 Log.e(TAG, "Error starting background music", e)
