@@ -5,9 +5,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import com.example.game.audio.MysteryAudioPlayer
+import com.example.game.data.CaseRepository
+import org.json.JSONArray
+import org.json.JSONObject
 
 // ==========================================
-// 1. GAME DATA STRUCTURES & ENUMS 
+// 1. GAME DATA STRUCTURES & MODELS
 // ==========================================
 
 enum class GamePhase {
@@ -27,7 +30,18 @@ data class GameCharacter(
     val occupation: String = "",
     val traits: String = "",
     val hiddenMotive: String = ""
-)
+) {
+    companion object {
+        fun fromJsonObject(obj: JSONObject): GameCharacter {
+            return GameCharacter(
+                name = obj.optString("name", ""),
+                occupation = obj.optString("occupation", ""),
+                traits = obj.optString("traits", ""),
+                hiddenMotive = obj.optString("hiddenMotive", "")
+            )
+        }
+    }
+}
 
 data class Player(
     val id: String,
@@ -44,7 +58,29 @@ data class Case(
     val description: String = "",
     val explanation: String = "",
     val characters: List<GameCharacter> = emptyList()
-)
+) {
+    companion object {
+        fun fromJsonObject(obj: JSONObject): Case {
+            val charsList = mutableListOf<GameCharacter>()
+            val charsArray = obj.optJSONArray("characters")
+            if (charsArray != null) {
+                for (i in 0 until charsArray.length()) {
+                    val charObj = charsArray.optJSONObject(i)
+                    if (charObj != null) {
+                        charsList.add(GameCharacter.fromJsonObject(charObj))
+                    }
+                }
+            }
+            return Case(
+                id = obj.optString("id", ""),
+                title = obj.optString("title", ""),
+                description = obj.optString("description", ""),
+                explanation = obj.optString("explanation", ""),
+                characters = charsList
+            )
+        }
+    }
+}
 
 data class RoomState(
     val roomId: String = "12345",
@@ -54,11 +90,13 @@ data class RoomState(
     val mode: String = "PASS_AND_PLAY", // PASS_AND_PLAY or LAN
     val activePassPlayerIndex: Int = 0,
     val currentCase: Case? = null,
-    val votes: Map<String, String> = emptyMap(),      // VoterID -> TargetPlayerID
-    val juryVotes: Map<String, String> = emptyMap(),  // EliminatedPlayerID -> RemainingPlayerID
+    val votes: Map<String, String> = emptyMap(),       // VoterID -> TargetPlayerID
+    val juryVotes: Map<String, String> = emptyMap(),   // Eliminated -> Remaining Target
     val tiedVotePlayers: List<String> = emptyList(),
-    val winnerSide: String = "",                      // MAFIA or INNOCENT
-    val discussionDurationMins: Int = 2
+    val winnerSide: String = "",                       // MAFIA or INNOCENT
+    val discussionDurationMins: Int = 2,
+    // EXPLICIT TRACKER: Holds the reference to the last eliminated player to reveal their true identity
+    val lastEliminatedPlayer: Player? = null
 )
 
 // ==========================================
@@ -67,20 +105,29 @@ data class RoomState(
 
 class GameViewModel : ViewModel() {
 
-    // Identity tracking for multiplayer components
     val myPlayerId = MutableStateFlow("player_local")
-    val myPlayerName = MutableStateFlow("المحقق الأصلي")
+    val myPlayerName = MutableStateFlow("المحقق")
 
     private val _roomState = MutableStateFlow(RoomState())
     val roomState: StateFlow<RoomState> = _roomState.asStateFlow()
 
-    // Configuration states accessible by Settings dialogs
     private val _discussionDurationMins = MutableStateFlow(2)
     val discussionDurationMins: StateFlow<Int> = _discussionDurationMins.asStateFlow()
 
     init {
-        // Initialize an example mock scenario in case JSON files are empty
-        setupDefaultMockCase()
+        loadDynamicGameCase()
+    }
+
+    /**
+     * Fix 1: Pulls live parsed items loaded dynamically from JSON instead of forcing a default fallback.
+     */
+    fun loadDynamicGameCase() {
+        val jsonCases = CaseRepository.getAllCases()
+        if (jsonCases.isNotEmpty()) {
+            _roomState.value = _roomState.value.copy(currentCase = jsonCases.random())
+        } else {
+            setupDefaultMockCase()
+        }
     }
 
     private fun setupDefaultMockCase() {
@@ -91,7 +138,7 @@ class GameViewModel : ViewModel() {
             GameCharacter("الحارس عثمان", "حارس الفيلا", "قوي وبسيط", "رأى الجريمة ولكنه خائف من التحدث")
         )
         val defaultCase = Case(
-            id = "case_01",
+            id = "case_fallback",
             title = "جريمة في القصر الملعون",
             description = "تم العثور على صاحب القصر مقتولاً داخل مكتبه المغلق من الداخل. الساعة كانت تشير إلى الحادية عشر مساءً، وهناك 4 مشتبه بهم تواجدوا في محيط الجريمة.",
             explanation = "الحقيقة الكاملة هي أن الدكتور سامح استغل معرفته الطبية لتزييف وقت الوفاة الحقيقي قبل إغلاق الغرفة تلقائياً ليخرج بريئاً أمام المحققين!",
@@ -106,20 +153,20 @@ class GameViewModel : ViewModel() {
         _roomState.value = _roomState.value.copy(discussionDurationMins = boundedMins)
     }
 
-    // Pass and Play management setup
     fun setupPassAndPlayGame() {
+        val currentCaseData = _roomState.value.currentCase
         _roomState.value = RoomState(
             roomId = (10000..99999).random().toString(),
             hostId = "player_local",
             mode = "PASS_AND_PLAY",
             phase = GamePhase.LOBBY,
-            currentCase = _roomState.value.currentCase
+            currentCase = currentCaseData
         )
     }
 
     fun addLocalLobbyPlayer(name: String) {
         val currentState = _roomState.value
-        if (currentState.players.size >= 6) return
+        if (currentState.players.size >= 8) return
         
         val nextAvatarId = currentState.players.size + 1
         val newPlayer = Player(
@@ -144,17 +191,16 @@ class GameViewModel : ViewModel() {
         val totalPlayers = currentState.players.size
         if (totalPlayers < 4) return
 
-        // Shuffle and assign Mafia/Criminal Roles
-        // 4 Players = 1 Mafia, 5+ Players = 2 Mafia
+        // Dynamic case injection logic linked against current layout selection constraints
+        val runtimeCase = CaseRepository.getUniqueCase(emptySet(), totalPlayers) ?: currentState.currentCase
+
         val totalMafiaNeeded = if (totalPlayers <= 4) 1 else 2
         val shuffledIndices = currentState.players.indices.shuffled()
         val mafiaIndices = shuffledIndices.take(totalMafiaNeeded).toSet()
 
-        val activeCase = currentState.currentCase ?: return
-        
         val assignedPlayers = currentState.players.mapIndexed { idx, player ->
             val isMafiaRole = mafiaIndices.contains(idx)
-            val characterAssigned = activeCase.characters.getOrNull(idx % activeCase.characters.size)
+            val characterAssigned = runtimeCase?.characters?.getOrNull(idx % runtimeCase.characters.size)
             player.copy(
                 isAlive = true,
                 isMafia = isMafiaRole,
@@ -163,12 +209,14 @@ class GameViewModel : ViewModel() {
         }
 
         _roomState.value = currentState.copy(
+            currentCase = runtimeCase,
             players = assignedPlayers,
             activePassPlayerIndex = 0,
             phase = GamePhase.ROLE_REVEAL,
             votes = emptyMap(),
             juryVotes = emptyMap(),
-            tiedVotePlayers = emptyList()
+            tiedVotePlayers = emptyList(),
+            lastEliminatedPlayer = null
         )
     }
 
@@ -179,7 +227,6 @@ class GameViewModel : ViewModel() {
         if (currentState.mode == "PASS_AND_PLAY" && nextIndex < currentState.players.size) {
             _roomState.value = currentState.copy(activePassPlayerIndex = nextIndex)
         } else {
-            // All players checked their role envelopes -> advance to the story intro phase
             _roomState.value = currentState.copy(
                 activePassPlayerIndex = 0,
                 phase = GamePhase.CASE_INTRO
@@ -235,7 +282,7 @@ class GameViewModel : ViewModel() {
                 }
             }
         } else {
-            // LAN Multi-device mode handling
+            // LAN Synchronization handling
             val voterId = myPlayerId.value
             val updatedVotes = currentState.votes.toMutableMap()
             updatedVotes[voterId] = targetId
@@ -247,6 +294,9 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Fix 2: Captures the precise attributes of the eliminated target and exposes them to the state architecture.
+     */
     private fun tallyVotesAndProceed(allVotes: Map<String, String>) {
         val currentState = _roomState.value
         val voteCounts = mutableMapOf<String, Int>()
@@ -263,24 +313,34 @@ class GameViewModel : ViewModel() {
         val highestVotedPlayers = voteCounts.filter { it.value == maxVotes }.keys.toList()
 
         if (highestVotedPlayers.size > 1) {
-            // Tie breaker condition detected
+            // Tie condition encountered
             _roomState.value = currentState.copy(
                 tiedVotePlayers = highestVotedPlayers,
                 votes = emptyMap(),
-                phase = GamePhase.VOTE_RESULT
+                phase = GamePhase.VOTE_RESULT,
+                lastEliminatedPlayer = null
             )
         } else {
-            // A clear candidate is eliminated by popular choice
+            // An isolated player was targeted and voted out
             val eliminatedId = highestVotedPlayers.first()
+            var eliminatedTargetCopy: Player? = null
+
             val updatedPlayers = currentState.players.map { player ->
-                if (player.id == eliminatedId) player.copy(isAlive = false) else player
+                if (player.id == eliminatedId) {
+                    val killed = player.copy(isAlive = false)
+                    eliminatedTargetCopy = killed // Save full reference with accurate identity tags
+                    killed
+                } else {
+                    player
+                }
             }
 
             _roomState.value = currentState.copy(
                 players = updatedPlayers,
                 tiedVotePlayers = emptyList(),
                 votes = emptyMap(),
-                phase = GamePhase.VOTE_RESULT
+                phase = GamePhase.VOTE_RESULT,
+                lastEliminatedPlayer = eliminatedTargetCopy
             )
         }
     }
@@ -294,35 +354,32 @@ class GameViewModel : ViewModel() {
         val alivePlayers = currentState.players.filter { it.isAlive }
         val aliveMafiaCount = alivePlayers.count { it.isMafia }
 
-        // Endgame Win conditions check
         if (aliveMafiaCount == 0) {
             _roomState.value = currentState.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENT")
             return
         }
         
         if (alivePlayers.size <= 2) {
-            // CRITICAL REQUIREMENT MATCH: If down to final round (2-3 players left) and mafia is still alive,
-            // we stop active direct execution and transition to the JURY ROUND (All dead players vote).
+            // If down to 2 players, advance to the final Jury Round where eliminated players break the tie
             _roomState.value = currentState.copy(
                 phase = GamePhase.JURY_ROUND,
                 activePassPlayerIndex = 0,
                 juryVotes = emptyMap()
             )
         } else {
-            // Keep inspecting clues in additional cycle rounds
+            // Re-cycle loop back to clues tracking phase
             _roomState.value = currentState.copy(phase = GamePhase.EVIDENCE_ROUND)
         }
     }
 
     // ==========================================
-    // ELIMINATED PLAYERS / JURY VOTING SYSTEM
+    // 3. JURY / ELIMINATED PLAYERS VOTING SYSTEM
     // ==========================================
     fun submitJuryVote(targetId: String) {
         val currentState = _roomState.value
         val deadPlayers = currentState.players.filter { !it.isAlive }
         
         if (deadPlayers.isEmpty()) {
-            // Safety guard fallback if nobody is dead yet
             val alivePlayers = currentState.players.filter { it.isAlive }
             determineFinalGameWinner(alivePlayers.firstOrNull { it.isMafia }?.id ?: targetId)
             return
@@ -346,7 +403,6 @@ class GameViewModel : ViewModel() {
                 }
             }
         } else {
-            // Network mode logic
             val voterId = myPlayerId.value
             val updatedJuryVotes = currentState.juryVotes.toMutableMap()
             updatedJuryVotes[voterId] = targetId
@@ -375,28 +431,30 @@ class GameViewModel : ViewModel() {
         val convictedPlayer = currentState.players.find { it.id == convictedId }
 
         if (convictedPlayer != null && convictedPlayer.isMafia) {
-            // Jury successfully detected and convicted the mafia actor!
             _roomState.value = currentState.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENT")
         } else {
-            // Mafia survived or innocent suspect framed by the dead crew!
             _roomState.value = currentState.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
         }
     }
 
-    // Networking connectivity skeletons
+    // ==========================================
+    // 4. LAN SKELETON HANDLERS
+    // ==========================================
     fun startLanHost(title: String) {
+        val currentCaseData = _roomState.value.currentCase
         _roomState.value = RoomState(
-            roomId = "55555",
+            roomId = (1000..9999).random().toString(),
             hostId = myPlayerId.value,
             mode = "LAN",
-            phase = GamePhase.LOBBY
+            phase = GamePhase.LOBBY,
+            currentCase = currentCaseData
         )
     }
 
     fun joinLanHostByCode(code: String, name: String): Boolean {
         _roomState.value = RoomState(
             roomId = code,
-            hostId = "remote_host",
+            hostId = "remote_host_id",
             mode = "LAN",
             phase = GamePhase.LOBBY
         )
@@ -404,15 +462,17 @@ class GameViewModel : ViewModel() {
     }
 
     fun joinLanHost(ip: String, name: String) {
-        _roomState.value = RoomState(roomId = "77777", hostId = "remote", mode = "LAN", phase = GamePhase.LOBBY)
+        _roomState.value = RoomState(roomId = "9999", hostId = "remote_ip_id", mode = "LAN", phase = GamePhase.LOBBY)
     }
 
     fun playAgain() {
+        loadDynamicGameCase()
         startInvestigationGame()
     }
 
     fun resetToMainMenu() {
         _roomState.value = RoomState(phase = GamePhase.LOBBY)
+        loadDynamicGameCase()
     }
 
     fun isHost(): Boolean {

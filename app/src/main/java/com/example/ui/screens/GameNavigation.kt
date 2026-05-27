@@ -906,7 +906,7 @@ fun MainMenuHomeScreen(
                     Icon(Icons.Default.AddBox, "Host Game", tint = GoldShine)
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "إنشاء ومشاركة غرفة جديدة (Host)",
+                        text = "عمل اوضة جديدة (Host)",
                         color = GoldShine,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
@@ -1007,7 +1007,7 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "مرر الجهاز له واضغط الزر بالأسفل لقراءة ملف القضية والهوية السرية الخاصة بك دون أن يراها أحد.",
+                    text = "اديله التلفون.....وخلي بالك لحد يشوف ",
                     color = Color.LightGray,
                     fontSize = 15.sp,
                     textAlign = TextAlign.Center,
@@ -1023,7 +1023,7 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().height(54.dp)
             ) {
-                Text("اضغط لكشف ملفي Сري 🔍", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("اضغط لفتح الملف 🔍", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         } else {
             ParchmentCard(
@@ -1092,7 +1092,7 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().height(54.dp)
             ) {
-                Text("فهمت، إخفاء وقفل الملف 🔐", color = GoldShine, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("فهمت اقفل الملف 🔐", color = GoldShine, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -1637,74 +1637,150 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
 fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {
     val isHost = state.mode == "PASS_AND_PLAY" || state.hostId == viewModel.myPlayerId.value
     
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .safeDrawingPadding()
-            .verticalScroll(androidx.compose.foundation.rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        ParchmentHeaderBanner(text = "نتائج الاقتراع العام")
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        ParchmentCard(
-            modifier = Modifier.fillMaxWidth(),
-            seed = 711L
+    // Dynamically look for any player whose state was just flipped to dead/eliminated
+    // Or display the tied announcement
+    val tiedBreakActive = state.tiedVotePlayers.isNotEmpty()
+
+    MysteryBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .safeDrawingPadding()
+                .verticalScroll(androidx.compose.foundation.rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            if (state.tiedVotePlayers.isNotEmpty()) {
-                Text(
-                    text = "⚠️ تعادل الأصوات !!",
-                    color = RedAccent,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Black,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                state.players.filter { it.id in state.tiedVotePlayers }.forEach { p ->
+            ParchmentHeaderBanner(text = "نتائج الاقتراع والاتهامات")
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            ParchmentCard(
+                modifier = Modifier.weight(1f),
+                seed = 99L
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    if (tiedBreakActive) {
+                        // case of a tie
+                        Icon(Icons.Default.Balance, "Tie", tint = Color(0xFFE2A012), modifier = Modifier.size(64.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "تعادل في الأصوات! ⚖️",
+                            color = Color(0xFF4A1008),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "الأصوات انقسمت بالتساوي بين المشتبه فيهم التاليين:",
+                            color = PapyrusTextSecondary,
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        
+                        state.players.filter { it.id in state.tiedVotePlayers }.forEach { player ->
+                            Text(
+                                text = "• ${player.name} (${player.character?.name ?: ""})",
+                                color = RedAccent,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
+                        // A clear player was eliminated! Let's reveal their identity identity
+                        Icon(Icons.Default.PersonRemove, "Eliminated", tint = RedAccent, modifier = Modifier.size(64.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        Text(
+                            text = "قرر مجلس التحقيق نفي مشتبه به!",
+                            color = Color(0xFF4A1008),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // We show full dramatic card context 
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0x1F4A1008)),
+                            modifier = Modifier.fillMaxWidth().padding(8.dp),
+                            border = BorderStroke(1.dp, Color(0x3D4A1008))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "بناءً على تصويت الأغلبية العظمى...",
+                                    color = PapyrusTextSecondary,
+                                    fontSize = 13.sp
+                                )
+                                
+                                Text(
+                                    text = "تم استبعاد وتوجيه التهمة إلى:",
+                                    color = PapyrusText,
+                                    fontSize = 15.sp
+                                )
+
+                                // In a real setup, since we clear votes array on tally, we look at the player who is flagged dead or check history.
+                                // Alternatively, let's find the eliminated player or display all roles summary
+                                Text(
+                                    text = "اضغط على زر المتابعة!",
+                                    color = DarkWoodButton,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Navigation Button controls
+            if (isHost) {
+                Button(
+                    onClick = {
+                        viewModel.confirmVoteResultAndProceed()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedAccent),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .testTag("confirm_vote_result_button"),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
                     Text(
-                        text = "• ${p.name} (${p.character?.name ?: ""})",
-                        color = Color(0xFF6E1B10),
-                        fontSize = 18.sp,
+                        text = if (tiedBreakActive) "بدء جولة حسم التعادل" else "متابعة مسار التحقيق ",
+                        color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
+                        fontSize = 18.sp
                     )
                 }
             } else {
-                Text(
-                    text = "تم انتهاء فرز الاصوات وتحديث المسار القضية.",
-                    color = PapyrusTextSecondary,
-                    fontSize = 16.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(30.dp))
-
-        if (isHost) {
-            Button(
-                onClick = { 
-                    MysteryAudioPlayer.playClick()
-                    viewModel.confirmVoteResultAndProceed() 
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = RedAccent),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .testTag("confirm_vote_result_button"),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = "متابعة مسار التحقيق",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp
-                )
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x3D2C1E14)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "في انتظار المضيف لمتابعة القضية...",
+                        color = PapyrusBgLight,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    )
+                }
             }
         }
     }
