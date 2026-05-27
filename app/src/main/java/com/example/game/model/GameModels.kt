@@ -5,9 +5,9 @@ import org.json.JSONObject
 
 // Game settings
 data class GameSettings(
-    val discussionTimeMinutes: Int = 4, // تم التعديل لـ 4 دقائق افتراضياً
-    val votingTimeMinutes: Int = 4,     // تم التعديل لـ 4 دقائق افتراضياً
-    val isMusicEnabled: Boolean = false,
+    val discussionTimeMinutes: Int = 4,
+    val votingTimeMinutes: Int = 1,
+    val isMusicEnabled: Boolean = true,
     val volume: Float = 0.5f
 ) {
     fun toJsonObject(): JSONObject {
@@ -23,8 +23,8 @@ data class GameSettings(
         fun fromJsonObject(json: JSONObject): GameSettings {
             return GameSettings(
                 discussionTimeMinutes = json.optInt("discussionTimeMinutes", 4),
-                votingTimeMinutes = json.optInt("votingTimeMinutes", 4),
-                isMusicEnabled = json.optBoolean("isMusicEnabled", false),
+                votingTimeMinutes = json.optInt("votingTimeMinutes", 1),
+                isMusicEnabled = json.optBoolean("isMusicEnabled", true),
                 volume = json.optDouble("volume", 0.5).toFloat()
             )
         }
@@ -33,8 +33,8 @@ data class GameSettings(
 
 // Player details
 data class Player(
-    val id: String = "",
-    val name: String = "",
+    val id: String,
+    val name: String,
     val isMafia: Boolean = false,
     val isAlive: Boolean = true,
     val isConnected: Boolean = true,
@@ -58,7 +58,7 @@ data class Player(
             val charJson = json.optJSONObject("character")
             return Player(
                 id = json.optString("id", ""),
-                name = json.optString("name", ""),
+                name = json.optString("name", "مجهول"),
                 isMafia = json.optBoolean("isMafia", false),
                 isAlive = json.optBoolean("isAlive", true),
                 isConnected = json.optBoolean("isConnected", true),
@@ -173,7 +173,10 @@ data class Case(
             val charsArray = json.optJSONArray("characters")
             if (charsArray != null) {
                 for (i in 0 until charsArray.length()) {
-                    charsList.add(Character.fromJsonObject(charsArray.getJSONObject(i)))
+                    val charObj = charsArray.optJSONObject(i)
+                    if (charObj != null) {
+                        charsList.add(Character.fromJsonObject(charObj))
+                    }
                 }
             }
 
@@ -181,12 +184,15 @@ data class Case(
             val evArray = json.optJSONArray("evidenceList")
             if (evArray != null) {
                 for (i in 0 until evArray.length()) {
-                    evList.add(evArray.getString(i))
+                    val evText = evArray.optString(i, "")
+                    if (evText.isNotEmpty()) {
+                        evList.add(evText)
+                    }
                 }
             }
 
             return Case(
-                title = json.optString("title", "قضية غامضة"),
+                title = json.optString("title", "قضية مجهولة"),
                 location = json.optString("location", ""),
                 time = json.optString("time", ""),
                 victim = json.optString("victim", ""),
@@ -234,7 +240,8 @@ data class RoomState(
     val gameNumber: Int = 0,
     val winnerSide: String = "",
     val tiedVotePlayers: List<String> = emptyList(),
-    val lastEliminatedResult: String = ""
+    val lastEliminatedResult: String = "",
+    val encryptedRoles: Map<String, String> = emptyMap() // Secure synchronized delivery vehicle
 ) {
     fun toSharedJsonString(): String {
         val root = JSONObject().apply {
@@ -269,6 +276,10 @@ data class RoomState(
             val jVotesObj = JSONObject()
             juryVotes.forEach { (k, v) -> jVotesObj.put(k, v) }
             put("juryVotes", jVotesObj)
+
+            val encRolesObj = JSONObject()
+            encryptedRoles.forEach { (k, v) -> encRolesObj.put(k, v) }
+            put("encryptedRoles", encRolesObj)
         }
         return root.toString()
     }
@@ -299,6 +310,16 @@ data class RoomState(
                 while (keys.hasNext()) {
                     val k = keys.next()
                     jVotesMap[k] = jVotesObj.getString(k)
+                }
+            }
+
+            val encRolesMap = mutableMapOf<String, String>()
+            val encRolesObj = root.optJSONObject("encryptedRoles")
+            if (encRolesObj != null) {
+                val keys = encRolesObj.keys()
+                while (keys.hasNext()) {
+                    val k = keys.next()
+                    encRolesMap[k] = encRolesObj.getString(k)
                 }
             }
 
@@ -335,7 +356,8 @@ data class RoomState(
                 gameNumber = root.optInt("gameNumber", 0),
                 winnerSide = root.optString("winnerSide", ""),
                 tiedVotePlayers = tvList,
-                lastEliminatedResult = lastResult
+                lastEliminatedResult = lastResult,
+                encryptedRoles = encRolesMap
             )
         }
     }
