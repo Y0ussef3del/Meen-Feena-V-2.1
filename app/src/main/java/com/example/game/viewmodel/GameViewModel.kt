@@ -31,13 +31,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var timerJob: Job? = null
 
  init {
-    setupLanListeners()
-    viewModelScope.launch {
-        roomState.collect { state ->
-            MysteryAudioPlayer.setVolume(state.settings.volume)
-            MysteryAudioPlayer.enableMusic(state.settings.isMusicEnabled) // استبدل startMusic/stopMusic بـ enableMusic
-        }
-    }
+    if (state.settings.isMusicEnabled) {
+                    // ضفنا getApplication() عشان نمرر الـ Context
+                    MysteryAudioPlayer.startMusic(getApplication()) 
+                } else {
+                    MysteryAudioPlayer.stopMusic()
+                }
 }
 
     // All audio functions are directly calling MysteryAudioPlayer methods
@@ -456,10 +455,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private fun resolveJuryVotingTally() {
     val state = _roomState.value
     val alivePlayers = state.players.filter { it.isAlive }
-    if (alivePlayers.size != 2) {
-        _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
-        return
-    }
+    val aliveCount = state.players.count { it.isAlive }
+    if (aliveCount == 2) {
+    // توجيه اللعبة لجولة المحلفين عشان الميتين يصوتوا
+    transitionToPhase(GamePhase.JURY_ROUND) 
+    } else if (aliveCount < 2 /* أو أي شرط تاني يخص فوز المجرم/المواطنين */) {
+    transitionToPhase(GamePhase.ENDGAME)
+}
     val voteCounts = mutableMapOf<String, Int>()
     state.juryVotes.values.forEach { targetId ->
         voteCounts[targetId] = voteCounts.getOrDefault(targetId, 0) + 1

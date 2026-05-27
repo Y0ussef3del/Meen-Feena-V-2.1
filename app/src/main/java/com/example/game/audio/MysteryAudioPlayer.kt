@@ -13,8 +13,7 @@ object MysteryAudioPlayer {
     private const val TAG = "MysteryAudioPlayer"
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var musicVolume = 0.5f
-    private var mediaPlayer: MediaPlayer? = null
-    private var context: Context? = null
+    private var mediaPlayer: android.media.MediaPlayer? = null    private var context: Context? = null
     private var isMusicEnabled = false
 
     fun init(appContext: Context) {
@@ -199,9 +198,10 @@ object MysteryAudioPlayer {
         try { audioTrack.release() } catch (e: Throwable) {}
     }
 
+   // Volume configuration
     fun setVolume(volume: Float) {
         musicVolume = volume.coerceIn(0.0f, 1.0f)
-        mediaPlayer?.setVolume(musicVolume, musicVolume)
+        mediaPlayer?.setVolume(musicVolume, musicVolume) // Update volume if currently playing
     }
 
     fun enableMusic(enabled: Boolean) {
@@ -209,31 +209,21 @@ object MysteryAudioPlayer {
         if (enabled && musicVolume > 0f) startMusic() else stopMusic()
     }
 
-    fun startMusic() {
-        val ctx = context ?: return
-        if (!isMusicEnabled || musicVolume <= 0f) return
-        if (mediaPlayer == null) {
-            try {
-                val resId = ctx.resources.getIdentifier("background_music", "raw", ctx.packageName)
-                if (resId == 0) {
-                    Log.w(TAG, "background_music.mp3 not found in res/raw/")
-                    return
-                }
-                mediaPlayer = MediaPlayer.create(ctx, resId)?.apply {
-                    isLooping = true
-                    setVolume(musicVolume, musicVolume)
-                    start()
-                    Log.d(TAG, "Background music started")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to start music", e)
+ fun startMusic(context: android.content.Context) 
+ {
+        if (mediaPlayer == null) 
+        {
+            // استبدل 'your_music_file' باسم ملف الـ mp3 بتاعك بدون الامتداد
+            mediaPlayer = android.media.MediaPlayer.create(context, com.example.game.R.raw.your_music_file).apply {
+                isLooping = true
+                setVolume(musicVolume, musicVolume)
+                start()
             }
-        } else {
-            mediaPlayer?.start()
         }
     }
 
-    fun stopMusic() {
+   fun stopMusic() 
+   {
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null
