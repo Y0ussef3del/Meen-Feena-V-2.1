@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // قراءة ملف الـ JSON من مجلد res/raw وتهيئة القضايا تلقائياً
+        // قراءة ملف JSON
         try {
             val inputStream = resources.openRawResource(R.raw.cases)
             val jsonString = inputStream.bufferedReader().use { it.readText() }
@@ -27,6 +27,9 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+
+        // تهيئة مشغل الصوتيات (للمؤثرات الصوتية والموسيقى الخلفية)
+        MysteryAudioPlayer.init(applicationContext)
 
         setContent {
             MyApplicationTheme {
@@ -36,17 +39,5 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // بدء تشغيل موسيقى الخلفية التلقائية عند فتح التطبيق أو العودة إليه
-        MysteryAudioPlayer.startMusic(this)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        // إيقاف تشغيل الموسيقى مؤقتاً عند الخروج من التطبيق للحفاظ على البطارية والذاكرة
-        MysteryAudioPlayer.stopMusic()
     }
 }
