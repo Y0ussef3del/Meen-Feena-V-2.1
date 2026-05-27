@@ -3,11 +3,11 @@ package com.example.game.model
 import org.json.JSONArray
 import org.json.JSONObject
 
-data class GameSettings(
-    val discussionTimeMinutes: Int = 5,
-    val votingTimeMinutes: Int = 2,
-    val isMusicEnabled: Boolean = true,
-    val volume: Float = 0.5f
+dviewModel.updateSettings(
+    discussionMins = 4,
+    votingMins = 4,
+    music = state.settings.isMusicEnabled, // أو اكتب true/false مباشرة بدون if ومشاكلها
+    vol = state.settings.volume // أو لو عايز تثبته اكتب مثلاً 0.5f أو 1f (لازم حرف الـ f في الآخر)
 ) {
     fun toJsonObject(): JSONObject = JSONObject().apply {
         put("discussionTimeMinutes", discussionTimeMinutes)
@@ -261,4 +261,4 @@ data class RoomState(
             )
         }
     }
-}
+}GameSettings
