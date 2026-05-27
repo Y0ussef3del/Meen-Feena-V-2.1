@@ -24,17 +24,14 @@ object CaseRepository {
     }
 
     fun getUniqueCase(completedCaseTitles: Set<String>, playerCount: Int): Case? {
+        // 1. تصفية القضايا غير المكتملة أولاً
         val available = cachedCases.filter { it.title !in completedCaseTitles }
         val pool = if (available.isNotEmpty()) available else cachedCases
         
-        // 1. محاولة البحث أولاً عن قضية تطابق عدد اللاعبين بالضبط
-        var matchingCases = pool.filter { it.characters.size == playerCount }
+        // 2. التصفية الصارمة: البحث فقط عن قضية تطابق عدد اللاعبين بالضبط
+        val matchingCases = pool.filter { it.characters.size == playerCount }
         
-        // 2. حل مرن وقائي: إذا لم نجد تطابقاً دقيقاً، نأخذ أي قضية بها شخصيات تكفي عدد اللاعبين الحاليين
-        if (matchingCases.isEmpty()) {
-            matchingCases = pool.filter { it.characters.size >= playerCount }
-        }
-        
+        // 3. إرجاع القضية المطابقة، أو null مباشرة دون أي تعديل أو تفويض لقضايا أخرى
         return if (matchingCases.isNotEmpty()) {
             matchingCases.random(Random(System.currentTimeMillis()))
         } else {

@@ -293,19 +293,34 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun advanceFromDiscussionToVoting() {
-        stopTimer()
-        playTransitionSound()
-        val state = _roomState.value
+    stopTimer()
+    playTransitionSound()
+    val state = _roomState.value
+    val alivePlayers = state.players.filter { it.isAlive }
+    
+    // الفحص الذكي: لو باقي 2 لاعبين بس أحياء بعد انتهاء نقاش الدليل، ننتقل لجولة المحلفين مباشرة
+    if (alivePlayers.size == 2) {
+        _roomState.value = state.copy(
+            phase = GamePhase.JURY_ROUND,
+            juryVotes = emptyMap()
+        )
+    } else {
+        // التصويت الطبيعي المعتاد إذا كان عدد اللاعبين الأحياء أكثر من 2
         val firstAliveIndex = state.players.indexOfFirst { it.isAlive }
         _roomState.value = state.copy(
+            phase = GamePhase.VOTING,
             votes = emptyMap(),
             activePassPlayerIndex = if (firstAliveIndex != -1) firstAliveIndex else 0
         )
-        transitionToPhase(GamePhase.VOTING)
         startTimer(_roomState.value.settings.votingTimeMinutes * 60) {
             resolveVotingTally()
         }
     }
+    
+    if (_roomState.value.mode == "LAN") {
+        LanManager.broadcastStateToClients(_roomState.value)
+    }
+}
 
     fun submitVote(targetId: String) {
         playVoteSound()
@@ -488,34 +503,33 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun checkEndgameConditions(justEliminated: Player?) {
-        val state = _roomState.value
-        val alivePlayers = state.players.filter { it.isAlive }
-        val mafiaAlive = alivePlayers.count { it.isMafia }
-        val innocentAlive = alivePlayers.size - mafiaAlive
-        Log.d(TAG, "Tally outcomes: Total alive = ${alivePlayers.size}, Mafia alive = $mafiaAlive, Innocents alive = $innocentAlive")
-        when {
-            mafiaAlive == 0 -> {
-                _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENTS")
-            }
-            mafiaAlive == 2 || mafiaAlive >= innocentAlive -> {
-                _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
-            }
-            alivePlayers.size == 2 -> {
-                _roomState.value = state.copy(phase = GamePhase.JURY_ROUND, juryVotes = emptyMap())
-            }
-            else -> {
-                val nextEvidenceIndex = (state.currentEvidenceIndex + 1) % (state.currentCase?.evidenceList?.size ?: 6)
-                _roomState.value = state.copy(
-                    phase = GamePhase.EVIDENCE_ROUND,
-                    currentEvidenceIndex = nextEvidenceIndex,
-                    votes = emptyMap()
-                )
-            }
+    val state = _roomState.value
+    val alivePlayers = state.players.filter { it.isAlive }
+    val mafiaAlive = alivePlayers.count { it.isMafia }
+    val innocentAlive = alivePlayers.size - mafiaAlive
+    Log.d(TAG, "Tally outcomes: Total alive = ${alivePlayers.size}, Mafia alive = $mafiaAlive, Innocents alive = $innocentAlive")
+    
+    when {
+        mafiaAlive == 0 -> {
+            _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENTS")
         }
-        if (_roomState.value.mode == "LAN") {
-            LanManager.broadcastStateToClients(_roomState.value)
+        mafiaAlive == 2 || mafiaAlive >= innocentAlive -> {
+            _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
+        }
+        // تم إزالة شرط الانتقال الفوري لـ JURY_ROUND من هنا لكي يمر اللاعبين بالدليل الأخير أولاً
+        else -> {
+            val nextEvidenceIndex = (state.currentEvidenceIndex + 1) % (state.currentCase?.evidenceList?.size ?: 6)
+            _roomState.value = state.copy(
+                phase = GamePhase.EVIDENCE_ROUND,
+                currentEvidenceIndex = nextEvidenceIndex,
+                votes = emptyMap()
+            )
         }
     }
+    if (_roomState.value.mode == "LAN") {
+        LanManager.broadcastStateToClients(_roomState.value)
+    }
+}
 
     private fun startTimer(seconds: Int, onComplete: () -> Unit) {
         stopTimer()

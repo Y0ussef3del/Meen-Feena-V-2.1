@@ -943,7 +943,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
             val formattedTime = String.format("%02d:%02d", state.timerSecondsLeft / 60, state.timerSecondsLeft % 60)
             Canvas(modifier = Modifier.size(170.dp)) {
                 drawCircle(color = Color(0xFF1E0604), radius = size.minDimension / 2)
-                val sweepAngle = if (state.timerTotalSeconds > 0) (state.timerSecondsLeft.toFloat() / state.timerTotalSeconds.toFloat()) * 360f else 360f
+                val sweepAngle = if (state. > 0) (state.timerSecondsLeft.toFloat() / state.timerTotalSeconds.toFloat()) * 360f else 360f
                 drawArc(color = Color(0xFFE73224), startAngle = -90f, sweepAngle = sweepAngle, useCenter = false, style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round))
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
