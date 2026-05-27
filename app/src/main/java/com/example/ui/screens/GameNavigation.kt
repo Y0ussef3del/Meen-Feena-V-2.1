@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import androidx.compose.material.icons.filled.HowToVote
+import com.example.game.model.RoomState
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
@@ -42,6 +44,7 @@ import com.example.ui.components.*
 import com.example.ui.theme.*
 import kotlin.math.cos
 import kotlin.math.sin
+
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -930,33 +933,73 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
 // ==========================================
 // 6. DISCUSSION SCREEN (WITH RADIAL CLOCK)
 // ==========================================
+
 @Composable
 fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
-    var suspectedByClick = remember { mutableStateListOf<String>() }
+    val suspectedByClick = remember { mutableStateListOf<String>() }
+    
     Column(
-        modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp)
+            .safeDrawingPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         ParchmentHeaderBanner(text = "مرحلة النقاش والمواجهة")
-        Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+        
+        // حاوية العداد واللاعبين
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f), 
+            contentAlignment = Alignment.Center
+        ) {
             val formattedTime = String.format("%02d:%02d", state.timerSecondsLeft / 60, state.timerSecondsLeft % 60)
+            
+            // 1. الدائرة الحافزة للوقت
             Canvas(modifier = Modifier.size(170.dp)) {
                 drawCircle(color = Color(0xFF1E0604), radius = size.minDimension / 2)
-                val sweepAngle = if (state. > 0) (state.timerSecondsLeft.toFloat() / state.timerTotalSeconds.toFloat()) * 360f else 360f
-                drawArc(color = Color(0xFFE73224), startAngle = -90f, sweepAngle = sweepAngle, useCenter = false, style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round))
+                
+                // ✅ تم إصلاح الشرط هنا للتأكد من أن الـ TotalSeconds أكبر من 0
+                val sweepAngle = if (state.timerTotalSeconds > 0) {
+                    (state.timerSecondsLeft.toFloat() / state.timerTotalSeconds.toFloat()) * 360f
+                } else {
+                    360f
+                }
+                
+                drawArc(
+                    color = Color(0xFFE73224), 
+                    startAngle = -90f, 
+                    sweepAngle = sweepAngle, 
+                    useCenter = false, 
+                    style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+                )
             }
+            
+            // 2. نصوص العداد بالداخل
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("متبقي", color = GoldYell, fontSize = 12.sp)
-                Text(text = formattedTime, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace, modifier = Modifier.testTag("timer_countdown_display"))
+                Text(
+                    text = formattedTime, 
+                    color = Color.White, 
+                    fontSize = 28.sp, 
+                    fontWeight = FontWeight.ExtraBold, 
+                    fontFamily = FontFamily.Monospace, 
+                    modifier = Modifier.testTag("timer_countdown_display")
+                )
                 Text("للإدلاء بالاستنتاج", color = PapyrusBgLight.copy(alpha = 0.5f), fontSize = 10.sp)
             }
+            
+            // 3. توزيع اللاعبين الأحياء حول الدائرة
             val alivePlayers = state.players.filter { it.isAlive }
             alivePlayers.forEachIndexed { index, player ->
                 val angleRad = (2 * Math.PI * index) / alivePlayers.size
-                val xOffset = (130 * cos(angleRad)).dp
-                val yOffset = (130 * sin(angleRad)).dp
+                // مسافة الابتعاد عن السنتر (تم زيادة المسافة قليلاً لـ 140dp لتجنب التداخل مع دائرة الـ 170dp)
+                val xOffset = (140 * cos(angleRad)).dp
+                val yOffset = (140 * sin(angleRad)).dp
                 val isClickSuspected = player.id in suspectedByClick
+                
                 Box(
                     modifier = Modifier
                         .offset(x = xOffset, y = yOffset)
@@ -965,26 +1008,70 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                         .background(if (isClickSuspected) Color(0xFFC42512) else Color(0xFF421E14), CircleShape)
                         .border(2.dp, if (isClickSuspected) GoldShine else Color(0x3BFFFFFF), CircleShape)
                         .clickable {
-                            if (isClickSuspected) suspectedByClick.remove(player.id) else suspectedByClick.add(player.id)
+                            if (isClickSuspected) {
+                                suspectedByClick.remove(player.id)
+                            } else {
+                                suspectedByClick.add(player.id)
+                            }
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.padding(4.dp)) {
-                        Text(text = player.name.take(6), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally, 
+                        verticalArrangement = Arrangement.Center, 
+                        modifier = Modifier.padding(4.dp)
+                    ) {
+                        Text(
+                            text = player.name.take(6), 
+                            color = Color.White, 
+                            fontSize = 10.sp, 
+                            fontWeight = FontWeight.Bold, 
+                            maxLines = 1, 
+                            overflow = TextOverflow.Ellipsis
+                        )
                         Spacer(modifier = Modifier.height(2.dp))
-                        Box(modifier = Modifier.background(if (player.isMafia && isClickSuspected) GoldYell else Color(0x3B000000), RoundedCornerShape(4.dp)).padding(horizontal = 4.dp, vertical = 2.dp)) {
-                            Text(text = if (isClickSuspected) "متهم ⚠️" else "قيد السؤال", color = if (isClickSuspected) Color.Black else Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    if (player.isMafia && isClickSuspected) GoldYell else Color(0x3B000000), 
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = if (isClickSuspected) "متهم ⚠️" else "قيد السؤال", 
+                                color = if (isClickSuspected) Color.Black else Color.White, 
+                                fontSize = 8.sp, 
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
             }
         }
+        
         Spacer(modifier = Modifier.height(10.dp))
+        
         ParchmentCard(modifier = Modifier.wrapContentHeight(), seed = 771L) {
-            Text(text = "دوس على أي لاعب عشان تركز الشكوك عليه باللون الأحمر عشان تبدأوا تناقشوه.", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+            Text(
+                text = "دوس على أي لاعب عشان تركز الشكوك عليه باللون الأحمر عشان تبدأوا تناقشوه.", 
+                color = PapyrusTextSecondary, 
+                fontSize = 15.sp, 
+                textAlign = TextAlign.Center
+            )
         }
+        
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { viewModel.advanceFromDiscussionToVoting() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(56.dp).testTag("voting_advance_button")) {
+        
+        Button(
+            onClick = { viewModel.advanceFromDiscussionToVoting() }, 
+            colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), 
+            shape = RoundedCornerShape(12.dp), 
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .testTag("voting_advance_button")
+        ) {
             Icon(Icons.Default.HowToVote, "Start Votes", tint = GoldShine)
             Spacer(modifier = Modifier.width(8.dp))
             Text("يلا ندخل على الاقتراع والتصويت", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 20.sp)
