@@ -44,7 +44,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Audio feedback functions (all are already in MysteryAudioPlayer)
     fun playButtonClick() { MysteryAudioPlayer.playSelection() }
     fun playSelection() { MysteryAudioPlayer.playSelection() }
     fun playSuccess() { MysteryAudioPlayer.playSuccess() }
@@ -269,9 +268,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun handlePlayerRevealedRole(playerId: String) {
-        // Not used in current logic, but kept for future
-    }
+    private fun handlePlayerRevealedRole(playerId: String) { }
 
     fun skipRoleRevealToCaseIntro() {
         playTransitionSound()
@@ -422,9 +419,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                         player
                     }
                 }
-                val isMafia = eliminatedPlayer?.isMafia == true
-                val roleStr = if (isMafia) "مافيا" else "بريء"
-                val resultText = "${eliminatedPlayer?.name} خرج وكان $roleStr"
+                val resultText = "${eliminatedPlayer?.name} خرج وكان ${if (eliminatedPlayer?.isMafia == true) "مافيا" else "بريء"}"
                 _roomState.value = state.copy(
                     phase = GamePhase.VOTE_RESULT,
                     players = currentPlayers,
@@ -463,25 +458,23 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun resolveJuryVotingTally() {
         val state = _roomState.value
+        val alivePlayers = state.players.filter { it.isAlive }
+        if (alivePlayers.size != 2) {
+            _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
+            return
+        }
         val voteCounts = mutableMapOf<String, Int>()
         state.juryVotes.values.forEach { targetId ->
             voteCounts[targetId] = voteCounts.getOrDefault(targetId, 0) + 1
         }
-        val sortedVotes = voteCounts.entries.sortedByDescending { it.value }
-        val finalAccusedEntry = sortedVotes.firstOrNull()
-        if (finalAccusedEntry != null) {
-            val accusedId = finalAccusedEntry.key
-            val accusedPlayer = state.players.find { it.id == accusedId }
-            if (accusedPlayer != null) {
-                if (accusedPlayer.isMafia) {
-                    _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENTS")
-                } else {
-                    _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
-                }
-            }
-        } else {
-            _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
-        }
+        val sorted = voteCounts.entries.sortedByDescending { it.value }
+        val finalAccusedId = sorted.firstOrNull()?.key
+        val accusedPlayer = alivePlayers.find { it.id == finalAccusedId }
+        val winnerSide = if (accusedPlayer?.isMafia == true) "INNOCENTS" else "MAFIA"
+        _roomState.value = state.copy(
+            phase = GamePhase.ENDGAME,
+            winnerSide = winnerSide
+        )
         if (_roomState.value.mode == "LAN") {
             LanManager.broadcastStateToClients(_roomState.value)
         }
