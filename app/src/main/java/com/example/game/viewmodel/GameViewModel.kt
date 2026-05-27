@@ -31,13 +31,19 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var timerJob: Job? = null
 
  init {
-    if (state.settings.isMusicEnabled) {
-                    // ضفنا getApplication() عشان نمرر الـ Context
-                    MysteryAudioPlayer.startMusic(getApplication()) 
+        setupLanListeners()
+        viewModelScope.launch {
+            roomState.collect { state ->
+                MysteryAudioPlayer.setVolume(state.settings.volume)
+                if (state.settings.isMusicEnabled) {
+                    // مررنا getApplication() لتفادي مشكلة الـ Context
+                    MysteryAudioPlayer.startMusic(getApplication())
                 } else {
                     MysteryAudioPlayer.stopMusic()
                 }
-}
+            }
+        }
+    }
 
     // All audio functions are directly calling MysteryAudioPlayer methods
     fun playButtonClick() { MysteryAudioPlayer.playSelection() }
@@ -455,10 +461,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private fun resolveJuryVotingTally() {
     val state = _roomState.value
     val alivePlayers = state.players.filter { it.isAlive }
-    val aliveCount = state.players.count { it.isAlive }
+    val aliveCount = roomState.value.players.count { it.isAlive }
     if (aliveCount == 2) {
     // توجيه اللعبة لجولة المحلفين عشان الميتين يصوتوا
-    transitionToPhase(GamePhase.JURY_ROUND) 
+    transitionToPhase(GamePhase.JURY_ROUND)
     } else if (aliveCount < 2 /* أو أي شرط تاني يخص فوز المجرم/المواطنين */) {
     transitionToPhase(GamePhase.ENDGAME)
 }
@@ -479,35 +485,40 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
-    private fun checkEndgameConditions(justEliminated: Player?) {
-    val state = _roomState.value
-    val alivePlayers = state.players.filter { it.isAlive }
-    val mafiaAlive = alivePlayers.count { it.isMafia }
-    val innocentAlive = alivePlayers.size - mafiaAlive
-    Log.d(TAG, "Tally outcomes: Total alive = ${alivePlayers.size}, Mafia alive = $mafiaAlive, Innocents alive = $innocentAlive")
-    when {
-        mafiaAlive == 0 -> {
-            _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENTS")
+private fun checkEndgameConditions(justEliminated: Player?) {
+        val state = _roomState.value
+        val alivePlayers = state.players.filter { it.isAlive }
+        val mafiaAlive = alivePlayers.count { it.isMafia }
+        val innocentAlive = alivePlayers.size - mafiaAlive
+        Log.d(TAG, "Tally outcomes: Total alive = ${alivePlayers.size}, Mafia alive = $mafiaAlive, Innocents alive = $innocentAlive")
+        
+        when {
+            // 1. إذا ماتت المافيا كلها، يفوز الأبرياء فوراً
+            mafiaAlive == 0 -> {
+                _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENTS")
+            }
+            // 2. إذا تبقى لاعبين اثنين فقط (ولسه المافيا صاحية)، ننتقل فوراً لجولة المحلفين للتصويت الحاسم
+            alivePlayers.size == 2 -> {
+                _roomState.value = state.copy(phase = GamePhase.JURY_ROUND, juryVotes = emptyMap())
+            }
+            // 3. شروط فوز المافيا التلقائي في الحالات الأخرى (أكبر من لاعبين)
+            mafiaAlive == 2 || mafiaAlive >= innocentAlive -> {
+                _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
+            }
+            // 4. استمرار اللعبة بشكل طبيعي والانتقال للدليل التالي
+            else -> {
+                val nextEvidenceIndex = (state.currentEvidenceIndex + 1) % (state.currentCase?.evidenceList?.size ?: 6)
+                _roomState.value = state.copy(
+                    phase = GamePhase.EVIDENCE_ROUND,
+                    currentEvidenceIndex = nextEvidenceIndex,
+                    votes = emptyMap()
+                )
+            }
         }
-        mafiaAlive == 2 || mafiaAlive >= innocentAlive -> {
-            _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
-        }
-        alivePlayers.size == 2 -> {
-            _roomState.value = state.copy(phase = GamePhase.JURY_ROUND, juryVotes = emptyMap())
-        }
-        else -> {
-            val nextEvidenceIndex = (state.currentEvidenceIndex + 1) % (state.currentCase?.evidenceList?.size ?: 6)
-            _roomState.value = state.copy(
-                phase = GamePhase.EVIDENCE_ROUND,
-                currentEvidenceIndex = nextEvidenceIndex,
-                votes = emptyMap()
-            )
+        if (_roomState.value.mode == "LAN") {
+            LanManager.broadcastStateToClients(_roomState.value)
         }
     }
-    if (_roomState.value.mode == "LAN") {
-        LanManager.broadcastStateToClients(_roomState.value)
-    }
-}
 
     private fun startTimer(seconds: Int, onComplete: () -> Unit) {
         stopTimer()
