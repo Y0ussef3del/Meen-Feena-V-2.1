@@ -1,9 +1,11 @@
 package com.example.game.audio
 
+import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.media.MediaPlayer
 import android.util.Log
 import kotlinx.coroutines.*
 import kotlin.math.sin
@@ -12,7 +14,7 @@ object MysteryAudioPlayer {
     private const val TAG = "MysteryAudioPlayer"
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var musicVolume = 0.5f
-    private var mediaPlayer: android.media.MediaPlayer? = null
+    private var mediaPlayer: MediaPlayer? = null
 
     // 1. playClick / playSelection: short wooden click feedback
     fun playClick() {
@@ -206,40 +208,36 @@ object MysteryAudioPlayer {
         try { audioTrack.release() } catch (ex: Throwable) {}
     }
 
-    // Volume configuration
+    // تعديل مستوى الصوت فوري للموسيقى والمؤثرات
     fun setVolume(volume: Float) {
         musicVolume = volume.coerceIn(0.0f, 1.0f)
         try {
             mediaPlayer?.setVolume(musicVolume, musicVolume)
-        } catch (e: Throwable) {
-            Log.e(TAG, "Error setting volume on mediaPlayer", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting media player volume", e)
         }
     }
 
-// دالة تشغيل الموسيقى الديناميكية الآمنة تماماً
-    fun startMusic(context: android.content.Context) {
+    // تشغيل الخلفية الموسيقية بشكل صحيح وتكراري من مجلد raw
+    fun startMusic(context: Context) {
         if (mediaPlayer == null) {
             try {
-                // ⚠️ ضع اسم ملف الـ mp3 الفعلي الموجود داخل res/raw بدون امتداد (مثل: "game_theme")
-                val fileName = "music_background" 
-                
-                // جلب الـ Resource ID ديناميكياً لتفادي مشاكل الحزم الـ R class تماماً
-                val resId = context.resources.getIdentifier(fileName, "raw", context.packageName)
-                
+                val resId = context.resources.getIdentifier("music_background", "raw", context.packageName)
                 if (resId != 0) {
-                    val mp = android.media.MediaPlayer.create(context, resId)
-                    if (mp != null) {
-                        mp.isLooping = true
-                        mp.setVolume(musicVolume, musicVolume)
-                        mp.start()
-                        mediaPlayer = mp
-                        Log.d(TAG, "Background music started successfully.")
+                    mediaPlayer = MediaPlayer.create(context, resId).apply {
+                        isLooping = true
+                        setVolume(musicVolume, musicVolume)
+                        start()
                     }
                 } else {
-                    Log.e(TAG, "Error: Audio file '$fileName' not found in res/raw")
+                    Log.e(TAG, "Resource music_background not found in res/raw")
                 }
-            } catch (e: Throwable) {
+            } catch (e: Exception) {
                 Log.e(TAG, "Error starting background music", e)
+            }
+        } else {
+            if (!mediaPlayer!!.isPlaying) {
+                mediaPlayer?.start()
             }
         }
     }
@@ -248,10 +246,9 @@ object MysteryAudioPlayer {
         try {
             mediaPlayer?.stop()
             mediaPlayer?.release()
-        } catch (e: Throwable) {
-            Log.e(TAG, "Error stopping background music", e)
-        } finally {
             mediaPlayer = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping background music", e)
         }
     }
 }

@@ -26,7 +26,14 @@ object CaseRepository {
     fun getUniqueCase(completedCaseTitles: Set<String>, playerCount: Int): Case? {
         val available = cachedCases.filter { it.title !in completedCaseTitles }
         val pool = if (available.isNotEmpty()) available else cachedCases
-        val matchingCases = pool.filter { it.characters.size >= playerCount }
+        
+        // 1. محاولة البحث أولاً عن قضية تطابق عدد اللاعبين بالضبط
+        var matchingCases = pool.filter { it.characters.size == playerCount }
+        
+        // 2. حل مرن وقائي: إذا لم نجد تطابقاً دقيقاً، نأخذ أي قضية بها شخصيات تكفي عدد اللاعبين الحاليين
+        if (matchingCases.isEmpty()) {
+            matchingCases = pool.filter { it.characters.size >= playerCount }
+        }
         
         return if (matchingCases.isNotEmpty()) {
             matchingCases.random(Random(System.currentTimeMillis()))

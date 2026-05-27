@@ -36,7 +36,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             roomState.collect { state ->
                 MysteryAudioPlayer.setVolume(state.settings.volume)
                 if (state.settings.isMusicEnabled) {
-                    // تشغيل الموسيقى باستخدام الـ Context المتاح تلقائياً
                     MysteryAudioPlayer.startMusic(getApplication())
                 } else {
                     MysteryAudioPlayer.stopMusic()
@@ -113,17 +112,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setupPassAndPlayGame() {
         stopTimer()
+        // الحفاظ على الإعدادات الحالية من التصفير
+        val currentSettings = _roomState.value.settings
         _roomState.value = RoomState(
             roomId = "PASS_AND_PLAY_ROOM",
             mode = "PASS_AND_PLAY",
             hostId = "LOCAL_HOST",
             phase = GamePhase.LOBBY,
             players = listOf(
-                Player("p1", "يوسف", avatarId = 1),
-                Player("p2", "عادل", avatarId = 2),
-                Player("p3", "محمد", avatarId = 3),
-                Player("p4", "جمال", avatarId = 4)
-            )
+                Player("p1", " يوسف عادل", avatarId = 1)
+            ),
+            settings = currentSettings
         )
         myPlayerId.value = "p1"
     }
@@ -154,12 +153,15 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         myPlayerId.value = deviceId
         myPlayerName.value = hostPlayerName
         val roomCode = (Random().nextInt(90000) + 1000).toString().padStart(5, '0')
+        // الحفاظ على الإعدادات الحالية من التصفير
+        val currentSettings = _roomState.value.settings
         _roomState.value = RoomState(
             roomId = roomCode,
             mode = "LAN",
             hostId = deviceId,
             phase = GamePhase.LOBBY,
-            players = listOf(Player(deviceId, hostPlayerName, avatarId = 1))
+            players = listOf(Player(deviceId, hostPlayerName, avatarId = 1)),
+            settings = currentSettings
         )
         LanManager.startHost(hostPlayerName, roomCode)
     }
@@ -202,7 +204,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         LanManager.broadcastStateToClients(_roomState.value)
     }
 
-    // الدالة بعد تعديلها بناءً على طلبك: صارمة ومباشرة بدون أي تعديل أو قص تلقائي
     fun startInvestigationGame() {
         val state = _roomState.value
         val playersCount = state.players.size
@@ -211,31 +212,25 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         playTransitionSound()
-
-        // محاولة جلب قضية تطابق عدد اللاعبين بالضبط
         val selectedCase = CaseRepository.getUniqueCase(completedCaseTitles, playersCount)
-
-        // لو ملهاش وجود (null)، هتعمل لودينج خطأ وتخرج فوراً بدون أي قص أو تعديل
-        if (selectedCase == null) {
-            Log.e(TAG, "No suitable case found in JSON Repository for player count: $playersCount (Returned Null)")
-            playError()
-            return 
+        var updatedPlayers = state.players
+        selectedCase?.let { case ->
+            completedCaseTitles.add(case.title)
+            val shuffledCharacters = case.characters.shuffled()
+            updatedPlayers = state.players.mapIndexed { index, player ->
+                val assignedCharacter = shuffledCharacters.getOrNull(index)
+                val isPlayerMafia = assignedCharacter?.isMafia == true
+                player.copy(
+                    isMafia = isPlayerMafia,
+                    character = assignedCharacter,
+                    isAlive = true,
+                    isConnected = true
+                )
+            }
+        } ?: run {
+            Log.e(TAG, "No suitable case found with characters >= $playersCount")
+            return
         }
-
-        completedCaseTitles.add(selectedCase.title)
-        val charactersPool = selectedCase.characters.shuffled()
-        
-        val updatedPlayers = state.players.mapIndexed { index, player ->
-            val assignedCharacter = charactersPool.getOrNull(index)
-            val isPlayerMafia = assignedCharacter?.isMafia == true
-            player.copy(
-                isMafia = isPlayerMafia,
-                character = assignedCharacter,
-                isAlive = true,
-                isConnected = true
-            )
-        }
-
         _roomState.value = state.copy(
             phase = GamePhase.ROLE_REVEAL,
             players = updatedPlayers,
@@ -498,16 +493,15 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val mafiaAlive = alivePlayers.count { it.isMafia }
         val innocentAlive = alivePlayers.size - mafiaAlive
         Log.d(TAG, "Tally outcomes: Total alive = ${alivePlayers.size}, Mafia alive = $mafiaAlive, Innocents alive = $innocentAlive")
-        
         when {
             mafiaAlive == 0 -> {
                 _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENTS")
             }
-            alivePlayers.size == 2 -> {
-                _roomState.value = state.copy(phase = GamePhase.JURY_ROUND, juryVotes = emptyMap())
-            }
             mafiaAlive == 2 || mafiaAlive >= innocentAlive -> {
                 _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
+            }
+            alivePlayers.size == 2 -> {
+                _roomState.value = state.copy(phase = GamePhase.JURY_ROUND, juryVotes = emptyMap())
             }
             else -> {
                 val nextEvidenceIndex = (state.currentEvidenceIndex + 1) % (state.currentCase?.evidenceList?.size ?: 6)
@@ -560,6 +554,15 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             volume = vol
         )
         _roomState.value = state.copy(settings = updatedSettings)
+        
+        // تطبيق لحظي لتغيير الموسيقى والصوت لسرعة الاستجابة
+        MysteryAudioPlayer.setVolume(vol)
+        if (music) {
+            MysteryAudioPlayer.startMusic(getApplication())
+        } else {
+            MysteryAudioPlayer.stopMusic()
+        }
+
         if (state.mode == "LAN") {
             LanManager.broadcastStateToClients(_roomState.value)
         }
@@ -574,7 +577,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         stopTimer()
         LanManager.stopDiscovery()
         LanManager.stopHost()
-        _roomState.value = RoomState()
+        // الحفاظ على الإعدادات الحالية حتى عند العودة للقائمة الرئيسية
+        val currentSettings = _roomState.value.settings
+        _roomState.value = RoomState(settings = currentSettings)
     }
 
     override fun onCleared() {
