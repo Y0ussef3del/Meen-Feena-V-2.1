@@ -28,7 +28,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // تهيئة مشغل الصوتيات
-        MysteryAudioPlayer.init(applicationContext)
+        
 
         setContent {
             MyApplicationTheme {
