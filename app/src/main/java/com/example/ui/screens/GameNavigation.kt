@@ -1636,150 +1636,50 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
 @Composable
 fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {
     val isHost = state.mode == "PASS_AND_PLAY" || state.hostId == viewModel.myPlayerId.value
-    
-    // Dynamically look for any player whose state was just flipped to dead/eliminated
-    // Or display the tied announcement
-    val tiedBreakActive = state.tiedVotePlayers.isNotEmpty()
+    val eliminated = state.lastEliminatedPlayer
 
     MysteryBackground {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)
-                .safeDrawingPadding()
-                .verticalScroll(androidx.compose.foundation.rememberScrollState()),
+            modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            ParchmentHeaderBanner(text = "نتائج الاقتراع والاتهامات")
+            ParchmentHeaderBanner(text = "نتائج التصويت والعدالة")
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            ParchmentCard(
-                modifier = Modifier.weight(1f),
-                seed = 99L
-            ) {
+            ParchmentCard(modifier = Modifier.weight(1f), seed = 88L) {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    if (tiedBreakActive) {
-                        // case of a tie
-                        Icon(Icons.Default.Balance, "Tie", tint = Color(0xFFE2A012), modifier = Modifier.size(64.dp))
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "تعادل في الأصوات! ⚖️",
-                            color = Color(0xFF4A1008),
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "الأصوات انقسمت بالتساوي بين المشتبه فيهم التاليين:",
-                            color = PapyrusTextSecondary,
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center
-                        )
+                    if (state.tiedVotePlayers.isNotEmpty()) {
+                        Text("⚖️ تعادل في الأصوات بين:", fontSize = 22.sp, color = Color(0xFF4A1008), fontWeight = FontWeight.Bold)
+                        state.players.filter { it.id in state.tiedVotePlayers }.forEach {
+                            Text("• ${it.name}", fontSize = 18.sp, color = RedAccent)
+                        }
+                    } else if (eliminated != null) {
+                        Text("تم استبعاد المشتبه به: ${eliminated.name}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4A1008))
                         Spacer(modifier = Modifier.height(10.dp))
                         
-                        state.players.filter { it.id in state.tiedVotePlayers }.forEach { player ->
-                            Text(
-                                text = "• ${player.name} (${player.character?.name ?: ""})",
-                                color = RedAccent,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    } else {
-                        // A clear player was eliminated! Let's reveal their identity identity
-                        Icon(Icons.Default.PersonRemove, "Eliminated", tint = RedAccent, modifier = Modifier.size(64.dp))
-                        Spacer(modifier = Modifier.height(12.dp))
+                        val identityText = if (eliminated.isMafia) "بطاقة الهوية: 🟥 مجرم !" else "بطاقة الهوية: 🟩  بريء"
+                        val identityColor = if (eliminated.isMafia) RedAccent else Color(0xFF2E7D32)
                         
-                        Text(
-                            text = "قرر مجلس التحقيق نفي مشتبه به!",
-                            color = Color(0xFF4A1008),
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // We show full dramatic card context 
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0x1F4A1008)),
-                            modifier = Modifier.fillMaxWidth().padding(8.dp),
-                            border = BorderStroke(1.dp, Color(0x3D4A1008))
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = "بناءً على تصويت الأغلبية العظمى...",
-                                    color = PapyrusTextSecondary,
-                                    fontSize = 13.sp
-                                )
-                                
-                                Text(
-                                    text = "تم استبعاد وتوجيه التهمة إلى:",
-                                    color = PapyrusText,
-                                    fontSize = 15.sp
-                                )
-
-                                // In a real setup, since we clear votes array on tally, we look at the player who is flagged dead or check history.
-                                // Alternatively, let's find the eliminated player or display all roles summary
-                                Text(
-                                    text = "اضغط على زر المتابعة!",
-                                    color = DarkWoodButton,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(top = 8.dp)
-                                )
-                            }
-                        }
+                        Text(text = identityText, fontSize = 22.sp, fontWeight = FontWeight.Black, color = identityColor)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "الشخصية الملعونة: ${eliminated.character?.name ?: "غير معروف"}", color = PapyrusTextSecondary, fontSize = 16.sp)
+                    } else {
+                        Text("لم يتم طرد أي أحد في هذه الجولة.", color = PapyrusText)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Navigation Button controls
             if (isHost) {
                 Button(
-                    onClick = {
-                        viewModel.confirmVoteResultAndProceed()
-                    },
+                    onClick = { viewModel.confirmVoteResultAndProceed() },
                     colors = ButtonDefaults.buttonColors(containerColor = RedAccent),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .testTag("confirm_vote_result_button"),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier.fillMaxWidth().height(56.dp)
                 ) {
-                    Text(
-                        text = if (tiedBreakActive) "بدء جولة حسم التعادل" else "متابعة مسار التحقيق ",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                }
-            } else {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0x3D2C1E14)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "في انتظار المضيف لمتابعة القضية...",
-                        color = PapyrusBgLight,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    )
+                    Text("متابعة التحقيق الجنائي", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
