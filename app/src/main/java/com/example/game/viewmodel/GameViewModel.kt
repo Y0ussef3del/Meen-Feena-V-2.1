@@ -44,6 +44,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // All audio functions are directly calling MysteryAudioPlayer methods
     fun playButtonClick() { MysteryAudioPlayer.playSelection() }
     fun playSelection() { MysteryAudioPlayer.playSelection() }
     fun playSuccess() { MysteryAudioPlayer.playSuccess() }
