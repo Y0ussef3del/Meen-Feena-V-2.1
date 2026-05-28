@@ -5,8 +5,8 @@ import org.json.JSONObject
 
 // Game settings
 data class GameSettings(
-    val discussionTimeMinutes: Int = 2,
-    val votingTimeMinutes: Int = 1,
+    val discussionTimeMinutes: Int = 4,
+    val votingTimeMinutes: Int = 2,
     val isMusicEnabled: Boolean = true,
     val volume: Float = 0.5f
 ) {
@@ -22,8 +22,8 @@ data class GameSettings(
     companion object {
         fun fromJsonObject(json: JSONObject): GameSettings {
             return GameSettings(
-                discussionTimeMinutes = json.optInt("discussionTimeMinutes", 2),
-                votingTimeMinutes = json.optInt("votingTimeMinutes", 1),
+                discussionTimeMinutes = json.optInt("discussionTimeMinutes", 4),
+                votingTimeMinutes = json.optInt("votingTimeMinutes", 2),
                 isMusicEnabled = json.optBoolean("isMusicEnabled", true),
                 volume = json.optDouble("volume", 0.5).toFloat()
             )
