@@ -33,13 +33,22 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     init {
         setupLanListeners()
         viewModelScope.launch {
+            var lastMusicEnabled: Boolean? = null
+            var lastVolume: Float? = null
+            
             roomState.collect { state ->
-                MysteryAudioPlayer.setVolume(state.settings.volume)
-                if (state.settings.isMusicEnabled) {
-                    // Passed getApplication() to provide the required context parameter
-                    MysteryAudioPlayer.startMusic(getApplication())
-                } else {
-                    MysteryAudioPlayer.stopMusic()
+                // حماية الإعدادات من التكرار العشوائي مع كل تكة عداد
+                if (lastVolume != state.settings.volume) {
+                    lastVolume = state.settings.volume
+                    MysteryAudioPlayer.setVolume(state.settings.volume)
+                }
+                if (lastMusicEnabled != state.settings.isMusicEnabled) {
+                    lastMusicEnabled = state.settings.isMusicEnabled
+                    if (state.settings.isMusicEnabled) {
+                        MysteryAudioPlayer.startMusic(getApplication())
+                    } else {
+                        MysteryAudioPlayer.stopMusic()
+                    }
                 }
             }
         }
@@ -113,6 +122,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setupPassAndPlayGame() {
         stopTimer()
+        val currentSettings = _roomState.value.settings // حفظ الإعدادات الحالية من الـ Main Menu
         _roomState.value = RoomState(
             roomId = "PASS_AND_PLAY_ROOM",
             mode = "PASS_AND_PLAY",
@@ -123,7 +133,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 Player("p2", "عادل", avatarId = 2),
                 Player("p3", "محمد", avatarId = 3),
                 Player("p4", "جمال", avatarId = 4)
-            )
+            ),
+            settings = currentSettings
         )
         myPlayerId.value = "p1"
     }
@@ -153,13 +164,15 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val deviceId = LanManager.localDeviceId
         myPlayerId.value = deviceId
         myPlayerName.value = hostPlayerName
+        val currentSettings = _roomState.value.settings // حفظ الإعدادات الحالية من الـ Main Menu
         val roomCode = (Random().nextInt(90000) + 1000).toString().padStart(5, '0')
         _roomState.value = RoomState(
             roomId = roomCode,
             mode = "LAN",
             hostId = deviceId,
             phase = GamePhase.LOBBY,
-            players = listOf(Player(deviceId, hostPlayerName, avatarId = 1))
+            players = listOf(Player(deviceId, hostPlayerName, avatarId = 1)),
+            settings = currentSettings
         )
         LanManager.startHost(hostPlayerName, roomCode)
     }
@@ -170,7 +183,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val deviceId = LanManager.localDeviceId
         myPlayerId.value = deviceId
         myPlayerName.value = playerName
-        _roomState.value = RoomState(mode = "LAN", phase = GamePhase.LOBBY)
+        val currentSettings = _roomState.value.settings
+        _roomState.value = RoomState(mode = "LAN", phase = GamePhase.LOBBY, settings = currentSettings)
         LanManager.connectToHost(hostIp, playerName, deviceId)
     }
 
@@ -294,14 +308,27 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         stopTimer()
         playTransitionSound()
         val state = _roomState.value
-        val firstAliveIndex = state.players.indexOfFirst { it.isAlive }
-        _roomState.value = state.copy(
-            votes = emptyMap(),
-            activePassPlayerIndex = if (firstAliveIndex != -1) firstAliveIndex else 0
-        )
-        transitionToPhase(GamePhase.VOTING)
-        startTimer(_roomState.value.settings.votingTimeMinutes * 60) {
-            resolveVotingTally()
+        val aliveCount = state.players.count { it.isAlive }
+        
+        // التحقق من بقاء لاعبين لتوجيه التدفق إلى هيئة المحلفين بدلاً من التصويت العادي
+        if (aliveCount == 2) {
+            _roomState.value = state.copy(
+                juryVotes = emptyMap(),
+                phase = GamePhase.JURY_ROUND
+            )
+            startTimer(state.settings.votingTimeMinutes * 60) {
+                resolveJuryVotingTally()
+            }
+        } else {
+            val firstAliveIndex = state.players.indexOfFirst { it.isAlive }
+            _roomState.value = state.copy(
+                votes = emptyMap(),
+                activePassPlayerIndex = if (firstAliveIndex != -1) firstAliveIndex else 0,
+                phase = GamePhase.VOTING
+            )
+            startTimer(state.settings.votingTimeMinutes * 60) {
+                resolveVotingTally()
+            }
         }
     }
 
@@ -491,15 +518,23 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val mafiaAlive = alivePlayers.count { it.isMafia }
         val innocentAlive = alivePlayers.size - mafiaAlive
         Log.d(TAG, "Tally outcomes: Total alive = ${alivePlayers.size}, Mafia alive = $mafiaAlive, Innocents alive = $innocentAlive")
+        
         when {
             mafiaAlive == 0 -> {
                 _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENTS")
             }
-            mafiaAlive == 2 || mafiaAlive >= innocentAlive -> {
-                _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
-            }
+            // إصلاح الترتيب: التحقق من تبقي لاعبين أولاً وقبل شروط فوز المافيا المباشر لضمان الذهاب للدليل الأخير والمحلفين
             alivePlayers.size == 2 -> {
-                _roomState.value = state.copy(phase = GamePhase.JURY_ROUND, juryVotes = emptyMap())
+                val finalEvidenceIndex = ((state.currentCase?.evidenceList?.size)?.minus(1))?.coerceAtLeast(0) ?: 0
+                _roomState.value = state.copy(
+                    phase = GamePhase.EVIDENCE_ROUND,
+                    currentEvidenceIndex = finalEvidenceIndex,
+                    votes = emptyMap(),
+                    juryVotes = emptyMap()
+                )
+            }
+            mafiaAlive >= innocentAlive -> {
+                _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
             }
             else -> {
                 val nextEvidenceIndex = (state.currentEvidenceIndex + 1) % (state.currentCase?.evidenceList?.size ?: 6)
@@ -566,7 +601,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         stopTimer()
         LanManager.stopDiscovery()
         LanManager.stopHost()
-        _roomState.value = RoomState()
+        val currentSettings = _roomState.value.settings // تجنب تصفير الإعدادات عند العودة للقائمة الرئيسية
+        _roomState.value = RoomState(settings = currentSettings)
     }
 
     override fun onCleared() {
