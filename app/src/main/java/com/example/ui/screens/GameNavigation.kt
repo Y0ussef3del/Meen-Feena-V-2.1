@@ -60,7 +60,6 @@ fun GameNavigation(viewModel: GameViewModel) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // الشاشات الرئيسية للتنقل مضاف إليها الأنيميشن السلس بشكل صحيح
         MysteryBackground(drawBloodDrips = state.phase == GamePhase.LOBBY) {
             AnimatedContent(
                 targetState = state.phase,
@@ -88,7 +87,6 @@ fun GameNavigation(viewModel: GameViewModel) {
             }
         }
 
-        // معالجة الـ Splash Screen كطبقة علوية تختفي بسلاسة (Fade Out) لمنع مشكلة تجمد الأنيميشن
         AnimatedVisibility(
             visible = showSplash,
             enter = fadeIn(),
@@ -242,7 +240,6 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // إضافة الـ key لتحسين أداء القائمة عند الإضافة أو الحذف
                 items(state.players, key = { it.id }) { player ->
                     Row(
                         modifier = Modifier
@@ -372,7 +369,6 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // إضافة الـ key لتحسين الأداء واستقرار القائمة
                 items(state.players, key = { it.id }) { player ->
                     Row(
                         modifier = Modifier
@@ -477,7 +473,6 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // إضافة الـ key لمنع حدوث ومضات أو Recomposition غير مبرر للقائمة بالكامل
                 items(state.players, key = { it.id }) { player ->
                     Row(
                         modifier = Modifier
@@ -494,7 +489,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                             Text(text = player.avatarId.toString(), color = GoldShine, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(text = player.name, color = PapyrusText, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text(text = p = player.name, color = PapyrusText, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         IconButton(onClick = { viewModel.removePlayerFromLobby(player.id) }) {
                             Icon(Icons.Default.Delete, "Remove", tint = RedAccent)
                         }
@@ -625,15 +620,12 @@ fun LanJoinLobbyScreen(
                     }
                 }
             } else {
-                // تعديل: تحويل الـ Map إلى List مستقرة وتخزينها لحماية الأداء ومنع التهنيج
                 val hostsList = remember(discoveredHosts) { discoveredHosts.toList() }
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // الـ الـ استخدام الصحيح الموفر للذاكرة عبر items مع تمرير الـ Key
                     items(hostsList, key = { it.first }) { (ip, hostDetails) ->
-                        // تخزين عملية تفكيك النصوص لحماية المعالج من العمليات المتكررة
                         val parts = remember(hostDetails) { hostDetails.split("|") }
                         val hostName = parts.getOrNull(0) ?: "اوضة مجهولة"
                         val rCode = parts.getOrNull(1) ?: "----"
@@ -1144,7 +1136,6 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                 Text(text = "اختار الشخص اللي شاكك فيه تفتكر هو المجرم:", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(12.dp))
                 LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // تحسين: إضافة الـ key لحماية أداء الحركات داخل صندوق التصويت
                     items(eligibleCandidates, key = { it.id }) { candidate ->
                         val isSelected = candidate.id == selectedTargetId
                         Row(
@@ -1177,7 +1168,6 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
             }
         }
     } else {
-        // LAN MODE
         val localVoter = state.players.find { it.id == viewModel.myPlayerId.value } ?: return
         if (!localVoter.isAlive) {
             MysteryBackground {
@@ -1234,7 +1224,6 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                     Text(text = "اختار الشخص اللي شاكك فيه ان هو المجرم:", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                     Spacer(modifier = Modifier.height(12.dp))
                     LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // تحسين: ربط العناصر بـ key فريد ومستقر
                         items(eligibleCandidates, key = { it.id }) { candidate ->
                             val isSelected = candidate.id == selectedTargetId
                             Row(
@@ -1364,7 +1353,6 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                         modifier = Modifier.fillMaxWidth().weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // تحسين: إضافة الـ key لتحسين كفاءة استدعاء المحلفين
                         items(remainingSuspects, key = { it.id }) { suspect ->
                             Row(
                                 modifier = Modifier
@@ -1402,7 +1390,6 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
             }
         }
     } else {
-        // LAN Mode
         if (localPlayer == null) return
         val isAlive = localPlayer.isAlive
         val hasVoted = state.juryVotes.containsKey(localPlayer.id)
@@ -1457,7 +1444,6 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                                 modifier = Modifier.fillMaxWidth().weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                // تحسين: حماية تحديثات واجهة المستخدم عن طريق الـ key المستقر
                                 items(remainingSuspects, key = { it.id }) { suspect ->
                                     Row(
                                         modifier = Modifier
@@ -1472,7 +1458,7 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                                             Text(suspect.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                                             suspect.character?.let {
                                                 Text("الشخصية: ${it.name} | المهنة: ${it.occupation}", color = PapyrusTextSecondary, fontSize = 14.sp)
-                                            }
+                                        }
                                         }
                                         Button(
                                             onClick = { viewModel.submitJuryVote(suspect.id) },
@@ -1533,7 +1519,7 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                                     Text("علاقته بالمشتبهين: ${mafia.character?.relationshipToOtherSuspects ?: "منافسة"}", color = PapyrusTextSecondary, fontSize = 14.sp)
                                     Text("السجل الجنائي: ${mafia.character?.relevantHistory ?: "خالي من السوابق"}", color = PapyrusTextSecondary, fontSize = 14.sp)
                                     Spacer(modifier = Modifier.height(6.dp))
-                                    Text(text = "الدافع والنية المستخبية: ${mafia.character?.hiddenMotive ?: ""}", color = Color(0xFF4A1008), fontWeight = FontWeight.Bold, fontSize = 15.sp, lineHeight = 20.dp)
+                                    Text(text = "الدافع والنية المستخبية: ${mafia.character?.hiddenMotive ?: ""}", color = Color(0xFF4A1008), fontWeight = FontWeight.Bold, fontSize = 15.sp, lineHeight = 20.sp)
                                 }
                             }
                         }
