@@ -489,7 +489,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                             Text(text = player.avatarId.toString(), color = GoldShine, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(text = p = player.name, color = PapyrusText, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text(text = player.name, color = PapyrusText, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         IconButton(onClick = { viewModel.removePlayerFromLobby(player.id) }) {
                             Icon(Icons.Default.Delete, "Remove", tint = RedAccent)
                         }
@@ -1458,7 +1458,7 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                                             Text(suspect.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                                             suspect.character?.let {
                                                 Text("الشخصية: ${it.name} | المهنة: ${it.occupation}", color = PapyrusTextSecondary, fontSize = 14.sp)
-                                        }
+                                            }
                                         }
                                         Button(
                                             onClick = { viewModel.submitJuryVote(suspect.id) },
