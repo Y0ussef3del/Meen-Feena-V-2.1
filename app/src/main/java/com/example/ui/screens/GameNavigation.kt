@@ -103,7 +103,7 @@ fun GameNavigation(viewModel: GameViewModel) {
 // 1. SPLASH SCREEN
 // ==========================================
 @Composable
-fun ThrillerTitleComponent(fontSize: androidx.compose.ui.unit.TextUnit = 80.sp) {
+fun ThrillerTitleComponent(fontSize: androidx.compose.ui.unit.TextUnit = 65.sp) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -1044,7 +1044,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                             Box(
                                 modifier = Modifier
                                     .background(
-                                        if (player.isMafia && isClickSuspected) GoldYell else Color(0x3B000000),
+                                        Color(0x3B000000),
                                         RoundedCornerShape(4.dp)
                                     )
                                     .padding(horizontal = 3.dp, vertical = 1.dp)
@@ -1083,7 +1083,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
             ) {
                 Icon(Icons.Default.HowToVote, "Start Votes", tint = GoldShine)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("يلا ندخل على الاقتراع والتصويت", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text("يلا ندخل على التصويت", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             }
         }
     }
@@ -1598,14 +1598,14 @@ fun SettingsDialog(viewModel: GameViewModel, onDismissRequest: () -> Unit) {
                         Slider(value = sliderVol, onValueChange = { sliderVol = it }, modifier = Modifier.fillMaxWidth())
                         Divider(color = Color(0x3B2C1E14))
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text("وقت جولات المناقشة والتحقيق", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("وقت جولات المناقشة", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             Button(onClick = { if (discTimeMins > 1) discTimeMins-- }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton)) { Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
                             Text("$discTimeMins دقائق", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.align(Alignment.CenterVertically))
                             Button(onClick = { if (discTimeMins < 10) discTimeMins++ }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton)) { Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
                         }
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text("وقت جولات الاقتراع والتصويت", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("وقت جولات التصويت", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             Button(onClick = { if (voteTimeMins > 1) voteTimeMins-- }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton)) { Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
                             Text("$voteTimeMins دقائق", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.align(Alignment.CenterVertically))
