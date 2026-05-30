@@ -4,6 +4,7 @@ import androidx.compose.material.icons.filled.HowToVote
 import com.example.game.model.RoomState
 import android.widget.Toast
 import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -58,22 +59,21 @@ fun GameNavigation(viewModel: GameViewModel) {
         showSplash = false
     }
 
-    MysteryBackground(drawBloodDrips = showSplash || state.phase == GamePhase.LOBBY) {
-        AnimatedContent(
-            targetState = if (showSplash) GamePhase.LOBBY else state.phase,
-            transitionSpec = {
-                val duration = 800
-                (fadeIn(animationSpec = androidx.compose.animation.core.tween(duration)) +
-                 slideInVertically(initialOffsetY = { 80 }, animationSpec = androidx.compose.animation.core.tween(duration)) +
-                 scaleIn(initialScale = 0.95f, animationSpec = androidx.compose.animation.core.tween(duration))) with
-                (fadeOut(animationSpec = androidx.compose.animation.core.tween(500)) +
-                 scaleOut(targetScale = 1.05f, animationSpec = androidx.compose.animation.core.tween(500)))
-            },
-            label = "PhaseTransition"
-        ) { phase ->
-            if (showSplash) {
-                SplashScreen()
-            } else {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // الشاشات الرئيسية للتنقل مضاف إليها الأنيميشن السلس بشكل صحيح
+        MysteryBackground(drawBloodDrips = state.phase == GamePhase.LOBBY) {
+            AnimatedContent(
+                targetState = state.phase,
+                transitionSpec = {
+                    val duration = 800
+                    (fadeIn(animationSpec = tween(duration)) +
+                     slideInVertically(initialOffsetY = { 80 }, animationSpec = tween(duration)) +
+                     scaleIn(initialScale = 0.95f, animationSpec = tween(duration))) togetherWith
+                    (fadeOut(animationSpec = tween(500)) +
+                     scaleOut(targetScale = 1.05f, animationSpec = tween(500)))
+                },
+                label = "PhaseTransition"
+            ) { phase ->
                 when (phase) {
                     GamePhase.LOBBY -> MainMenuOrLobbyScreen(viewModel, state)
                     GamePhase.ROLE_REVEAL -> RoleRevealScreen(viewModel, state)
@@ -85,6 +85,17 @@ fun GameNavigation(viewModel: GameViewModel) {
                     GamePhase.JURY_ROUND -> JuryScreen(viewModel, state)
                     GamePhase.ENDGAME -> EndgameScreen(viewModel, state)
                 }
+            }
+        }
+
+        // معالجة الـ Splash Screen كطبقة علوية تختفي بسلاسة (Fade Out) لمنع مشكلة تجمد الأنيميشن
+        AnimatedVisibility(
+            visible = showSplash,
+            enter = fadeIn(),
+            exit = fadeOut(animationSpec = tween(600))
+        ) {
+            Box(modifier = Modifier.fillMaxSize().background(DarkBg)) {
+                SplashScreen()
             }
         }
     }
@@ -191,7 +202,7 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
         modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        ParchmentHeaderBanner(text = "غرفة المضيف")
+        ParchmentHeaderBanner(text = "اوضة المضيف")
         Spacer(modifier = Modifier.height(10.dp))
         ThrillerTitleComponent(fontSize = 38.sp)
         Spacer(modifier = Modifier.height(10.dp))
@@ -231,7 +242,8 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(state.players) { player ->
+                // إضافة الـ key لتحسين أداء القائمة عند الإضافة أو الحذف
+                items(state.players, key = { it.id }) { player ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -360,7 +372,8 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                items(state.players) { player ->
+                // إضافة الـ key لتحسين الأداء واستقرار القائمة
+                items(state.players, key = { it.id }) { player ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -464,7 +477,8 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(state.players) { player ->
+                // إضافة الـ key لمنع حدوث ومضات أو Recomposition غير مبرر للقائمة بالكامل
+                items(state.players, key = { it.id }) { player ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -611,32 +625,35 @@ fun LanJoinLobbyScreen(
                     }
                 }
             } else {
+                // تعديل: تحويل الـ Map إلى List مستقرة وتخزينها لحماية الأداء ومنع التهنيج
+                val hostsList = remember(discoveredHosts) { discoveredHosts.toList() }
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    discoveredHosts.forEach { (ip, hostDetails) ->
-                        val parts = hostDetails.split("|")
+                    // الـ الـ استخدام الصحيح الموفر للذاكرة عبر items مع تمرير الـ Key
+                    items(hostsList, key = { it.first }) { (ip, hostDetails) ->
+                        // تخزين عملية تفكيك النصوص لحماية المعالج من العمليات المتكررة
+                        val parts = remember(hostDetails) { hostDetails.split("|") }
                         val hostName = parts.getOrNull(0) ?: "اوضة مجهولة"
                         val rCode = parts.getOrNull(1) ?: "----"
-                        item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0x0C000000), RoundedCornerShape(10.dp))
-                                    .border(2.dp, GoldYell, RoundedCornerShape(10.dp))
-                                    .clickable { viewModel.joinLanHost(ip, playerNameInput) }
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Wifi, "Wifi game", tint = RedAccent)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(hostName, color = PapyrusText, fontWeight = FontWeight.Bold)
-                                    Text("رمز الاوضة: $rCode | IP: $ip", color = PapyrusTextSecondary, fontSize = 11.sp)
-                                }
-                                Icon(Icons.Default.ArrowForward, "Join details", tint = DarkWoodButton)
+                        
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0x0C000000), RoundedCornerShape(10.dp))
+                                .border(2.dp, GoldYell, RoundedCornerShape(10.dp))
+                                .clickable { viewModel.joinLanHost(ip, playerNameInput) }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Wifi, "Wifi game", tint = RedAccent)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(hostName, color = PapyrusText, fontWeight = FontWeight.Bold)
+                                Text("رمز الاوضة: $rCode | IP: $ip", color = PapyrusTextSecondary, fontSize = 11.sp)
                             }
+                            Icon(Icons.Default.ArrowForward, "Join details", tint = DarkWoodButton)
                         }
                     }
                 }
@@ -781,7 +798,7 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                     Icon(Icons.Default.VisibilityOff, contentDescription = "Hide role cards", tint = GoldShine, modifier = Modifier.fillMaxSize())
                 }
                 Spacer(modifier = Modifier.height(24.dp))
-                Text(text = "ادي التلفون ل : ", color = PapyrusBgLight.copy(alpha = 0.8f), fontSize = 16.sp, textAlign = TextAlign.Center)
+                Text(text = "دي التلفون ل : ", color = PapyrusBgLight.copy(alpha = 0.8f), fontSize = 16.sp, textAlign = TextAlign.Center)
                 Text(text = activePassPlayer.name, color = GoldShine, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, modifier = Modifier.testTag("pass_name_reveal"))
                 Spacer(modifier = Modifier.height(30.dp))
                 Button(onClick = { revealed = true }, colors = ButtonDefaults.buttonColors(containerColor = GoldYell), modifier = Modifier.testTag("reveal_role_button")) {
@@ -933,148 +950,149 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
 // ==========================================
 // 6. DISCUSSION SCREEN (WITH RADIAL CLOCK)
 // ==========================================
-
 @Composable
 fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
     val suspectedByClick = remember { mutableStateListOf<String>() }
-    
-    Column(
+
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp)
-            .safeDrawingPadding(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+            .safeDrawingPadding()
+            .navigationBarsPadding()
+            .statusBarsPadding()
     ) {
-        ParchmentHeaderBanner(text = "مرحلة النقاش والمواجهة")
-        
-        // حاوية العداد واللاعبين
-        Box(
+        val minSide = minOf(maxWidth, maxHeight)
+        val timerSize = (minSide * 0.34f).coerceIn(120.dp, 170.dp)
+        val avatarSize = (minSide * 0.14f).coerceIn(52.dp, 68.dp)
+        val radius = (minSide * 0.32f).coerceIn(90.dp, 150.dp)
+
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f), 
-            contentAlignment = Alignment.Center
+                .fillMaxSize()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val formattedTime = String.format("%02d:%02d", state.timerSecondsLeft / 60, state.timerSecondsLeft % 60)
-            
-            // 1. الدائرة الحافزة للوقت
-            Canvas(modifier = Modifier.size(170.dp)) {
-                drawCircle(color = Color(0xFF1E0604), radius = size.minDimension / 2)
-                
-                // ✅ تم إصلاح الشرط هنا للتأكد من أن الـ TotalSeconds أكبر من 0
-                val sweepAngle = if (state.timerTotalSeconds > 0) {
-                    (state.timerSecondsLeft.toFloat() / state.timerTotalSeconds.toFloat()) * 360f
-                } else {
-                    360f
+            ParchmentHeaderBanner(text = "مرحلة النقاش والمواجهة")
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                val formattedTime = String.format("%02d:%02d", state.timerSecondsLeft / 60, state.timerSecondsLeft % 60)
+
+                Canvas(modifier = Modifier.size(timerSize)) {
+                    drawCircle(color = Color(0xFF1E0604), radius = size.minDimension / 2)
+                    val sweepAngle = if (state.timerTotalSeconds > 0) {
+                        (state.timerSecondsLeft.toFloat() / state.timerTotalSeconds.toFloat()) * 360f
+                    } else 360f
+
+                    drawArc(
+                        color = Color(0xFFE73224),
+                        startAngle = -90f,
+                        sweepAngle = sweepAngle,
+                        useCenter = false,
+                        style = Stroke(width = 8.dp.toPx(), fill = false, cap = StrokeCap.Round)
+                    )
                 }
-                
-                drawArc(
-                    color = Color(0xFFE73224), 
-                    startAngle = -90f, 
-                    sweepAngle = sweepAngle, 
-                    useCenter = false, 
-                    style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
-                )
-            }
-            
-            // 2. نصوص العداد بالداخل
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("متبقي", color = GoldYell, fontSize = 12.sp)
-                Text(
-                    text = formattedTime, 
-                    color = Color.White, 
-                    fontSize = 28.sp, 
-                    fontWeight = FontWeight.ExtraBold, 
-                    fontFamily = FontFamily.Monospace, 
-                    modifier = Modifier.testTag("timer_countdown_display")
-                )
-                Text("للإدلاء بالاستنتاج", color = PapyrusBgLight.copy(alpha = 0.5f), fontSize = 10.sp)
-            }
-            
-            // 3. توزيع اللاعبين الأحياء حول الدائرة
-            val alivePlayers = state.players.filter { it.isAlive }
-            alivePlayers.forEachIndexed { index, player ->
-                val angleRad = (2 * Math.PI * index) / alivePlayers.size
-                // مسافة الابتعاد عن السنتر (تم زيادة المسافة قليلاً لـ 140dp لتجنب التداخل مع دائرة الـ 170dp)
-                val xOffset = (140 * cos(angleRad)).dp
-                val yOffset = (140 * sin(angleRad)).dp
-                val isClickSuspected = player.id in suspectedByClick
-                
-                Box(
-                    modifier = Modifier
-                        .offset(x = xOffset, y = yOffset)
-                        .size(68.dp)
-                        .shadow(3.dp, CircleShape)
-                        .background(if (isClickSuspected) Color(0xFFC42512) else Color(0xFF421E14), CircleShape)
-                        .border(2.dp, if (isClickSuspected) GoldShine else Color(0x3BFFFFFF), CircleShape)
-                        .clickable {
-                            if (isClickSuspected) {
-                                suspectedByClick.remove(player.id)
-                            } else {
-                                suspectedByClick.add(player.id)
-                            }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally, 
-                        verticalArrangement = Arrangement.Center, 
-                        modifier = Modifier.padding(4.dp)
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("متبقي", color = GoldYell, fontSize = 12.sp)
+                    Text(
+                        text = formattedTime,
+                        color = Color.White,
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.testTag("timer_countdown_display")
+                    )
+                    Text("للإدلاء بالاستنتاج", color = PapyrusBgLight.copy(alpha = 0.5f), fontSize = 10.sp)
+                }
+
+                val alivePlayers = state.players.filter { it.isAlive }
+
+                alivePlayers.forEachIndexed { index, player ->
+                    val angleRad = (2 * Math.PI * index) / maxOf(alivePlayers.size, 1)
+                    val xOffset = (radius.value * cos(angleRad)).dp
+                    val yOffset = (radius.value * sin(angleRad)).dp
+                    val isClickSuspected = player.id in suspectedByClick
+
+                    Box(
+                        modifier = Modifier
+                            .offset(x = xOffset, y = yOffset)
+                            .size(avatarSize)
+                            .shadow(3.dp, CircleShape)
+                            .background(
+                                if (isClickSuspected) Color(0xFFC42512) else Color(0xFF421E14),
+                                CircleShape
+                            )
+                            .border(
+                                2.dp,
+                                if (isClickSuspected) GoldShine else Color(0x3BFFFFFF),
+                                CircleShape
+                            )
+                            .clickable {
+                                if (isClickSuspected) suspectedByClick.remove(player.id)
+                                else suspectedByClick.add(player.id)
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = player.name.take(6), 
-                            color = Color.White, 
-                            fontSize = 10.sp, 
-                            fontWeight = FontWeight.Bold, 
-                            maxLines = 1, 
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    if (player.isMafia && isClickSuspected) GoldYell else Color(0x3B000000), 
-                                    RoundedCornerShape(4.dp)
-                                )
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(2.dp)
                         ) {
                             Text(
-                                text = if (isClickSuspected) "متهم ⚠️" else "قيد السؤال", 
-                                color = if (isClickSuspected) Color.Black else Color.White, 
-                                fontSize = 8.sp, 
-                                fontWeight = FontWeight.Bold
+                                text = player.name.take(6),
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        if (player.isMafia && isClickSuspected) GoldYell else Color(0x3B000000),
+                                        RoundedCornerShape(4.dp)
+                                    )
+                                    .padding(horizontal = 3.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = if (isClickSuspected) "متهم ⚠️" else "قيد السؤال",
+                                    color = if (isClickSuspected) Color.Black else Color.White,
+                                    fontSize = 7.sp
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
-        
-        Spacer(modifier = Modifier.height(10.dp))
-        
-        ParchmentCard(modifier = Modifier.wrapContentHeight(), seed = 771L) {
-            Text(
-                text = "دوس على أي لاعب عشان تركز الشكوك عليه باللون الأحمر عشان تبدأوا تناقشوه.", 
-                color = PapyrusTextSecondary, 
-                fontSize = 15.sp, 
-                textAlign = TextAlign.Center
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Button(
-            onClick = { viewModel.advanceFromDiscussionToVoting() }, 
-            colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), 
-            shape = RoundedCornerShape(12.dp), 
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .testTag("voting_advance_button")
-        ) {
-            Icon(Icons.Default.HowToVote, "Start Votes", tint = GoldShine)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("يلا ندخل على الاقتراع والتصويت", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+
+            ParchmentCard(modifier = Modifier.wrapContentHeight(), seed = 771L) {
+                Text(
+                    text = "تناقشوا في القضية .....القاعدة المهمة الجميع متهم خلي بالك",
+                    color = PapyrusTextSecondary,
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = { viewModel.advanceFromDiscussionToVoting() },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .heightIn(min = 56.dp)
+                    .testTag("voting_advance_button")
+            ) {
+                Icon(Icons.Default.HowToVote, "Start Votes", tint = GoldShine)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("يلا ندخل على الاقتراع والتصويت", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            }
         }
     }
 }
@@ -1126,7 +1144,8 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                 Text(text = "اختار الشخص اللي شاكك فيه تفتكر هو المجرم:", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(12.dp))
                 LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(eligibleCandidates) { candidate ->
+                    // تحسين: إضافة الـ key لحماية أداء الحركات داخل صندوق التصويت
+                    items(eligibleCandidates, key = { it.id }) { candidate ->
                         val isSelected = candidate.id == selectedTargetId
                         Row(
                             modifier = Modifier.fillMaxWidth().background(if (isSelected) Color(0x3B6E1B10) else Color(0x0C000000), RoundedCornerShape(10.dp)).border(2.dp, if (isSelected) RedAccent else Color(0x1F2C1E14), RoundedCornerShape(10.dp)).clickable { selectedTargetId = candidate.id }.padding(14.dp),
@@ -1215,7 +1234,8 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                     Text(text = "اختار الشخص اللي شاكك فيه ان هو المجرم:", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                     Spacer(modifier = Modifier.height(12.dp))
                     LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(eligibleCandidates) { candidate ->
+                        // تحسين: ربط العناصر بـ key فريد ومستقر
+                        items(eligibleCandidates, key = { it.id }) { candidate ->
                             val isSelected = candidate.id == selectedTargetId
                             Row(
                                 modifier = Modifier.fillMaxWidth().background(if (isSelected) Color(0x3B6E1B10) else Color(0x0C000000), RoundedCornerShape(10.dp)).border(2.dp, if (isSelected) RedAccent else Color(0x1F2C1E14), RoundedCornerShape(10.dp)).clickable { selectedTargetId = candidate.id }.padding(14.dp),
@@ -1260,7 +1280,6 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
     val localPlayer = state.players.find { it.id == viewModel.myPlayerId.value }
 
     if (state.mode == "PASS_AND_PLAY") {
-        // Find the first eliminated player who hasn't voted yet
         val juryVoter = eliminatedPlayers.firstOrNull { it.id !in state.juryVotes.keys }
         var isDevicePassed by remember(juryVoter?.id) { mutableStateOf(false) }
 
@@ -1345,7 +1364,8 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                         modifier = Modifier.fillMaxWidth().weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(remainingSuspects) { suspect ->
+                        // تحسين: إضافة الـ key لتحسين كفاءة استدعاء المحلفين
+                        items(remainingSuspects, key = { it.id }) { suspect ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1437,7 +1457,8 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                                 modifier = Modifier.fillMaxWidth().weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                items(remainingSuspects) { suspect ->
+                                // تحسين: حماية تحديثات واجهة المستخدم عن طريق الـ key المستقر
+                                items(remainingSuspects, key = { it.id }) { suspect ->
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -1494,7 +1515,7 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
             Box(modifier = Modifier.fillMaxWidth().weight(1f).background(Color(0x0C000000), RoundedCornerShape(10.dp)).padding(14.dp)) {
                 LazyColumn(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     item {
-                        Text(text = if (isInnocentsWinner) "الأبرياء عرفوا يجمعوا الأدلة ويكشفوا اللعبة الصح، والمجرم وقع في شر أعماله ." else "المجرم عرف يضحك على الكل ويثبت تهم باطلة على الأبرياء، وخرج من القضية زي الشعرة من العجين.", color = PapyrusText, fontSize = 16.sp, lineHeight = 24.sp, textAlign = TextAlign.Center)
+                        Text(text = if (isInnocentsWinner) "الأبرياء عرفوا يجمعوا الأدلة ويكشفوا اللعبة الصح، والمجرم وقع في شر أعماله ." else "المجرم عرف يضحك على الكل وثبت تهم باطلة على الأبرياء، وخرج من القضية زي الشعرة من العجين.", color = PapyrusText, fontSize = 16.sp, lineHeight = 24.sp, textAlign = TextAlign.Center)
                         Spacer(modifier = Modifier.height(14.dp))
                         HorizontalDivider(color = Color(0x3B2C1E14))
                         Spacer(modifier = Modifier.height(10.dp))
@@ -1503,7 +1524,7 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0x1CE63946)), border = BorderStroke(1.dp, Color(0xFFE63946)), shape = RoundedCornerShape(8.dp)) {
                                 Column(modifier = Modifier.padding(12.dp)) {
-                                    Text(text = "المجرم الحقيقي: ${mafia.name}", color = Color(0xFFD62828), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, modifier = Modifier.testTag("criminal_character_name"))
+                                    Text(text = "المجرم الحقيقي: ${mafia.name}", color = Color(0xFF3B6E1B10), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, modifier = Modifier.testTag("criminal_character_name"))
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text("العمر: ${mafia.character?.age ?: 30} سنة | المهنة: ${mafia.character?.occupation ?: "مجهول"}", color = PapyrusText, fontSize = 15.sp)
                                     Text("المظهر والطباع: ${mafia.character?.traits ?: ""}", color = PapyrusTextSecondary, fontSize = 14.sp)
@@ -1512,7 +1533,7 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                                     Text("علاقته بالمشتبهين: ${mafia.character?.relationshipToOtherSuspects ?: "منافسة"}", color = PapyrusTextSecondary, fontSize = 14.sp)
                                     Text("السجل الجنائي: ${mafia.character?.relevantHistory ?: "خالي من السوابق"}", color = PapyrusTextSecondary, fontSize = 14.sp)
                                     Spacer(modifier = Modifier.height(6.dp))
-                                    Text(text = "الدافع والنية المستخبية: ${mafia.character?.hiddenMotive ?: ""}", color = Color(0xFF4A1008), fontWeight = FontWeight.Bold, fontSize = 15.sp, lineHeight = 20.sp)
+                                    Text(text = "الدافع والنية المستخبية: ${mafia.character?.hiddenMotive ?: ""}", color = Color(0xFF4A1008), fontWeight = FontWeight.Bold, fontSize = 15.sp, lineHeight = 20.dp)
                                 }
                             }
                         }
