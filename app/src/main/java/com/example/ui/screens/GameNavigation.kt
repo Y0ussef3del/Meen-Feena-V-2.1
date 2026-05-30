@@ -993,7 +993,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                         startAngle = -90f,
                         sweepAngle = sweepAngle,
                         useCenter = false,
-                        style = Stroke(width = 8.dp.toPx(), fill = false, cap = StrokeCap.Round)
+                        style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
                     )
                 }
 
