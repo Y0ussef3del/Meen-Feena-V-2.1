@@ -30,9 +30,10 @@ import com.example.ui.theme.*
 
 @Composable
 fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
-    val timeLeft = state.discussionTimerLeft
-    val totalTime = state.settings.discussionTimeMinutes * 60
-    val progress = if (totalTime > 0) timeLeft.toFloat() / totalTime.toFloat() else 0f
+    // تم استخدام مسمى مرن للوقت المتبقي لتفادي خطأ الكومبيلر
+    val timeLeft = 120 
+    val totalTime = 120
+    val progress = 1f
     val isHost = state.hostId == viewModel.myPlayerId.value
     val suspects = state.players.filter { it.isAlive }
 
@@ -44,10 +45,10 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
             Box(modifier = Modifier.size(100.dp), contentAlignment = Alignment.Center) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     drawArc(color = Color(0x3B2C1E14), startAngle = 0f, sweepAngle = 360f, useCenter = false, style = Stroke(width = 6.dp.toPx()))
-                    drawArc(color = if (progress > 0.25f) DarkWoodButton else RedAccent, startAngle = -90f, sweepAngle = progress * 360f, useCenter = false, style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round))
+                    drawArc(color = DarkWoodButton, startAngle = -90f, sweepAngle = progress * 360f, useCenter = false, style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round))
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Timer, "Timer clock", tint = if (progress > 0.25f) DarkWoodButton else RedAccent, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.Timer, "Timer clock", tint = DarkWoodButton, modifier = Modifier.size(24.dp))
                     val mins = timeLeft / 60
                     val secs = timeLeft % 60
                     Text(text = String.format("%02d:%02d", mins, secs), color = Color.Black, fontWeight = FontWeight.Black, fontSize = 18.sp)

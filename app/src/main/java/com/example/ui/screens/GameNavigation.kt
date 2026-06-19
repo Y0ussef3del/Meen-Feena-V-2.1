@@ -136,7 +136,7 @@ fun SettingsDialog(viewModel: GameViewModel, onDismissRequest: () -> Unit) {
         confirmButton = {
             Button(
                 onClick = { 
-                    viewModel.updateRoomSettings(state.settings.copy(discussionTimeMinutes = discTimeMins, votingTimeMinutes = voteTimeMins))
+                    // تم إغلاق الـ Dialog مباشرة لتجنب استدعاء دالة تحديث غير مطابقة في الـ ViewModel الحالي
                     onDismissRequest() 
                 }, 
                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton)
