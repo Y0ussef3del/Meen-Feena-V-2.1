@@ -83,12 +83,10 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = if (activePassPlayer.isMafia) "أنت : المجرم الحقيقية" else "أنت : بريء من الجريمة", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = "الدافع :", color = Color(0xFF4A1008), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text(text = char.motive, color = PapyrusText, fontSize = 15.sp, textAlign = TextAlign.Center)
+                    
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 Button(
     onClick = { viewModel.confirmSecretsRevealed(); revealed = false },
     colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
