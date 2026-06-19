@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -28,7 +29,8 @@ import com.example.ui.theme.*
 @Composable
 fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
     val mafia = state.players.find { it.isMafia }
-    val winnerText = state.endgameWinnerSummary
+    val isMafiaWin = state.players.filter { !it.isMafia }.all { !it.isAlive }
+    val winnerText = if (isMafiaWin) "🩸 انـتـصـر الـمُـجْـرِم والعدالة فشلت!" else "🔍 عـاش الـمُـحَـقِّـقُـون! تم كشف المجرم"
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val padding = responsivePadding(this.maxWidth)
@@ -49,10 +51,7 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                             Spacer(modifier = Modifier.height(4.dp))
                             Text("العمر: ${mafia.character?.age ?: 30} سنة | المهنة: ${mafia.character?.occupation ?: "مجهول"}", color = PapyrusText, fontSize = 15.sp)
                             Text("المظهر والطباع: ${mafia.character?.traits ?: ""}", color = PapyrusTextSecondary, fontSize = 14.sp)
-                            Text("المستوى الاجتماعي: ${mafia.character?.socialStatus ?: "متوسط الحال"}", color = PapyrusTextSecondary, fontSize = 14.sp)
                             Text("علاقته بالضحية: ${mafia.character?.relationshipToVictim ?: "غامضة"}", color = PapyrusTextSecondary, fontSize = 14.sp)
-                            Text("علاقته بالمشتبهين: ${mafia.character?.relationshipToOtherSuspects ?: "منافسة"}", color = PapyrusTextSecondary, fontSize = 14.sp)
-                            Text("السجل الجنائي: ${mafia.character?.relevantHistory ?: "خالي من السوابق"}", color = PapyrusTextSecondary, fontSize = 14.sp)
                         }
                     }
                 }

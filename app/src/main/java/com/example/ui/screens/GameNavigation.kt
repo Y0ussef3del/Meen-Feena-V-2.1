@@ -8,9 +8,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -22,7 +23,6 @@ import com.example.game.viewmodel.GameViewModel
 import com.example.ui.components.*
 import com.example.ui.theme.*
 
-// Helper functions for responsive design
 @Composable
 fun responsiveTitleSize(maxWidth: Dp): androidx.compose.ui.unit.TextUnit {
     return when {
@@ -47,7 +47,6 @@ fun GameNavigation(viewModel: GameViewModel) {
     val state by viewModel.roomState.collectAsState()
     val activity = LocalActivity.current
 
-    // Keep screen on
     DisposableEffect(Unit) {
         activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose {
@@ -55,7 +54,6 @@ fun GameNavigation(viewModel: GameViewModel) {
         }
     }
 
-    // Immersive fullscreen logic
     DisposableEffect(state.phase) {
         activity?.let { act ->
             WindowCompat.setDecorFitsSystemWindows(act.window, false)
@@ -65,7 +63,7 @@ fun GameNavigation(viewModel: GameViewModel) {
                 it.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
         }
-        onDispose { /* no-op */ }
+        onDispose { }
     }
 
     var showSplash by remember { mutableStateOf(true) }
@@ -114,13 +112,11 @@ fun GameNavigation(viewModel: GameViewModel) {
     }
 }
 
-// Dialog الإعدادات المشترك
 @Composable
 fun SettingsDialog(viewModel: GameViewModel, onDismissRequest: () -> Unit) {
     val state by viewModel.roomState.collectAsState()
     var discTimeMins by remember { mutableStateOf(state.settings.discussionTimeMinutes) }
     var voteTimeMins by remember { mutableStateOf(state.settings.votingTimeMinutes) }
-    var soundEnabled by remember { mutableStateOf(state.settings.isSoundEnabled) }
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -135,14 +131,16 @@ fun SettingsDialog(viewModel: GameViewModel, onDismissRequest: () -> Unit) {
                     Text(text = "وقت التصويت ($voteTimeMins دقائق):", color = PapyrusText)
                     Slider(value = voteTimeMins.toFloat(), onValueChange = { voteTimeMins = it.toInt() }, valueRange = 1f..5f, steps = 3, colors = SliderDefaults.colors(thumbColor = DarkWoodButton, activeTrackColor = DarkWoodButton))
                 }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "المؤثرات الصوتية والموسيقى تصويرية:", color = PapyrusText)
-                    Switch(checked = soundEnabled, onCheckedChange = { soundEnabled = it }, colors = SwitchDefaults.colors(checkedThumbColor = GoldShine, checkedTrackColor = DarkWoodButton))
-                }
             }
         },
         confirmButton = {
-            Button(onClick = { viewModel.updateRoomSettings(RoomSettings(discussionTimeMinutes = discTimeMins, votingTimeMinutes = voteTimeMins, isSoundEnabled = soundEnabled)); onDismissRequest() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton)) {
+            Button(
+                onClick = { 
+                    viewModel.updateRoomSettings(state.settings.copy(discussionTimeMinutes = discTimeMins, votingTimeMinutes = voteTimeMins))
+                    onDismissRequest() 
+                }, 
+                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton)
+            ) {
                 Text(text = "حفظ التعديلات", color = GoldShine)
             }
         },

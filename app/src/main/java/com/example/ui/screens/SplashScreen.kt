@@ -46,13 +46,14 @@ fun SplashScreen() {
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
     ) {
-        val padding = responsivePadding(this.maxWidth)
+        val currentMaxWidth = maxWidth
+        val padding = responsivePadding(currentMaxWidth)
         Column(
             modifier = Modifier.fillMaxSize().padding(padding),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            ThrillerTitleComponent(fontSize = responsiveTitleSize(this.maxWidth) * 0.83f, maxWidth = this.maxWidth)
+            ThrillerTitleComponent(fontSize = responsiveTitleSize(currentMaxWidth) * 0.83f, maxWidth = currentMaxWidth)
             Spacer(modifier = Modifier.weight(1f))
             CircularProgressIndicator(
                 color = RedAccent,
@@ -63,7 +64,7 @@ fun SplashScreen() {
             Text(
                 text = "الكل متهم .......ولكن ؟",
                 color = PapyrusBgLight.copy(alpha = 0.5f),
-                fontSize = if (this.maxWidth < 360.dp) 18.sp else 30.sp,
+                fontSize = if (currentMaxWidth < 360.dp) 18.sp else 30.sp,
                 fontStyle = FontStyle.Italic,
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Medium

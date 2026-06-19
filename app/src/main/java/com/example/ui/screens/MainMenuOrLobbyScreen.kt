@@ -72,19 +72,79 @@ fun MainMenuOrLobbyScreen(viewModel: GameViewModel, state: RoomState) {
 }
 
 @Composable
+fun MainMenuHomeScreen(
+    viewModel: GameViewModel,
+    onStartPassPlay: () -> Unit,
+    onOpenLanJoin: () -> Unit,
+    onOpenSettings: () -> Unit
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val currentMaxWidth = maxWidth
+        val padding = responsivePadding(currentMaxWidth)
+        
+        Column(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            ThrillerTitleComponent(fontSize = responsiveTitleSize(currentMaxWidth), maxWidth = currentMaxWidth)
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            Button(
+                onClick = { viewModel.playButtonClick(); onStartPassPlay() },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp).testTag("pass_play_button")
+            ) {
+                Text("لعب محلي (مرر الموبايل) 📱", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Button(
+                onClick = { viewModel.playButtonClick(); viewModel.hostLanGame() },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp).testTag("host_lan_button")
+            ) {
+                Text("عمل اوضة شبكة (Host LAN) 🌐", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Button(
+                onClick = { viewModel.playButtonClick(); onOpenLanJoin() },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp).testTag("join_lan_button")
+            ) {
+                Text("انضمام لأوضة شبكة (Join) 🔍", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            IconButton(onClick = { viewModel.playButtonClick(); onOpenSettings() }) {
+                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = GoldYell, modifier = Modifier.size(36.dp))
+            }
+        }
+    }
+}
+
+@Composable
 fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val padding = responsivePadding(this.maxWidth)
+        val currentMaxWidth = maxWidth
+        val padding = responsivePadding(currentMaxWidth)
         Column(modifier = Modifier.fillMaxSize().padding(padding), horizontalAlignment = Alignment.CenterHorizontally) {
             ParchmentHeaderBanner(text = "اوضة المضيف")
             Spacer(modifier = Modifier.height(10.dp))
-            ThrillerTitleComponent(fontSize = responsiveTitleSize(this.maxWidth) * 0.58f, maxWidth = this.maxWidth)
+            ThrillerTitleComponent(fontSize = responsiveTitleSize(currentMaxWidth) * 0.58f, maxWidth = currentMaxWidth)
             Spacer(modifier = Modifier.height(10.dp))
             ParchmentCard(modifier = Modifier.weight(1f), seed = 789L) {
                 Text(text = "شارك هذا الكود مع أصدقائك للانضمام:", color = DarkWoodButton, fontWeight = FontWeight.Bold, fontSize = 15.sp, textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(6.dp))
                 Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF2C0A05)), border = BorderStroke(2.dp, GoldShine), shape = RoundedCornerShape(12.dp)) {
-                    val codeFontSize = if (34.sp.value < (this.maxWidth.value * 0.06f)) 34.sp else (this.maxWidth.value * 0.06f).sp
+                    val codeFontSize = if (34.sp.value < (currentMaxWidth.value * 0.06f)) 34.sp else (currentMaxWidth.value * 0.06f).sp
                     Text(text = state.roomId, color = GoldShine, fontSize = codeFontSize, fontWeight = FontWeight.Black, letterSpacing = 6.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp), textAlign = TextAlign.Center, maxLines = 1, softWrap = false)
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -134,16 +194,17 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
 fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
     val myName = viewModel.myPlayerName.collectAsState().value
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val padding = responsivePadding(this.maxWidth)
+        val currentMaxWidth = maxWidth
+        val padding = responsivePadding(currentMaxWidth)
         Column(modifier = Modifier.fillMaxSize().padding(padding), horizontalAlignment = Alignment.CenterHorizontally) {
             ParchmentHeaderBanner(text = "في انتظار التحقيق")
             Spacer(modifier = Modifier.height(10.dp))
-            ThrillerTitleComponent(fontSize = responsiveTitleSize(this.maxWidth) * 0.58f, maxWidth = this.maxWidth)
+            ThrillerTitleComponent(fontSize = responsiveTitleSize(currentMaxWidth) * 0.58f, maxWidth = currentMaxWidth)
             Spacer(modifier = Modifier.height(10.dp))
             ParchmentCard(modifier = Modifier.weight(1f), seed = 999L) {
                 Text(text = "أنت منضم للاوضة رقم:", color = PapyrusTextSecondary, fontSize = 14.sp, textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(4.dp))
-                val codeFontSize = if (30.sp.value < (this.maxWidth.value * 0.08f)) 30.sp else (this.maxWidth.value * 0.08f).sp
+                val codeFontSize = if (30.sp.value < (currentMaxWidth.value * 0.08f)) 30.sp else (currentMaxWidth.value * 0.08f).sp
                 Text(text = state.roomId, color = Color(0xFF4A1008), fontSize = codeFontSize, fontWeight = FontWeight.Black, letterSpacing = 4.sp, textAlign = TextAlign.Center, maxLines = 1, softWrap = false)
                 Spacer(modifier = Modifier.height(12.dp))
                 Box(modifier = Modifier.size(60.dp), contentAlignment = Alignment.Center) {
@@ -181,12 +242,13 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
     val context = LocalContext.current
     var tempPlayerName by remember { mutableStateOf("") }
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val padding = responsivePadding(this.maxWidth)
-        val isSmall = this.maxWidth < 360.dp
+        val currentMaxWidth = maxWidth
+        val padding = responsivePadding(currentMaxWidth)
+        val isSmall = currentMaxWidth < 360.dp
         Column(modifier = Modifier.fillMaxSize().padding(padding), horizontalAlignment = Alignment.CenterHorizontally) {
             ParchmentHeaderBanner(text = "إعداد اللاعبين")
             Spacer(modifier = Modifier.height(10.dp))
-            ThrillerTitleComponent(fontSize = responsiveTitleSize(this.maxWidth) * 0.5f, maxWidth = this.maxWidth)
+            ThrillerTitleComponent(fontSize = responsiveTitleSize(currentMaxWidth) * 0.5f, maxWidth = currentMaxWidth)
             Spacer(modifier = Modifier.height(10.dp))
             ParchmentCard(modifier = Modifier.weight(1f), seed = 123L) {
                 Text(text = "عدد اللاعبين: ${state.players.size} ", color = Color(0xFF4A1008), fontSize = 18.sp, fontWeight = FontWeight.Bold)
@@ -247,11 +309,12 @@ fun LanJoinLobbyScreen(viewModel: GameViewModel, state: RoomState, discoveredHos
     var inputCode by remember { mutableStateOf("") }
     var playerNameInput by remember { mutableStateOf("حمادة") }
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val padding = responsivePadding(this.maxWidth)
+        val currentMaxWidth = maxWidth
+        val padding = responsivePadding(currentMaxWidth)
         Column(modifier = Modifier.fillMaxSize().padding(padding), horizontalAlignment = Alignment.CenterHorizontally) {
             ParchmentHeaderBanner(text = "الانضمام للاوضة")
             Spacer(modifier = Modifier.height(10.dp))
-            ThrillerTitleComponent(fontSize = responsiveTitleSize(this.maxWidth) * 0.5f, maxWidth = this.maxWidth)
+            ThrillerTitleComponent(fontSize = responsiveTitleSize(currentMaxWidth) * 0.5f, maxWidth = currentMaxWidth)
             Spacer(modifier = Modifier.height(10.dp))
             ParchmentCard(modifier = Modifier.weight(1f), seed = 456L) {
                 Text(text = "جهازك متصل بالشبكة المحلية IP: $localIp", color = PapyrusTextSecondary, fontSize = 12.sp)

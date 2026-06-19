@@ -33,7 +33,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
     val candidates = state.players.filter { it.isAlive }
     var selectedTargetId by remember { mutableStateOf("") }
     val isPassPlay = state.mode == "PASS_PLAY"
-    val activeVoter = if (isPassPlay) state.players.getOrNull(state.activeVotingPlayerIndex) else state.players.find { it.id == viewModel.myPlayerId.value }
+    val activeVoter = if (isPassPlay) state.players.getOrNull(state.activePassPlayerIndex) else state.players.find { it.id == viewModel.myPlayerId.value }
     val modeText = if (isPassPlay) "دور اللاعب للتصويت السري:" else "صندوق الاقتراع الرقمي"
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {

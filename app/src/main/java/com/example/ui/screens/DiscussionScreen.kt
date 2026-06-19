@@ -2,8 +2,6 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
@@ -32,7 +30,7 @@ import com.example.ui.theme.*
 
 @Composable
 fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
-    val timeLeft = state.discussionTimeLeft
+    val timeLeft = state.discussionTimerLeft
     val totalTime = state.settings.discussionTimeMinutes * 60
     val progress = if (totalTime > 0) timeLeft.toFloat() / totalTime.toFloat() else 0f
     val isHost = state.hostId == viewModel.myPlayerId.value
@@ -59,17 +57,16 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
             LazyRow(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
                 items(suspects.size) { index ->
                     val candidate = suspects[index]
-                    val isClickSuspected = state.suspectedPlayerIds.contains(candidate.id)
-                    Box(modifier = Modifier.size(width = 110.dp, height = 135.dp).background(Color(0xFFF2E6D0), RoundedCornerShape(12.dp)).border(2.dp, if (isClickSuspected) RedAccent else Color(0x3D2C1E14), RoundedCornerShape(12.dp)).clickable { if (isHost) viewModel.togglePlayerSuspicion(candidate.id) }.padding(8.dp), contentAlignment = Alignment.TopCenter) {
+                    Box(modifier = Modifier.size(width = 110.dp, height = 135.dp).background(Color(0xFFF2E6D0), RoundedCornerShape(12.dp)).padding(8.dp), contentAlignment = Alignment.TopCenter) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            Box(modifier = Modifier.size(44.dp).background(if (isClickSuspected) RedAccent else DarkWoodButton, CircleShape), contentAlignment = Alignment.Center) {
+                            Box(modifier = Modifier.size(44.dp).background(DarkWoodButton, CircleShape), contentAlignment = Alignment.Center) {
                                 Text(text = candidate.avatarId.toString(), color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(text = candidate.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Spacer(modifier = Modifier.height(4.dp))
                             Box(modifier = Modifier.background(Color(0x3B000000), RoundedCornerShape(4.dp)).padding(horizontal = 3.dp, vertical = 1.dp)) {
-                                Text(text = if (isClickSuspected) "متهم ⚠️" else "قيد السؤال", color = if (isClickSuspected) Color.Black else Color.White, fontSize = 8.sp)
+                                Text(text = "قيد السؤال", color = Color.White, fontSize = 8.sp)
                             }
                         }
                     }
@@ -81,7 +78,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
             }
             Spacer(modifier = Modifier.height(16.dp))
             if (isHost) {
-                Button(onClick = { viewModel.playButtonClick(); viewModel.forceAdvanceToVoting() }, colors = ButtonDefaults.buttonColors(containerColor = RedAccent), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(54.dp).testTag("skip_discussion_button")) {
+                Button(onClick = { viewModel.playButtonClick(); viewModel.confirmSecretsRevealed() }, colors = ButtonDefaults.buttonColors(containerColor = RedAccent), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(54.dp).testTag("skip_discussion_button")) {
                     Icon(Icons.Default.HowToVote, "Go to voting ballot", tint = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("إنهاء النقاش والانتقال للتصويت السري 🗳️", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)

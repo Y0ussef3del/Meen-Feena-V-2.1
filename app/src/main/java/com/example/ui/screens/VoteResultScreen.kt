@@ -27,7 +27,15 @@ import com.example.ui.theme.*
 @Composable
 fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {
     val isHost = state.hostId == viewModel.myPlayerId.value
-    val votesSummary = state.votesResultSummary
+    
+    val votesSummary = state.players.map { player ->
+        val votedForPlayer = state.players.find { it.id == player.currentVoteTargetId }
+        if (votedForPlayer != null) {
+            "🕵️‍♂️ ${player.name} اتّهم -> ${votedForPlayer.name}"
+        } else {
+            "🤷‍♂️ ${player.name} ملقاش حد يتهمه (لم يصوت)"
+        }
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val padding = responsivePadding(this.maxWidth)

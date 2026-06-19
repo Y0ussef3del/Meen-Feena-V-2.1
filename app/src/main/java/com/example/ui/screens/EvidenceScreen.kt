@@ -30,7 +30,7 @@ import com.example.ui.theme.*
 fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
     val currentCase = state.currentCase ?: return
     val clueIndex = state.currentEvidenceIndex
-    val clue = currentCase.evidenceList.getOrNull(clueIndex) ?: return
+    val clueText = currentCase.evidenceList.getOrNull(clueIndex) ?: return
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val padding = responsivePadding(this.maxWidth)
@@ -42,12 +42,12 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
                     Icon(Icons.Default.Search, contentDescription = "Evidence Seal", tint = GoldShine, modifier = Modifier.size(48.dp))
                 }
                 Spacer(modifier = Modifier.height(10.dp))
-                Text(text = clue.title, color = RedAccent, fontSize = 20.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+                Text(text = "تقرير الدليل والشهادة", color = RedAccent, fontSize = 20.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = clue.description, color = PapyrusText, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center, modifier = Modifier.verticalScroll(rememberScrollState()).weight(1f))
+                Text(text = clueText, color = PapyrusText, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center, modifier = Modifier.verticalScroll(rememberScrollState()).weight(1f))
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Button(onClick = { viewModel.nextEvidenceOrDiscussion() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(54.dp).testTag("next_evidence_action_button")) {
+            Button(onClick = { viewModel.confirmSecretsRevealed() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(54.dp).testTag("next_evidence_action_button")) {
                 Text(text = if (clueIndex < currentCase.evidenceList.size - 1) "الدليل التالي ➡️" else "اقفل المحضر وادخل للنقاش 🗣️", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }

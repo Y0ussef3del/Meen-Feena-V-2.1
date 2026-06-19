@@ -48,7 +48,7 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
                 Text(text = currentCase.description, color = PapyrusText, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.verticalScroll(rememberScrollState()))
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Button(onClick = { viewModel.advanceFromCaseIntro() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(54.dp).testTag("start_investigation_action_button")) {
+            Button(onClick = { viewModel.confirmSecretsRevealed() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(54.dp).testTag("start_investigation_action_button")) {
                 Icon(Icons.Default.Search, contentDescription = "Investigate clues", tint = GoldShine)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("ابدأ التحقيق ومراجعة الأدلة 🔎", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
