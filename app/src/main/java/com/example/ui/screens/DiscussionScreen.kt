@@ -1,22 +1,19 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.HowToVote
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -27,67 +24,151 @@ import com.example.game.viewmodel.GameViewModel
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
-    // تم استخدام مسمى مرن للوقت المتبقي لتفادي خطأ الكومبيلر
-    val timeLeft = 120 
-    val totalTime = 120
-    val progress = 1f
-    val isHost = state.hostId == viewModel.myPlayerId.value
-    val suspects = state.players.filter { it.isAlive }
+    val suspectedByClick = remember { mutableStateListOf<String>() }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val padding = responsivePadding(this.maxWidth)
-        Column(modifier = Modifier.fillMaxSize().padding(padding), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
-            ParchmentHeaderBanner(text = "طاولة نقاش المشتبهين")
-            Spacer(modifier = Modifier.height(16.dp))
-            Box(modifier = Modifier.size(100.dp), contentAlignment = Alignment.Center) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    drawArc(color = Color(0x3B2C1E14), startAngle = 0f, sweepAngle = 360f, useCenter = false, style = Stroke(width = 6.dp.toPx()))
-                    drawArc(color = DarkWoodButton, startAngle = -90f, sweepAngle = progress * 360f, useCenter = false, style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round))
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .safeDrawingPadding()
+            .navigationBarsPadding()
+            .statusBarsPadding()
+    ) {
+        val minSide = minOf(maxWidth, maxHeight)
+        val timerSize = (minSide * 0.34f).coerceIn(120.dp, 170.dp)
+        val avatarSize = (minSide * 0.14f).coerceIn(52.dp, 68.dp)
+        val radius = (minSide * 0.32f).coerceIn(90.dp, 150.dp)
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            ParchmentHeaderBanner(text = "مرحلة النقاش والمواجهة")
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                val formattedTime = String.format("%02d:%02d", state.timerSecondsLeft / 60, state.timerSecondsLeft % 60)
+
+                Canvas(modifier = Modifier.size(timerSize)) {
+                    drawCircle(color = Color(0xFF1E0604), radius = size.minDimension / 2)
+                    val sweepAngle = if (state.timerTotalSeconds > 0) {
+                        (state.timerSecondsLeft.toFloat() / state.timerTotalSeconds.toFloat()) * 360f
+                    } else 360f
+
+                    drawArc(
+                        color = Color(0xFFE73224),
+                        startAngle = -90f,
+                        sweepAngle = sweepAngle,
+                        useCenter = false,
+                        style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+                    )
                 }
+
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Timer, "Timer clock", tint = DarkWoodButton, modifier = Modifier.size(24.dp))
-                    val mins = timeLeft / 60
-                    val secs = timeLeft % 60
-                    Text(text = String.format("%02d:%02d", mins, secs), color = Color.Black, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                    Text("متبقي", color = GoldYell, fontSize = 12.sp)
+                    Text(
+                        text = formattedTime,
+                        color = Color.White,
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.testTag("timer_countdown_display")
+                    )
+                    Text("للإدلاء بالاستنتاج", color = PapyrusBgLight.copy(alpha = 0.5f), fontSize = 10.sp)
                 }
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            LazyRow(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
-                items(suspects.size) { index ->
-                    val candidate = suspects[index]
-                    Box(modifier = Modifier.size(width = 110.dp, height = 135.dp).background(Color(0xFFF2E6D0), RoundedCornerShape(12.dp)).padding(8.dp), contentAlignment = Alignment.TopCenter) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            Box(modifier = Modifier.size(44.dp).background(DarkWoodButton, CircleShape), contentAlignment = Alignment.Center) {
-                                Text(text = candidate.avatarId.toString(), color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(text = candidate.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Box(modifier = Modifier.background(Color(0x3B000000), RoundedCornerShape(4.dp)).padding(horizontal = 3.dp, vertical = 1.dp)) {
-                                Text(text = "قيد السؤال", color = Color.White, fontSize = 8.sp)
+
+                val alivePlayers = state.players.filter { it.isAlive }
+
+                alivePlayers.forEachIndexed { index, player ->
+                    val angleRad = (2 * Math.PI * index) / maxOf(alivePlayers.size, 1)
+                    val xOffset = (radius.value * cos(angleRad)).dp
+                    val yOffset = (radius.value * sin(angleRad)).dp
+                    val isClickSuspected = player.id in suspectedByClick
+
+                    Box(
+                        modifier = Modifier
+                            .offset(x = xOffset, y = yOffset)
+                            .size(avatarSize)
+                            .shadow(3.dp, CircleShape)
+                            .background(
+                                if (isClickSuspected) Color(0xFFC42512) else Color(0xFF421E14),
+                                CircleShape
+                            )
+                            .border(
+                                2.dp,
+                                if (isClickSuspected) GoldShine else Color(0x3BFFFFFF),
+                                CircleShape
+                            )
+                            .clickable {
+                                if (isClickSuspected) suspectedByClick.remove(player.id)
+                                else suspectedByClick.add(player.id)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(2.dp)
+                        ) {
+                            Text(
+                                text = player.name.take(6),
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        Color(0x3B000000),
+                                        RoundedCornerShape(4.dp)
+                                    )
+                                    .padding(horizontal = 3.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = if (isClickSuspected) "متهم ⚠️" else "قيد السؤال",
+                                    color = if (isClickSuspected) Color.Black else Color.White,
+                                    fontSize = 7.sp
+                                )
                             }
                         }
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
+
             ParchmentCard(modifier = Modifier.wrapContentHeight(), seed = 771L) {
-                Text(text = "تناقشوا في القضية .....القاعدة المهمة الجميع متهم خلي بالك", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                Text(
+                    text = "تناقشوا في القضية .....القاعدة المهمة الجميع متهم خلي بالك",
+                    color = PapyrusTextSecondary,
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center
+                )
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            if (isHost) {
-                Button(onClick = { viewModel.playButtonClick(); viewModel.confirmSecretsRevealed() }, colors = ButtonDefaults.buttonColors(containerColor = RedAccent), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(54.dp).testTag("skip_discussion_button")) {
-                    Icon(Icons.Default.HowToVote, "Go to voting ballot", tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("إنهاء النقاش والانتقال للتصويت السري 🗳️", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
-            } else {
-                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0x242C1E14))) {
-                    Text(text = "تناقشوا بحرية.. المضيف سينقلكم للتصويت عند انتهاء الوقت أو يدويًا.", color = PapyrusText, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(12.dp))
-                }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = { viewModel.advanceFromDiscussionToVoting() },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .heightIn(min = 56.dp)
+                    .testTag("voting_advance_button")
+            ) {
+                Icon(Icons.Default.HowToVote, "Start Votes", tint = GoldShine)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("يلا ندخل على التصويت", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             }
         }
     }

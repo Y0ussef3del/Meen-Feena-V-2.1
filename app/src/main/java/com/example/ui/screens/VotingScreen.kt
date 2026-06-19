@@ -1,20 +1,19 @@
 package com.example.ui.screens
 
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -24,46 +23,173 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.game.model.RoomState
 import com.example.game.viewmodel.GameViewModel
+import com.example.ui.components.MysteryBackground
+import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
 
 @Composable
 fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
     val context = LocalContext.current
-    val candidates = state.players.filter { it.isAlive }
-    var selectedTargetId by remember { mutableStateOf("") }
-    val isPassPlay = state.mode == "PASS_PLAY"
-    val activeVoter = if (isPassPlay) state.players.getOrNull(state.activePassPlayerIndex) else state.players.find { it.id == viewModel.myPlayerId.value }
-    val modeText = if (isPassPlay) "دور اللاعب للتصويت السري:" else "صندوق الاقتراع الرقمي"
-
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val padding = responsivePadding(this.maxWidth)
-        Column(modifier = Modifier.fillMaxSize().padding(padding), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
-            ParchmentHeaderBanner(text = "صندوق التصويت والاتهامات")
-            Spacer(modifier = Modifier.height(12.dp))
-            if (activeVoter != null) {
-                Text(text = modeText, color = PapyrusTextSecondary, fontSize = 14.sp)
-                Text(text = activeVoter.name, color = RedAccent, fontSize = 24.sp, fontWeight = FontWeight.Black)
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(text = "اختر الشخص الذي تظن أنه المجرم الحقيقي بناءً على الأدلة والملفات الجنائية. تصويتك سري بالكامل ولن يراه أحد!", color = PapyrusText, fontSize = 13.sp, textAlign = TextAlign.Center)
+    if (state.mode == "PASS_AND_PLAY") {
+        val voterPlayer = state.players.getOrNull(state.activePassPlayerIndex) ?: return
+        var isDevicePassed by remember(state.activePassPlayerIndex) { mutableStateOf(false) }
+        if (!isDevicePassed) {
+            MysteryBackground {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    ParchmentHeaderBanner(text = "صندوق التصويت")
+                    Spacer(modifier = Modifier.height(30.dp))
+                    Text(text = "هات الموبايل ووريه لـ/ ${voterPlayer.name}", color = PapyrusBgLight, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(text = "فكر قبل ما تصوت .....شغل دماغك !!!", color = Color.LightGray, fontSize = 17.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
+                    Spacer(modifier = Modifier.height(30.dp))
+                    Button(onClick = { isDevicePassed = true }, colors = ButtonDefaults.buttonColors(containerColor = RedAccent), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(56.dp)) {
+                        Text("يلا نصوّت", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(candidates.size) { index ->
-                    val candidate = candidates[index]
-                    val isSelected = candidate.id == selectedTargetId
-                    Row(modifier = Modifier.fillMaxWidth().background(if (isSelected) Color(0x3B6E1B10) else Color(0x0C000000), RoundedCornerShape(10.dp)).border(2.dp, if (isSelected) RedAccent else Color(0x1F2C1E14), RoundedCornerShape(10.dp)).clickable { selectedTargetId = candidate.id }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(38.dp).background(if (isSelected) RedAccent else Color(0xFF421D18), CircleShape), contentAlignment = Alignment.Center) {
-                            Icon(imageVector = if (isSelected) Icons.Default.Check else Icons.Default.Person, contentDescription = "Pick status target", tint = Color.White, modifier = Modifier.size(20.dp))
+            return
+        }
+        var selectedTargetId by remember { mutableStateOf("") }
+        val eligibleCandidates = if (state.tiedVotePlayers.isNotEmpty()) {
+            state.players.filter { it.id in state.tiedVotePlayers && it.id != voterPlayer.id }
+        } else {
+            state.players.filter { it.isAlive && it.id != voterPlayer.id }
+        }
+        Column(
+            modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            ParchmentHeaderBanner(text = "صندوق التصويت والاتهامات")
+            Spacer(modifier = Modifier.height(10.dp))
+            ParchmentCard(modifier = Modifier.weight(1f), seed = 33L) {
+                Text(text = "دور اللاعب: ${voterPlayer.name}", color = Color(0xFF6E1B10), fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Text(text = "اختار الشخص اللي شاكك فيه تفتكر هو المجرم:", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                Spacer(modifier = Modifier.height(12.dp))
+                LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(eligibleCandidates, key = { it.id }) { candidate ->
+                        val isSelected = candidate.id == selectedTargetId
+                        Row(
+                            modifier = Modifier.fillMaxWidth().background(if (isSelected) Color(0x3B6E1B10) else Color(0x0C000000), RoundedCornerShape(10.dp)).border(2.dp, if (isSelected) RedAccent else Color(0x1F2C1E14), RoundedCornerShape(10.dp)).clickable { selectedTargetId = candidate.id }.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(modifier = Modifier.size(38.dp).background(if (isSelected) RedAccent else Color(0xFF421D18), CircleShape), contentAlignment = Alignment.Center) {
+                                Icon(imageVector = if (isSelected) Icons.Default.Check else Icons.Default.Person, contentDescription = "Pick status target", tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(candidate.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                candidate.character?.let { Text("المشتبه: ${it.name} | المهنة: ${it.occupation}", color = PapyrusTextSecondary, fontSize = 14.sp) }
+                            }
                         }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Text(text = candidate.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = { if (selectedTargetId.isBlank()) Toast.makeText(context, "اختار حد تشك فيه الأول عشان تصوّت", Toast.LENGTH_SHORT).show() else viewModel.submitVote(selectedTargetId) }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(56.dp).testTag("submit_vote_action_button")) {
-                Text("أأكد صوتك يلا", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+            Button(
+                onClick = {
+                    if (selectedTargetId.isBlank()) Toast.makeText(context, "اختار حد تشك فيه الأول عشان تصوّت", Toast.LENGTH_SHORT).show()
+                    else { viewModel.submitVote(selectedTargetId); selectedTargetId = "" }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp).testTag("submit_vote_action_button")
+            ) {
+                Text("أكد صوتك يلا", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+            }
+        }
+    } else {
+        val localVoter = state.players.find { it.id == viewModel.myPlayerId.value } ?: return
+        if (!localVoter.isAlive) {
+            MysteryBackground {
+                Column(modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    ParchmentHeaderBanner(text = " أنت برة اللعب دلوقتي 💀")
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(text = "الف مبرووك اقعد جمب اخواتك", color = PapyrusBgLight, fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                }
+            }
+        } else if (state.votes.containsKey(localVoter.id)) {
+            val activePlayers = state.players.filter { it.isAlive }
+            val waitingPlayers = activePlayers.filter { it.id !in state.votes.keys }
+            MysteryBackground {
+                Column(modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    ParchmentHeaderBanner(text = "تم تسجيل صوتك بنجاح! 🗳️")
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(text = "مستنيين باقي اللعيبة يصوتوا...", color = PapyrusBgLight, fontSize = 25.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(20.dp))
+                    ParchmentCard(modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp)) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("الشفافية والتصويت المفتوح المباشر:", color = Color(0xFF6E1B10), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            val votesCast = state.votes.mapNotNull { (vId, tId) ->
+                                val voterName = state.players.find { it.id == vId }?.name ?: return@mapNotNull null
+                                val targetName = state.players.find { it.id == tId }?.name ?: return@mapNotNull null
+                                "👈 اللاعب $voterName صوّت ضد $targetName"
+                            }
+                            if (votesCast.isEmpty()) Text("في انتظار الصوت العلني الأول لبدء كشف التواطؤ... 🗳️", color = PapyrusTextSecondary, fontSize = 14.sp)
+                            else votesCast.forEach { voteLine -> Text(text = voteLine, color = PapyrusText, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp)) }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("مين اللي لسه مصوّتش:", color = Color(0xFF6E1B10), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            val waitingNames = waitingPlayers.joinToString { it.name }.ifEmpty { "الجميع أدلى بصوته علناً!" }
+                            Text(waitingNames, color = PapyrusTextSecondary, fontSize = 14.sp)
+                        }
+                    }
+                }
+            }
+        } else {
+            var selectedTargetId by remember { mutableStateOf("") }
+            val eligibleCandidates = if (state.tiedVotePlayers.isNotEmpty()) {
+                state.players.filter { it.id in state.tiedVotePlayers && it.id != localVoter.id }
+            } else {
+                state.players.filter { it.isAlive && it.id != localVoter.id }
+            }
+            Column(
+                modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                ParchmentHeaderBanner(text = "صندوق التصويت والاتهامات")
+                Spacer(modifier = Modifier.height(10.dp))
+                ParchmentCard(modifier = Modifier.weight(1f), seed = 33L) {
+                    Text(text = "دورك في التصويت: ${localVoter.name}", color = Color(0xFF6E1B10), fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    Text(text = "اختار الشخص اللي شاكك فيه ان هو المجرم:", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(eligibleCandidates, key = { it.id }) { candidate ->
+                            val isSelected = candidate.id == selectedTargetId
+                            Row(
+                                modifier = Modifier.fillMaxWidth().background(if (isSelected) Color(0x3B6E1B10) else Color(0x0C000000), RoundedCornerShape(10.dp)).border(2.dp, if (isSelected) RedAccent else Color(0x1F2C1E14), RoundedCornerShape(10.dp)).clickable { selectedTargetId = candidate.id }.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(modifier = Modifier.size(38.dp).background(if (isSelected) RedAccent else Color(0xFF421D18), CircleShape), contentAlignment = Alignment.Center) {
+                                    Icon(imageVector = if (isSelected) Icons.Default.Check else Icons.Default.Person, contentDescription = "Pick status target", tint = Color.White, modifier = Modifier.size(20.dp))
+                                }
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(candidate.name, color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                    candidate.character?.let { Text("المشتبه: ${it.name} | المهنة: ${it.occupation}", color = PapyrusTextSecondary, fontSize = 14.sp) }
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        if (selectedTargetId.isBlank()) Toast.makeText(context, "اختار حد تشك فيه الأول عشان تصوّت", Toast.LENGTH_SHORT).show()
+                        else viewModel.submitVote(selectedTargetId)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp).testTag("submit_vote_action_button")
+                ) {
+                    Text("أكد صوتك يلا", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                }
             }
         }
     }
