@@ -53,7 +53,6 @@ import kotlin.math.cos
 import kotlin.math.sin
 import androidx.compose.foundation.flow.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import kotlinx.coroutines.flow.*
 import kotlin.math.min
 
 // ==========================================
@@ -288,11 +287,11 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
                     border = BorderStroke(2.dp, GoldShine),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    val fontSize = if ((34.sp).value < (maxWidth * 0.06f).value) 34.sp else (maxWidth * 0.06f)
+                    val codeFontSize = if (34.sp.value < (maxWidth.value * 0.06f)) 34.sp else (maxWidth.value * 0.06f).sp
                     Text(
                         text = state.roomId,
                         color = GoldShine,
-                        fontSize = fontSize,
+                        fontSize = codeFontSize,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 6.sp,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -415,11 +414,11 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                val fontSize = if ((30.sp).value < (maxWidth * 0.08f).value) 30.sp else (maxWidth * 0.08f)
+                val codeFontSize = if (30.sp.value < (maxWidth.value * 0.08f)) 30.sp else (maxWidth.value * 0.08f).sp
                 Text(
                     text = state.roomId,
                     color = Color(0xFF4A1008),
-                    fontSize = fontSize,
+                    fontSize = codeFontSize,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 4.sp,
                     textAlign = TextAlign.Center,
@@ -1016,7 +1015,6 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
                 modifier = Modifier.fillMaxSize().padding(padding),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Left panel: case details
                 Column(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -1062,7 +1060,13 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
                         Text("ابدأ التحقيق ومراجعة الأدلة 🔎", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
                     }
                 }
-                // Right panel: evidence or something else (if needed) but we can just have the same content or leave empty, but for now we just keep both as is
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // يمكن وضع محتوى إضافي هنا، لكنه فارغ حالياً
+                }
             }
         } else {
             Column(
@@ -1117,7 +1121,6 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
 // ==========================================
 // 5. EVIDENCE / PROGRESSIVE CLUES SCREEN
 // ==========================================
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
     val currentCase = state.currentCase ?: return
@@ -1136,7 +1139,6 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
                 modifier = Modifier.fillMaxSize().padding(padding),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Left: Evidence details
                 Column(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -1178,7 +1180,13 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
                         Text("فتح طاولة النقاش والمواجهة 🗣️", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                 }
-                // Right panel could be empty or additional info, but we keep it as is
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // محتوى إضافي (يمكن تركه فارغاً)
+                }
             }
         } else {
             Column(
@@ -1244,7 +1252,6 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
         val isVerySmall = maxWidth < 400.dp
 
         if (isVerySmall || landscape) {
-            // Simplified layout for small screens or landscape
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1254,7 +1261,6 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                 ParchmentHeaderBanner(text = "مرحلة النقاش والمواجهة")
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Timer display
                 val formattedTime = String.format("%02d:%02d", state.timerSecondsLeft / 60, state.timerSecondsLeft % 60)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1280,7 +1286,6 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Players list (grid) - simple horizontal scrolling avatars
                 val alivePlayers = state.players.filter { it.isAlive }
                 LazyRow(
                     modifier = Modifier.fillMaxWidth().height(120.dp),
@@ -1364,7 +1369,6 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                 }
             }
         } else {
-            // Original circular layout with responsive adjustments
             val timerSize = (minSide * 0.34f).coerceIn(120.dp, 170.dp)
             val avatarSize = (minSide * 0.14f).coerceIn(52.dp, 68.dp)
             val radius = (minSide * 0.32f).coerceIn(90.dp, 150.dp)
@@ -2254,7 +2258,6 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                     .verticalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Left column
                 Column(
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -2271,7 +2274,6 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                         Text(text = if (isInnocentsWinner) "الأبرياء عرفوا يجمعوا الأدلة ويكشفوا اللعبة الصح، والمجرم وقع في شر أعماله ." else "المجرم عرف يضحك على الكل وثبت تهم باطلة على الأبرياء، وخرج من القضية زي الشعرة من العجين.", color = PapyrusText, fontSize = 16.sp, lineHeight = 24.sp, textAlign = TextAlign.Center)
                     }
                 }
-                // Right column
                 Column(
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -2318,7 +2320,6 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                     }
                 }
             }
-            // Buttons at bottom (outside Row)
             Column(
                 modifier = Modifier.fillMaxWidth().padding(padding),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -2513,7 +2514,7 @@ fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {
                         val votesSummary = state.votes.mapNotNull { (vId, tId) ->
                             val voter = state.players.find { it.id == vId }?.name ?: return@mapNotNull null
                             val target = state.players.find { it.id == tId }?.name ?: return@mapNotNull null
-                            "👤 $voter ➔ صوّت ضد 🎯 $target"
+                            "👤 $voter ➔ صوّت ضد  $target"
                         }
                         if (votesSummary.isEmpty()) Text("لم يتم الإدلاء بأي أصوات.", color = Color.Gray, fontSize = 14.sp)
                         else votesSummary.forEach { voteText -> Text(text = voteText, color = Color(0xFF2C1E14), fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 2.dp)) }
