@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -53,10 +51,10 @@ import com.example.ui.components.*
 import com.example.ui.theme.*
 import kotlin.math.cos
 import kotlin.math.sin
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.flow.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import kotlinx.coroutines.flow.*
+import kotlin.math.min
 
 // ==========================================
 // Helper functions for responsive design
@@ -290,10 +288,11 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
                     border = BorderStroke(2.dp, GoldShine),
                     shape = RoundedCornerShape(12.dp)
                 ) {
+                    val fontSize = if ((34.sp).value < (maxWidth * 0.06f).value) 34.sp else (maxWidth * 0.06f)
                     Text(
                         text = state.roomId,
                         color = GoldShine,
-                        fontSize = minOf(34.sp, maxWidth * 0.06f),
+                        fontSize = fontSize,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 6.sp,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -416,10 +415,11 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+                val fontSize = if ((30.sp).value < (maxWidth * 0.08f).value) 30.sp else (maxWidth * 0.08f)
                 Text(
                     text = state.roomId,
                     color = Color(0xFF4A1008),
-                    fontSize = minOf(30.sp, maxWidth * 0.08f),
+                    fontSize = fontSize,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 4.sp,
                     textAlign = TextAlign.Center,
@@ -1000,6 +1000,7 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
 // ==========================================
 // 4. CASE INTRO / DETAILS SCREEN
 // ==========================================
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
     val currentCase = state.currentCase ?: return
@@ -1116,6 +1117,7 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
 // ==========================================
 // 5. EVIDENCE / PROGRESSIVE CLUES SCREEN
 // ==========================================
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
     val currentCase = state.currentCase ?: return
