@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +24,7 @@ import com.example.ui.components.MysteryBackground
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.GoldShine
+import com.example.ui.theme.PapyrusBgLight
 import com.example.ui.theme.RedAccent
 
 @Composable
