@@ -34,7 +34,7 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        ParchmentHeaderBanner(text = "كشف الملفات السرية")
+        ParchmentHeaderBanner(text = "كشف الشخصيات السرية")
         Spacer(modifier = Modifier.height(10.dp))
         if (!revealed) {
             Column(
@@ -49,7 +49,7 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                     Icon(Icons.Default.VisibilityOff, contentDescription = "Hide role cards", tint = GoldShine, modifier = Modifier.fillMaxSize())
                 }
                 Spacer(modifier = Modifier.height(24.dp))
-                Text(text = "دي التلفون ل : ", color = PapyrusBgLight.copy(alpha = 0.8f), fontSize = 16.sp, textAlign = TextAlign.Center)
+                Text(text = "ادي التلفون ل : ", color = PapyrusBgLight.copy(alpha = 0.8f), fontSize = 16.sp, textAlign = TextAlign.Center)
                 Text(text = activePassPlayer.name, color = GoldShine, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, modifier = Modifier.testTag("pass_name_reveal"))
                 Spacer(modifier = Modifier.height(30.dp))
                 Button(onClick = { revealed = true }, colors = ButtonDefaults.buttonColors(containerColor = GoldYell), modifier = Modifier.testTag("reveal_role_button")) {
@@ -71,7 +71,6 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                 if (char != null) {
                     Text("الاسم : ${char.name}", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     Text("السن : ${char.age} سنة | المهنة: ${char.occupation}", color = PapyrusTextSecondary, fontSize = 15.sp)
-                    Text("الصفات : ${char.traits}", color = PapyrusTextSecondary, fontSize = 15.sp, fontStyle = FontStyle.Italic)
                     Spacer(modifier = Modifier.height(12.dp))
                     Divider(color = Color(0x3B2C1E14), thickness = 1.dp)
                     Spacer(modifier = Modifier.height(10.dp))
@@ -85,20 +84,33 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                         Text(text = if (activePassPlayer.isMafia) "أنت : المجرم الحقيقية" else "أنت : بريء من الجريمة", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
                     }
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = "دافعك المستخبي:", color = Color(0xFF4A1008), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text(text = if (activePassPlayer.isMafia) char.hiddenMotive else "انت برئ حاول تكتشف المجرم الحقيقي !!", color = PapyrusText, fontSize = 15.sp, textAlign = TextAlign.Center)
+                    Text(text = "الدافع :", color = Color(0xFF4A1008), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(text = char.motive, color = PapyrusText, fontSize = 15.sp, textAlign = TextAlign.Center)
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = { viewModel.confirmSecretsRevealed(); revealed = false },
-                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth().height(56.dp).testTag("confirm_reveal_advance"),
-                contentPadding = PaddingValues(14.dp)
-            ) {
-                Text(text = if (state.activePassPlayerIndex < state.players.size - 1) "خبي ملفك وهات اللي بعده" else "يلا ندخل على تفاصيل القضية", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            }
+Button(
+    onClick = { viewModel.confirmSecretsRevealed(); revealed = false },
+    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+    shape = RoundedCornerShape(12.dp),
+    modifier = Modifier
+        .fillMaxWidth()
+        .heightIn(min = 56.dp), // استخدام heightIn يجعل الزر يمدد نفسه إذا أصبح النص طويلاً
+    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+) {
+    Text(
+        text = if (state.activePassPlayerIndex < state.players.size - 1) 
+            "خبي ملفك وهات اللي بعده" 
+        else 
+            "يلا على تفاصيل القضية",
+        color = GoldShine,
+        fontWeight = FontWeight.Bold,
+        fontSize = 16.sp, // تقليل الخط قليلاً لضمان عدم خروجه عن الإطار
+        textAlign = TextAlign.Center, // لمحاذاة النص في المنتصف
+        maxLines = 2, // يسمح للنص بأخذ سطرين كحد أقصى
+        lineHeight = 20.sp // ضبط المسافة بين السطور ليظهر بشكل أرتب
+    )
+}
         }
     }
 }

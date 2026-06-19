@@ -44,9 +44,9 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                 ) {
                     ParchmentHeaderBanner(text = "صندوق التصويت")
                     Spacer(modifier = Modifier.height(30.dp))
-                    Text(text = "هات الموبايل ووريه لـ/ ${voterPlayer.name}", color = PapyrusBgLight, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
+                    Text(text = "ادي الموبايل لـ/ ${voterPlayer.name}", color = PapyrusBgLight, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = "فكر قبل ما تصوت .....شغل دماغك !!!", color = Color.LightGray, fontSize = 17.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
+                    Text(text = "فكر قبل ما تصوت ...شغل دماغك !!!", color = Color.LightGray, fontSize = 17.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
                     Spacer(modifier = Modifier.height(30.dp))
                     Button(onClick = { isDevicePassed = true }, colors = ButtonDefaults.buttonColors(containerColor = RedAccent), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(56.dp)) {
                         Text("يلا نصوّت", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -66,11 +66,11 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            ParchmentHeaderBanner(text = "صندوق التصويت والاتهامات")
+            ParchmentHeaderBanner(text = "وقت التصويت")
             Spacer(modifier = Modifier.height(10.dp))
             ParchmentCard(modifier = Modifier.weight(1f), seed = 33L) {
                 Text(text = "دور اللاعب: ${voterPlayer.name}", color = Color(0xFF6E1B10), fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                Text(text = "اختار الشخص اللي شاكك فيه تفتكر هو المجرم:", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                Text(text = "صوت علي اللي شاكك فيه", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(12.dp))
                 LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(eligibleCandidates, key = { it.id }) { candidate ->
@@ -101,7 +101,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().height(56.dp).testTag("submit_vote_action_button")
             ) {
-                Text("أكد صوتك يلا", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                Text("اللي بعده", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
             }
         }
     } else {
@@ -154,7 +154,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                ParchmentHeaderBanner(text = "صندوق التصويت والاتهامات")
+                ParchmentHeaderBanner(text = "وقت التصويت")
                 Spacer(modifier = Modifier.height(10.dp))
                 ParchmentCard(modifier = Modifier.weight(1f), seed = 33L) {
                     Text(text = "دورك في التصويت: ${localVoter.name}", color = Color(0xFF6E1B10), fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
@@ -189,7 +189,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth().height(56.dp).testTag("submit_vote_action_button")
                 ) {
-                    Text("أكد صوتك يلا", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                    Text("اللي بعده", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
                 }
             }
         }

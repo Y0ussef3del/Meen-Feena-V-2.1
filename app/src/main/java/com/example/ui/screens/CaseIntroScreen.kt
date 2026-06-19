@@ -62,7 +62,7 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
         Button(onClick = { viewModel.startCaseInvestigationIntro() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), modifier = Modifier.fillMaxWidth().testTag("case_details_confirm_button"), contentPadding = PaddingValues(15.dp)) {
             Icon(Icons.Default.FindInPage, "Start Clues", tint = GoldShine)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("ابدأ التحقيق ومراجعة الأدلة 🔎", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+            Text("خش علي الدليل الاول", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
         }
     }
 }

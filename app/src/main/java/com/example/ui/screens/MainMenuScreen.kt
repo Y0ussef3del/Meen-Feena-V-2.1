@@ -88,7 +88,7 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
         Spacer(modifier = Modifier.height(10.dp))
         ParchmentCard(modifier = Modifier.weight(1f), seed = 789L) {
             Text(
-                text = "شارك هذا الكود مع أصدقائك للانضمام:",
+                text = "شارك  الكود مع أصدقائك للانضمام:",
                 color = DarkWoodButton,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
@@ -232,7 +232,7 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "يرجى الانتظار بينما يجمع المضيف اللاعبين الآخرين لبدء توزيع الأدلة الجنائية السرية...",
+                text = "يرجى الانتظار...",
                 color = PapyrusText,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
@@ -308,13 +308,6 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
-            Text(
-                text = "4 - 6 لاعبين (1 مجرم في 4 لاعبين، 2 مجرم في 5+ لاعبين)",
-                color = PapyrusTextSecondary,
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -576,7 +569,7 @@ fun MainMenuHomeScreen(
                     Icon(Icons.Default.PhoneAndroid, contentDescription = "Pass device", tint = DarkWoodButton, modifier = Modifier.size(36.dp))
                     Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp), horizontalAlignment = Alignment.End) {
                         Text("لعبة جديدة", color = Color(0xFF4A1008), fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                        Text("جرِّب اللعب بالتمرير (جهاز واحد)", color = PapyrusTextSecondary, fontSize = 12.sp)
+                        Text("(جهاز واحد)", color = PapyrusTextSecondary, fontSize = 12.sp)
                     }
                     Icon(Icons.Default.ArrowBack, contentDescription = "Go play", tint = DarkWoodButton)
                 }
@@ -594,8 +587,7 @@ fun MainMenuHomeScreen(
                 ) {
                     Icon(Icons.Default.Wifi, contentDescription = "WiFi game", tint = DarkWoodButton, modifier = Modifier.size(36.dp))
                     Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp), horizontalAlignment = Alignment.End) {
-                        Text("دخول برمز الغرفة (WiFi)", color = Color(0xFF4A1008), fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                        Text("العب على جهازك مع أصدقائك بالرمز", color = PapyrusTextSecondary, fontSize = 12.sp)
+                        Text("دخول برمز الغرفة ", color = Color(0xFF4A1008), fontSize = 21.sp, fontWeight = FontWeight.Bold)
                     }
                     Icon(Icons.Default.ArrowBack, contentDescription = "Go LAN Connect", tint = DarkWoodButton)
                 }
@@ -613,7 +605,7 @@ fun MainMenuHomeScreen(
                 ) {
                     Icon(Icons.Default.AddBox, "Host Game", tint = GoldShine)
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("إنشاء ومشاركة اوضة جديدة (Host)", color = GoldShine, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text("إنشاء ومشاركة اوضة جديدة", color = GoldShine, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Card(
@@ -638,7 +630,7 @@ fun MainMenuHomeScreen(
         Text(
             text = " !! القاعدة الاولي والاخيرة ... شك في الجميع",
             color = PapyrusBgLight.copy(alpha = 0.5f),
-            fontSize = 20.sp,
+            fontSize = 15.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(bottom = 20.dp)
         )

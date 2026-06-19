@@ -67,7 +67,7 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
         Button(onClick = { viewModel.advanceFromEvidenceToDiscussion() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), modifier = Modifier.fillMaxWidth().testTag("evidence_reveal_advance"), contentPadding = PaddingValues(15.dp)) {
             Icon(Icons.Default.RecordVoiceOver, "Discuss", tint = GoldShine)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("فتح طاولة النقاش والمواجهة 🗣️", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text("خش علي المناقشة🗣️", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
 }

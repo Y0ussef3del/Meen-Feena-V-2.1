@@ -36,7 +36,7 @@ fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            ParchmentHeaderBanner(text = "نتائج الاقتراع العام")
+            ParchmentHeaderBanner(text = "نتيجة التصويت ")
             Spacer(modifier = Modifier.height(24.dp))
             ParchmentCard(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
                 Column(modifier = Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -53,7 +53,7 @@ fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {
                     val votesSummary = state.votes.mapNotNull { (vId, tId) ->
                         val voter = state.players.find { it.id == vId }?.name ?: return@mapNotNull null
                         val target = state.players.find { it.id == tId }?.name ?: return@mapNotNull null
-                        "👤 $voter ➔ صوّت ضد 🎯 $target"
+                        "👤 $voter ➔ صوّت ضد  $target"
                     }
                     if (votesSummary.isEmpty()) Text("لم يتم الإدلاء بأي أصوات.", color = Color.Gray, fontSize = 14.sp)
                     else votesSummary.forEach { voteText -> Text(text = voteText, color = Color(0xFF2C1E14), fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 2.dp)) }

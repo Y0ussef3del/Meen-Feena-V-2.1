@@ -35,11 +35,11 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        ParchmentHeaderBanner(text = "كشف أوراق القضية النهائية")
+        ParchmentHeaderBanner(text = "جه وقت الحقيقة")
         Spacer(modifier = Modifier.height(14.dp))
         ParchmentCard(modifier = Modifier.weight(1f), seed = 4441L) {
             Box(modifier = Modifier.size(100.dp).background(Color(0x1FA2A012), CircleShape).border(2.dp, GoldYell, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.EmojiEvents, contentDescription = "Trophy logo endgame", tint = GoldYell, modifier = Modifier.size(64.dp))
+                Icon(Icons.Default.EmojiEvents, contentDescription = "Trophy logo endgame", tint = GoldYell, modifier = Modifier.size(32.dp))
             }
             Spacer(modifier = Modifier.height(10.dp))
             Text(text = if (isInnocentsWinner) "!!الف مبرووك عرفتوا تطلعوا المجرم الفاشل!!" else "!المجرم كسب وضحك على الكل!", color = if (isInnocentsWinner) GreenAccent else RedAccent, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, modifier = Modifier.testTag("endgame_victory_title"))
@@ -47,32 +47,14 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
             Box(modifier = Modifier.fillMaxWidth().weight(1f).background(Color(0x0C000000), RoundedCornerShape(10.dp)).padding(14.dp)) {
                 LazyColumn(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     item {
-                        Text(text = if (isInnocentsWinner) "الأبرياء عرفوا يجمعوا الأدلة ويكشفوا اللعبة الصح، والمجرم وقع في شر أعماله ." else "المجرم عرف يضحك على الكل وثبت تهم باطلة على الأبرياء، وخرج من القضية زي الشعرة من العجين.", color = PapyrusText, fontSize = 16.sp, lineHeight = 24.sp, textAlign = TextAlign.Center)
-                        Spacer(modifier = Modifier.height(14.dp))
+                        
+            
                         HorizontalDivider(color = Color(0x3B2C1E14))
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(text = "الهوية الحقيقية للمجرم:", color = Color(0xFF4A1008), fontWeight = FontWeight.Bold, fontSize = 18.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().testTag("dramatic_criminal_reveal_header"))
-                        state.players.filter { it.isMafia }.forEach { mafia ->
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0x1CE63946)), border = BorderStroke(1.dp, Color(0xFFE63946)), shape = RoundedCornerShape(8.dp)) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text(text = "المجرم الحقيقي: ${mafia.name}", color = Color(0xFF3B6E1B10), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, modifier = Modifier.testTag("criminal_character_name"))
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text("العمر: ${mafia.character?.age ?: 30} سنة | المهنة: ${mafia.character?.occupation ?: "مجهول"}", color = PapyrusText, fontSize = 15.sp)
-                                    Text("المظهر والطباع: ${mafia.character?.traits ?: ""}", color = PapyrusTextSecondary, fontSize = 14.sp)
-                                    Text("المستوى الاجتماعي: ${mafia.character?.socialStatus ?: "متوسط الحال"}", color = PapyrusTextSecondary, fontSize = 14.sp)
-                                    Text("علاقته بالضحية: ${mafia.character?.relationshipToVictim ?: "غامضة"}", color = PapyrusTextSecondary, fontSize = 14.sp)
-                                    Text("علاقته بالمشتبهين: ${mafia.character?.relationshipToOtherSuspects ?: "منافسة"}", color = PapyrusTextSecondary, fontSize = 14.sp)
-                                    Text("السجل الجنائي: ${mafia.character?.relevantHistory ?: "خالي من السوابق"}", color = PapyrusTextSecondary, fontSize = 14.sp)
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(text = "الدافع والنية المستخبية: ${mafia.character?.hiddenMotive ?: ""}", color = Color(0xFF4A1008), fontWeight = FontWeight.Bold, fontSize = 15.sp, lineHeight = 20.sp)
-                                }
-                            }
-                        }
+                        
                         Spacer(modifier = Modifier.height(14.dp))
                         HorizontalDivider(color = Color(0x3B2C1E14))
                         Spacer(modifier = Modifier.height(14.dp))
-                        Text(text = "المخطط الكامل وسيناريو الجريمة الداخلي:", color = Color(0xFF355E3B), fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.fillMaxWidth().testTag("case_explanation_header"))
+                        Text(text = "ايه اللي حصل بالتفصيل : ", color = Color(0xFF355E3B), fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.fillMaxWidth().testTag("case_explanation_header"))
                         Spacer(modifier = Modifier.height(8.dp))
                         Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0x1F2A9D8F)), shape = RoundedCornerShape(8.dp)) {
                             Text(text = currentCase?.explanation ?: "لم تتوفر سجلات سردية للملف.", color = Color(0xFF1D3557), fontSize = 15.sp, lineHeight = 22.sp, modifier = Modifier.padding(12.dp).testTag("case_explanation_text"))

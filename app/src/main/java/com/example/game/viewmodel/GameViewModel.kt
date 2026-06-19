@@ -129,10 +129,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             hostId = "LOCAL_HOST",
             phase = GamePhase.LOBBY,
             players = listOf(
-                Player("p1", "يوسف", avatarId = 1),
-                Player("p2", "عادل", avatarId = 2),
-                Player("p3", "محمد", avatarId = 3),
-                Player("p4", "جمال", avatarId = 4)
             ),
             settings = currentSettings
         )
@@ -448,7 +444,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 val isMafia = eliminatedPlayer?.isMafia == true
-                val roleStr = if (isMafia) "مافيا" else "بريء"
+                val roleStr = if (isMafia) "مجرم" else "بريء"
                 val resultText = "${eliminatedPlayer?.name} خرج وكان $roleStr"
                 _roomState.value = state.copy(
                     phase = GamePhase.VOTE_RESULT,
