@@ -31,7 +31,6 @@ import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.shadow
 
 
