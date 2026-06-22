@@ -25,11 +25,14 @@ import com.example.game.viewmodel.GameViewModel
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
-
+import com.example.game.audio.MysteryAudioPlayer
 @Composable
 fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
     val currentCase = state.currentCase
     val isInnocentsWinner = state.winnerSide == "INNOCENTS"
+    val context = LocalContext.current
+    LaunchedEffect(isInnocentsWinner) {
+    com.example.game.audio.MysteryAudioPlayer.playEndgameResultMusic(context, isInnocentsWinner = isInnocentsWinner)}
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -76,12 +79,12 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
         }
         Spacer(modifier = Modifier.height(16.dp))
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { viewModel.playButtonClick(); viewModel.playAgain() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(56.dp).testTag("play_again_button"), contentPadding = PaddingValues(15.dp)) {
+            Button(onClick = {MysteryAudioPlayer.playClick(context) viewModel.playButtonClick(); viewModel.playAgain() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(56.dp).testTag("play_again_button"), contentPadding = PaddingValues(15.dp)) {
                 Icon(Icons.Default.Refresh, "Play again", tint = GoldShine)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("لعب جولة وقضية جديدة", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
-            OutlinedButton(onClick = { viewModel.playButtonClick(); viewModel.resetToMainMenu() }, colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldShine), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(56.dp)) {
+            OutlinedButton(onClick = { MysteryAudioPlayer.playClick(context) viewModel.playButtonClick(); viewModel.resetToMainMenu() }, colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldShine), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(56.dp)) {
                 Icon(Icons.Default.Home, "Main menu", tint = GoldShine)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("العودة للقائمة الرئيسية", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 18.sp)

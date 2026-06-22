@@ -32,7 +32,7 @@ import com.example.ui.theme.*
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.shadow
-
+import com.example.game.audio.MysteryAudioPlayer
 
 @Composable
 fun MainMenuOrLobbyScreen(viewModel: GameViewModel, state: RoomState) {
@@ -42,6 +42,12 @@ fun MainMenuOrLobbyScreen(viewModel: GameViewModel, state: RoomState) {
     var isSettingsOpen by remember { mutableStateOf(false) }
     val discoveredHosts by LanManager.discoveredHosts.collectAsState()
     val localIp = remember { LanManager.getLocalIpAddress() }
+    // أضف هذا التعديل في شاشة الـ MainMenu أو اللوبي لرفع قفل الصوت التلقائي
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        com.example.game.audio.MysteryAudioPlayer.restoreNormalVolume()
+        com.example.game.audio.MysteryAudioPlayer.startMusic(context)}
 
     if (isSettingsOpen) {
         SettingsDialog(viewModel = viewModel) { isSettingsOpen = false }
@@ -178,14 +184,14 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
-                onClick = { viewModel.resetToMainMenu() },
+                onClick = { viewModel.resetToMainMenu() MysteryAudioPlayer.playClick(context)},
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4A1008)),
                 modifier = Modifier.weight(1f)
             ) {
                 Text("إلغاء الاوضة", color = GoldShine)
             }
             Button(
-                onClick = { viewModel.startInvestigationGame() },
+                onClick = { MysteryAudioPlayer.playClick(context) viewModel.startInvestigationGame() },
                 enabled = state.players.size in 4..6,
                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                 modifier = Modifier.weight(1.5f)
@@ -280,7 +286,7 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
         }
         Spacer(modifier = Modifier.height(14.dp))
         Button(
-            onClick = { viewModel.resetToMainMenu() },
+            onClick = {MysteryAudioPlayer.playClick(context) viewModel.resetToMainMenu() },
             colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -316,7 +322,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                 OutlinedTextField(
                     value = tempPlayerName,
                     onValueChange = { tempPlayerName = it },
-                    label = { Text("اسم اللاعب الجديد") },
+                    label = { Text("اسم اللاعب ") },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = PapyrusText,
                         unfocusedTextColor = PapyrusText,
@@ -327,7 +333,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                     singleLine = true
                 )
                 Button(
-                    onClick = {
+                    onClick = {MysteryAudioPlayer.playClick(context)
                         if (tempPlayerName.isNotBlank()) {
                             if (state.players.size < 6) {
                                 viewModel.addLocalLobbyPlayer(tempPlayerName)
@@ -385,7 +391,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                 Text("رجوع")
             }
             Button(
-                onClick = {
+                onClick = {MysteryAudioPlayer.playClick(context)
                     if (state.players.size < 4) Toast.makeText(context, "اقل حاجة 4 لاعيبة", Toast.LENGTH_SHORT).show()
                     else viewModel.startInvestigationGame()
                 },
@@ -466,7 +472,7 @@ fun LanJoinLobbyScreen(
                     singleLine = true
                 )
                 Button(
-                    onClick = {
+                    onClick = {MysteryAudioPlayer.playClick(context)
                         if (inputCode.length == 5) {
                             val success = viewModel.joinLanHostByCode(inputCode, playerNameInput)
                             if (!success) Toast.makeText(context, "يبدو أن الرمز غير نشط بالشبكة حالياً. تأكد من تشغيل الاوضة من المضيف.", Toast.LENGTH_LONG).show()
@@ -528,7 +534,7 @@ fun LanJoinLobbyScreen(
         }
         Spacer(modifier = Modifier.height(16.dp))
         Button(
-            onClick = { LanManager.stopDiscovery(); onBack() },
+            onClick = {MysteryAudioPlayer.playClick(context) LanManager.stopDiscovery(); onBack() },
             colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
             modifier = Modifier.fillMaxWidth()
         ) {

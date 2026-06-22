@@ -26,10 +26,21 @@ import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.GoldShine
 import com.example.ui.theme.PapyrusBgLight
 import com.example.ui.theme.RedAccent
-
+import com.example.game.audio.MysteryAudioPlayer
 @Composable
 fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {
     val isHost = state.mode == "PASS_AND_PLAY" || state.hostId == viewModel.myPlayerId.value
+    val context = LocalContext.current
+    LaunchedEffect(state.tiedVotePlayers) {
+    // إذا لم يكن هناك تعادل وتم حسم الإقصاء، شغل صوت الإقصاء المناسب بناءً على هوية الشخص المقذوف
+    if (state.tiedVotePlayers.isEmpty()) {
+        // يمكنك الحصول على آخر لاعب تم إقصاؤه من الـ state لتحديد نوع الصوت (مافيا أم بريء)
+        val lastEliminated = state.players.lastOrNull { !it.isAlive }
+        if (lastEliminated != null) {
+            com.example.game.audio.MysteryAudioPlayer.playEliminationResultMusic(context, isMafia = lastEliminated.isMafia)
+        }
+    }
+}
     MysteryBackground {
         Column(
             modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding().verticalScroll(rememberScrollState()),
@@ -61,7 +72,7 @@ fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {
             }
             Spacer(modifier = Modifier.height(32.dp))
             if (isHost) {
-                Button(onClick = { viewModel.playButtonClick(); viewModel.confirmVoteResultAndProceed() }, colors = ButtonDefaults.buttonColors(containerColor = RedAccent), modifier = Modifier.fillMaxWidth().height(56.dp).testTag("confirm_vote_result_button"), shape = RoundedCornerShape(12.dp)) {
+                Button(onClick = { MysteryAudioPlayer.playClick(context) viewModel.playButtonClick(); viewModel.confirmVoteResultAndProceed() }, colors = ButtonDefaults.buttonColors(containerColor = RedAccent), modifier = Modifier.fillMaxWidth().height(56.dp).testTag("confirm_vote_result_button"), shape = RoundedCornerShape(12.dp)) {
                     Text(text = if (state.tiedVotePlayers.isNotEmpty()) "بدء جولة حسم التعادل" else "متابعة مسار التحقيق", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 }
             } else {

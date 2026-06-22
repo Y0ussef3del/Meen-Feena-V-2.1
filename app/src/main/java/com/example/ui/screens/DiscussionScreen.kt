@@ -34,7 +34,12 @@ import kotlin.math.sin
 
 @Composable
 fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
-    val suspectedByClick = remember { mutableStateListOf<String>() }
+    val suspectedByClick = remember { mutableStateListOf<String>() 
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+    com.example.game.audio.MysteryAudioPlayer.lowerVolumeForDiscussion()
+}
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -162,7 +167,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = { viewModel.advanceFromDiscussionToVoting() },
+                onClick = { MysteryAudioPlayer.playClick(context) , viewModel.advanceFromDiscussionToVoting() },
                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier

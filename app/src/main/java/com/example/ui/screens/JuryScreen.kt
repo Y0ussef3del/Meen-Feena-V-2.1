@@ -25,7 +25,7 @@ import com.example.ui.components.MysteryBackground
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
-
+import com.example.game.audio.MysteryAudioPlayer
 @Composable
 fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
     val eliminatedPlayers = state.players.filter { !it.isAlive }
@@ -225,7 +225,7 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                                             }
                                         }
                                         Button(
-                                            onClick = { viewModel.submitJuryVote(suspect.id) },
+                                            onClick = {viewModel.submitJuryVote(suspect.id) MysteryAudioPlayer.playClick(context)},
                                             colors = ButtonDefaults.buttonColors(containerColor = RedAccent)
                                         ) {
                                             Text("إدانة", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)

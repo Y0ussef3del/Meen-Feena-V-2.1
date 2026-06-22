@@ -26,13 +26,20 @@ import com.example.game.viewmodel.GameViewModel
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
-
+import com.example.game.audio.MysteryAudioPlayer
 @Composable
 fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
     val currentCase = state.currentCase ?: return
     val clueIndex = state.currentEvidenceIndex
     val currentClue = currentCase.evidenceList.getOrElse(clueIndex) { "لا أدلة إضافية حالياً." }
-    var showHint by remember(clueIndex) { mutableStateOf(false) }
+    var showHint by remember(clueIndex) { mutableStateOf(false)
+    // أضف هذا التعديل في بداية الـ Composable أو بداخل أول الـ Column الرئيسي
+    val context = LocalContext.current
+
+    LaunchedEffect(clueIndex) {
+    com.example.game.audio.MysteryAudioPlayer.playEvidenceReveal(context)
+}
+     }
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -56,7 +63,7 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
                 }
             }
             if (!showHint) {
-                Button(onClick = { showHint = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE2A012)), modifier = Modifier.testTag("clue_hint_button")) {
+                Button(onClick = {MysteryAudioPlayer.playClick(context) , showHint = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE2A012)), modifier = Modifier.testTag("clue_hint_button")) {
                     Icon(Icons.Default.Warning, "Clues Alert", tint = Color.Black, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("عرض تلميح  💡", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -64,7 +71,7 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { viewModel.advanceFromEvidenceToDiscussion() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), modifier = Modifier.fillMaxWidth().testTag("evidence_reveal_advance"), contentPadding = PaddingValues(15.dp)) {
+        Button(onClick = {MysteryAudioPlayer.playClick(context) viewModel.advanceFromEvidenceToDiscussion() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), modifier = Modifier.fillMaxWidth().testTag("evidence_reveal_advance"), contentPadding = PaddingValues(15.dp)) {
             Icon(Icons.Default.RecordVoiceOver, "Discuss", tint = GoldShine)
             Spacer(modifier = Modifier.width(8.dp))
             Text("خش علي المناقشة🗣️", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 16.sp)

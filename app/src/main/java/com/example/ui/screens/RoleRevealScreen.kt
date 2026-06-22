@@ -24,11 +24,19 @@ import com.example.game.viewmodel.GameViewModel
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
-
+import com.example.game.audio.MysteryAudioPlayer
 @Composable
 fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
-    val activePassPlayer = state.players.getOrNull(state.activePassPlayerIndex) ?: return
-    var revealed by remember(state.activePassPlayerIndex) { mutableStateOf(false) }
+    val isPassAndPlay = state.mode == "PASS_AND_PLAY"
+    val activePassPlayer = if (isPassAndPlay) {
+        state.players.getOrNull(state.activePassPlayerIndex)
+    } else {
+        state.players.find { it.id == viewModel.myPlayerId.value }
+    } ?: return
+
+    val rememberKey = if (isPassAndPlay) state.activePassPlayerIndex.toString() else activePassPlayer.id
+    var revealed by remember(rememberKey) { mutableStateOf(false) }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -57,7 +65,7 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                 }
             }
         } else {
-            ParchmentCard(modifier = Modifier.weight(1f), seed = state.activePassPlayerIndex.toLong()) {
+            ParchmentCard(modifier = Modifier.weight(1f), seed = if (isPassAndPlay) state.activePassPlayerIndex.toLong() else 42L) {
                 Text(text = "الملف السري لـ ${activePassPlayer.name}", color = DarkWoodButton, fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
@@ -81,34 +89,33 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                     ) {
                         Icon(imageVector = if (activePassPlayer.isMafia) Icons.Default.Dangerous else Icons.Default.Security, contentDescription = "Role Symbol", tint = Color.White, modifier = Modifier.size(24.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = if (activePassPlayer.isMafia) "أنت : المجرم الحقيقية" else "أنت : بريء من الجريمة", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
+                        Text(text = if (activePassPlayer.isMafia) "أنت : المجرم الحقيقي" else "أنت : بريء من الجريمة", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
                     }
-                    
                 }
             }
             Spacer(modifier = Modifier.height(10.dp))
-Button(
-    onClick = { viewModel.confirmSecretsRevealed(); revealed = false },
-    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
-    shape = RoundedCornerShape(12.dp),
-    modifier = Modifier
-        .fillMaxWidth()
-        .heightIn(min = 56.dp), // استخدام heightIn يجعل الزر يمدد نفسه إذا أصبح النص طويلاً
-    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-) {
-    Text(
-        text = if (state.activePassPlayerIndex < state.players.size - 1) 
-            "خبي ملفك وهات اللي بعده" 
-        else 
-            "يلا على تفاصيل القضية",
-        color = GoldShine,
-        fontWeight = FontWeight.Bold,
-        fontSize = 16.sp, // تقليل الخط قليلاً لضمان عدم خروجه عن الإطار
-        textAlign = TextAlign.Center, // لمحاذاة النص في المنتصف
-        maxLines = 2, // يسمح للنص بأخذ سطرين كحد أقصى
-        lineHeight = 20.sp // ضبط المسافة بين السطور ليظهر بشكل أرتب
-    )
-}
+            Button(
+                onClick = {MysteryAudioPlayer.playClick(context) viewModel.confirmSecretsRevealed(); revealed = false },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = if (isPassAndPlay && state.activePassPlayerIndex < state.players.size - 1) 
+                        "خبي ملفك وهات اللي بعده" 
+                    else 
+                        "يلا على تفاصيل القضية",
+                    color = GoldShine,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    lineHeight = 20.sp
+                )
+            }
         }
     }
 }

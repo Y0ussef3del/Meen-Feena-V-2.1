@@ -28,10 +28,13 @@ import com.example.ui.components.MysteryBackground
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
-
+import com.example.game.audio.MysteryAudioPlayer
 @Composable
 fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
     val context = LocalContext.current
+    val aliveCount = state.players.count { it.isAlive }
+    val isJuryVotingMode = aliveCount == 2
+
     if (state.mode == "PASS_AND_PLAY") {
         val voterPlayer = state.players.getOrNull(state.activePassPlayerIndex) ?: return
         var isDevicePassed by remember(state.activePassPlayerIndex) { mutableStateOf(false) }
@@ -58,6 +61,8 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
         var selectedTargetId by remember { mutableStateOf("") }
         val eligibleCandidates = if (state.tiedVotePlayers.isNotEmpty()) {
             state.players.filter { it.id in state.tiedVotePlayers && it.id != voterPlayer.id }
+        } else if (isJuryVotingMode) {
+            state.players.filter { it.isAlive }
         } else {
             state.players.filter { it.isAlive && it.id != voterPlayer.id }
         }
@@ -106,7 +111,9 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
         }
     } else {
         val localVoter = state.players.find { it.id == viewModel.myPlayerId.value } ?: return
-        if (!localVoter.isAlive) {
+        val canVoteInNetMode = if (isJuryVotingMode) !localVoter.isAlive else localVoter.isAlive
+
+        if (!canVoteInNetMode) {
             MysteryBackground {
                 Column(modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     ParchmentHeaderBanner(text = " أنت برة اللعب دلوقتي 💀")
@@ -116,7 +123,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
             }
         } else if (state.votes.containsKey(localVoter.id)) {
             val activePlayers = state.players.filter { it.isAlive }
-            val waitingPlayers = activePlayers.filter { it.id !in state.votes.keys }
+            val waitingPlayers = if (isJuryVotingMode) state.players.filter { !it.isAlive && it.id !in state.votes.keys } else activePlayers.filter { it.id !in state.votes.keys }
             MysteryBackground {
                 Column(modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     ParchmentHeaderBanner(text = "تم تسجيل صوتك بنجاح! 🗳️")
@@ -146,6 +153,8 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
             var selectedTargetId by remember { mutableStateOf("") }
             val eligibleCandidates = if (state.tiedVotePlayers.isNotEmpty()) {
                 state.players.filter { it.id in state.tiedVotePlayers && it.id != localVoter.id }
+            } else if (isJuryVotingMode) {
+                state.players.filter { it.isAlive }
             } else {
                 state.players.filter { it.isAlive && it.id != localVoter.id }
             }
@@ -181,7 +190,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
-                    onClick = {
+                    onClick = {MysteryAudioPlayer.playClick(context)
                         if (selectedTargetId.isBlank()) Toast.makeText(context, "اختار حد تشك فيه الأول عشان تصوّت", Toast.LENGTH_SHORT).show()
                         else viewModel.submitVote(selectedTargetId)
                     },
