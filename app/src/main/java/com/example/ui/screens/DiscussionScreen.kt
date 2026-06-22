@@ -166,20 +166,23 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Button(
-                onClick = { MysteryAudioPlayer.playClick(context) , viewModel.advanceFromDiscussionToVoting() },
-                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .heightIn(min = 56.dp)
-                    .testTag("voting_advance_button")
-            ) {
-                Icon(Icons.Default.HowToVote, "Start Votes", tint = GoldShine)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("يلا ندخل على التصويت", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-            }
+        Button(
+    onClick = { 
+        MysteryAudioPlayer.playClick() 
+        viewModel.advanceFromDiscussionToVoting() 
+    },
+    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+    shape = RoundedCornerShape(12.dp),
+    modifier = Modifier
+        .fillMaxWidth()
+        .navigationBarsPadding()
+        .heightIn(min = 56.dp)
+        .testTag("voting_advance_button")
+) {
+    Icon(Icons.Default.HowToVote, "Start Votes", tint = GoldShine)
+    Spacer(modifier = Modifier.width(8.dp))
+    Text("يلا ندخل على التصويت", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+}
         }
     }
 }

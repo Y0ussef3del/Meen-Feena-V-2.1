@@ -62,19 +62,38 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
                     Text(text = currentCase.hint, color = Color(0xFF856404), fontSize = 12.sp, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                 }
             }
-            if (!showHint) {
-                Button(onClick = {MysteryAudioPlayer.playClick(context) , showHint = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE2A012)), modifier = Modifier.testTag("clue_hint_button")) {
-                    Icon(Icons.Default.Warning, "Clues Alert", tint = Color.Black, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("عرض تلميح  💡", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = {MysteryAudioPlayer.playClick(context) viewModel.advanceFromEvidenceToDiscussion() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), modifier = Modifier.fillMaxWidth().testTag("evidence_reveal_advance"), contentPadding = PaddingValues(15.dp)) {
-            Icon(Icons.Default.RecordVoiceOver, "Discuss", tint = GoldShine)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("خش علي المناقشة🗣️", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        }
+           
+        
+   
+        // زر عرض التلميح
+    if (!showHint) {
+        Button(
+            onClick = { 
+                MysteryAudioPlayer.playClick() 
+                showHint = true 
+                    }, 
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE2A012)), 
+        modifier = Modifier.testTag("clue_hint_button")
+    ) {
+        Icon(Icons.Default.Warning, "Clues Alert", tint = Color.Black, modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text("عرض تلميح  💡", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+    }
+}
+Spacer(modifier = Modifier.height(16.dp))
+// زر الانتقال للمناقشة
+Button(
+    onClick = { 
+        MysteryAudioPlayer.playClick() 
+        viewModel.advanceFromEvidenceToDiscussion() 
+    }, 
+    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), 
+    modifier = Modifier.fillMaxWidth().testTag("evidence_reveal_advance"), 
+    contentPadding = PaddingValues(15.dp)
+) {
+    Icon(Icons.Default.RecordVoiceOver, "Discuss", tint = GoldShine)
+    Spacer(modifier = Modifier.width(8.dp))
+    // بقية محاذاة النص والزر...
+}
     }
 }

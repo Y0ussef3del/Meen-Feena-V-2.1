@@ -189,17 +189,21 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = {MysteryAudioPlayer.playClick(context)
-                        if (selectedTargetId.isBlank()) Toast.makeText(context, "اختار حد تشك فيه الأول عشان تصوّت", Toast.LENGTH_SHORT).show()
-                        else viewModel.submitVote(selectedTargetId)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth().height(56.dp).testTag("submit_vote_action_button")
-                ) {
-                    Text("اللي بعده", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
-                }
+Button(
+    onClick = {
+        MysteryAudioPlayer.playClick()
+        if (selectedTargetId.isBlank()) {
+            Toast.makeText(context, "اختار حد تشك فيه الأول عشان تصوّت", Toast.LENGTH_SHORT).show()
+        } else {
+            viewModel.submitVote(selectedTargetId)
+        }
+    },
+    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+    shape = RoundedCornerShape(12.dp),
+    modifier = Modifier.fillMaxWidth().height(56.dp).testTag("submit_vote_action_button")
+) {
+    Text("اللي بعده", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+}
             }
         }
     }

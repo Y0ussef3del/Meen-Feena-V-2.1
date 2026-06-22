@@ -95,27 +95,31 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
             }
             Spacer(modifier = Modifier.height(10.dp))
             Button(
-                onClick = {MysteryAudioPlayer.playClick(context) viewModel.confirmSecretsRevealed(); revealed = false },
-                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Text(
-                    text = if (isPassAndPlay && state.activePassPlayerIndex < state.players.size - 1) 
-                        "خبي ملفك وهات اللي بعده" 
-                    else 
-                        "يلا على تفاصيل القضية",
-                    color = GoldShine,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    lineHeight = 20.sp
-                )
-            }
+    onClick = { 
+        MysteryAudioPlayer.playClick() 
+        viewModel.confirmSecretsRevealed()
+        revealed = false 
+    },
+    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+    shape = RoundedCornerShape(12.dp),
+    modifier = Modifier
+        .fillMaxWidth()
+        .heightIn(min = 56.dp),
+    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+) {
+    Text(
+        text = if (isPassAndPlay && state.activePassPlayerIndex < state.players.size - 1) 
+            "خبي ملفك وهات اللي بعده" 
+        else 
+            "يلا على تفاصيل القضية",
+        color = GoldShine,
+        fontWeight = FontWeight.Bold,
+        fontSize = 16.sp,
+        textAlign = TextAlign.Center,
+        maxLines = 2,
+        lineHeight = 20.sp
+    )
+}
         }
     }
 }

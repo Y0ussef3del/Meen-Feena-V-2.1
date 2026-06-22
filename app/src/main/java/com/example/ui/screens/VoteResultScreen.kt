@@ -71,15 +71,20 @@ fun VoteResultScreen(viewModel: GameViewModel, state: RoomState) {
                 }
             }
             Spacer(modifier = Modifier.height(32.dp))
-            if (isHost) {
-                Button(onClick = { MysteryAudioPlayer.playClick(context) viewModel.playButtonClick(); viewModel.confirmVoteResultAndProceed() }, colors = ButtonDefaults.buttonColors(containerColor = RedAccent), modifier = Modifier.fillMaxWidth().height(56.dp).testTag("confirm_vote_result_button"), shape = RoundedCornerShape(12.dp)) {
-                    Text(text = if (state.tiedVotePlayers.isNotEmpty()) "بدء جولة حسم التعادل" else "متابعة مسار التحقيق", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                }
-            } else {
-                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0x3D2C1E14)), shape = RoundedCornerShape(12.dp)) {
-                    Text(text = "في انتظار المضيف لمتابعة القضية...", color = PapyrusBgLight, fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(16.dp))
-                }
-            }
+if (isHost) {
+    Button(
+        onClick = { 
+            MysteryAudioPlayer.playClick() 
+            viewModel.playButtonClick()
+            viewModel.confirmVoteResultAndProceed() 
+        }, 
+        colors = ButtonDefaults.buttonColors(containerColor = RedAccent), 
+        modifier = Modifier.fillMaxWidth().height(56.dp).testTag("confirm_vote_result_button"), 
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Text(text = if (state.tiedVotePlayers.isNotEmpty()) "بدء جولة حسم التعادل" else "متابعة مسار التحقيق", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+    }
+}
         }
     }
 }
