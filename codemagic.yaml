@@ -2,12 +2,13 @@ workflows:
   android-build:
     name: Build Android APK
     max_build_duration: 60
-    instance_type: mac_mini_m1 # أو يمكنك استخدام linux للسرعة والتكلفة الأقل إذا أردت
+    instance_type: mac_mini_m1
     environment:
       groups:
-        - android_credentials # يمكنك ربط متغيراتك السرية هنا في واجهة Codemagic
+        - android_credentials
       vars:
-        CM_JDK_VERSION: "17" # إعداد JDK 17 ليتوافق مع الإعدادات الخاصة بك
+        # هنا نقوم بتوجيه الـ Java مباشرة إلى إصدار 17 ليتوافق مع مشروعك
+        JAVA_HOME: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
     triggering:
       events:
         - push
@@ -17,14 +18,10 @@ workflows:
     scripts:
       - name: Set up local properties and environment file
         script: |
-          # إنشاء ملف .env فارغ أو تعبئته إذا كان مشروعك يعتمد عليه لتجنب أخطاء الـ Secrets Plugin
+          # إنشاء ملف .env لتجنب مشاكل الـ Secrets Plugin
           touch .env
           echo "PROJECT_PROPERTY=example_value" >> .env
           
-      - name: Set up JDK
-        script: |
-          jdk-switch --version $CM_JDK_VERSION
-
       - name: Grant execute permission for gradlew
         script: |
           chmod +x gradlew
