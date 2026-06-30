@@ -1,13 +1,12 @@
 workflows:
   android-build:
-    name: Build Android APK
+    name: Build Android AAB
     max_build_duration: 60
     instance_type: mac_mini_m1
     environment:
       groups:
         - android_credentials
       vars:
-        # هنا نقوم بتوجيه الـ Java مباشرة إلى إصدار 17 ليتوافق مع مشروعك
         JAVA_HOME: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
     triggering:
       events:
@@ -18,7 +17,6 @@ workflows:
     scripts:
       - name: Set up local properties and environment file
         script: |
-          # إنشاء ملف .env لتجنب مشاكل الـ Secrets Plugin
           touch .env
           echo "PROJECT_PROPERTY=example_value" >> .env
           
@@ -26,9 +24,11 @@ workflows:
         script: |
           chmod +x gradlew
 
-      - name: Build Android APK
+      - name: Build Android App Bundle (AAB)
         script: |
-          ./gradlew assembleDebug
+          # تم تغيير الأمر هنا ليقوم ببناء ملف الـ AAB بدلاً من الـ APK
+          ./gradlew bundleRelease
 
     artifacts:
-      - app/build/outputs/apk/debug/*.apk
+      # تم تعديل المسار والامتداد هنا ليلتقط ملف الـ .aab المستخرج
+      - app/build/outputs/bundle/release/*.aab
