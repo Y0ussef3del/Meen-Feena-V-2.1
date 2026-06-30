@@ -26,33 +26,26 @@ import com.example.game.viewmodel.GameViewModel
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
-import com.example.game.audio.MysteryAudioPlayer
+
 @Composable
 fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
     val currentCase = state.currentCase ?: return
     val clueIndex = state.currentEvidenceIndex
     val currentClue = currentCase.evidenceList.getOrElse(clueIndex) { "لا أدلة إضافية حالياً." }
-    var showHint by remember(clueIndex) { mutableStateOf(false)
-    // أضف هذا التعديل في بداية الـ Composable أو بداخل أول الـ Column الرئيسي
-    val context = LocalContext.current
-
-    LaunchedEffect(clueIndex) {
-    com.example.game.audio.MysteryAudioPlayer.playEvidenceReveal(context)
-}
-     }
+    var showHint by remember(clueIndex) { mutableStateOf(false) }
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        ParchmentHeaderBanner(text = "الدليل الجنائي ${clueIndex + 1} من ${currentCase.evidenceList.size}")
+        ParchmentHeaderBanner(text = "الدليل  ${clueIndex + 1} من ${currentCase.evidenceList.size}")
         Spacer(modifier = Modifier.height(12.dp))
         ParchmentCard(modifier = Modifier.weight(1f), seed = (clueIndex + 10).toLong()) {
             Box(modifier = Modifier.size(90.dp).background(Color(0xFF35120D), CircleShape).border(2.dp, GoldShine, CircleShape).shadow(4.dp, CircleShape), contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.Search, contentDescription = "Evidence Seal", tint = GoldShine, modifier = Modifier.size(48.dp))
             }
             Spacer(modifier = Modifier.height(10.dp))
-            Text(text = "دليل جديد تم استنتاجه مفاجئ:", color = Color(0xFF531E17), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(text = "ركز في الدليل بالله عليك عشان متضيعناش", color = Color(0xFF531E17), fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Box(modifier = Modifier.fillMaxWidth().weight(1f).background(Color(0x0F000000), RoundedCornerShape(10.dp)).padding(14.dp), contentAlignment = Alignment.Center) {
                 Text(text = currentClue, color = PapyrusText, fontSize = 15.sp, lineHeight = 22.sp, textAlign = TextAlign.Center)
             }
@@ -62,38 +55,19 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
                     Text(text = currentCase.hint, color = Color(0xFF856404), fontSize = 12.sp, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                 }
             }
-           
-        
-   
-        // زر عرض التلميح
-    if (!showHint) {
-        Button(
-            onClick = { 
-                MysteryAudioPlayer.playClick() 
-                showHint = true 
-                    }, 
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE2A012)), 
-        modifier = Modifier.testTag("clue_hint_button")
-    ) {
-        Icon(Icons.Default.Warning, "Clues Alert", tint = Color.Black, modifier = Modifier.size(20.dp))
-        Spacer(modifier = Modifier.width(6.dp))
-        Text("عرض تلميح  💡", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-    }
-}
-Spacer(modifier = Modifier.height(16.dp))
-// زر الانتقال للمناقشة
-Button(
-    onClick = { 
-        MysteryAudioPlayer.playClick() 
-        viewModel.advanceFromEvidenceToDiscussion() 
-    }, 
-    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), 
-    modifier = Modifier.fillMaxWidth().testTag("evidence_reveal_advance"), 
-    contentPadding = PaddingValues(15.dp)
-) {
-    Icon(Icons.Default.RecordVoiceOver, "Discuss", tint = GoldShine)
-    Spacer(modifier = Modifier.width(8.dp))
-    // بقية محاذاة النص والزر...
-}
+            if (!showHint) {
+                Button(onClick = { showHint = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE2A012)), modifier = Modifier.testTag("clue_hint_button")) {
+                    Icon(Icons.Default.Warning, "Clues Alert", tint = Color.Black, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("عرض تلميح  💡", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = { viewModel.advanceFromEvidenceToDiscussion() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), modifier = Modifier.fillMaxWidth().testTag("evidence_reveal_advance"), contentPadding = PaddingValues(15.dp)) {
+            Icon(Icons.Default.RecordVoiceOver, "Discuss", tint = GoldShine)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("خش علي المناقشة🗣️", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        }
     }
 }

@@ -25,7 +25,7 @@ import com.example.ui.components.MysteryBackground
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
-import com.example.game.audio.MysteryAudioPlayer
+
 @Composable
 fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
     val eliminatedPlayers = state.players.filter { !it.isAlive }
@@ -46,7 +46,7 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                     ParchmentHeaderBanner(text = "مرر الموبايل")
                     Spacer(modifier = Modifier.height(30.dp))
                     Text(
-                        text = "هات الموبايل ووريه لـ / ${juryVoter.name}",
+                        text = "ادي الموبايل لـ / ${juryVoter.name}",
                         color = PapyrusBgLight,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
@@ -79,7 +79,7 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            ParchmentHeaderBanner(text = "هيئة المحلفين العليا ⚖️")
+            ParchmentHeaderBanner(text = "هيئة المحلفين")
             Spacer(modifier = Modifier.height(10.dp))
             ParchmentCard(modifier = Modifier.weight(1f), seed = 88L) {
                 Box(
@@ -165,7 +165,7 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                 verticalArrangement = Arrangement.Center
             ) {
                 if (isAlive) {
-                    ParchmentHeaderBanner(text = "هيئة المحلفين العليا ⚖️")
+                    ParchmentHeaderBanner(text = "هيئة المحلفين")
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
                         text = "هيئة المحلفين بتصوّت دلوقتي...",
@@ -193,11 +193,11 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                             textAlign = TextAlign.Center
                         )
                     } else {
-                        ParchmentHeaderBanner(text = "هيئة المحلفين العليا ⚖️")
+                        ParchmentHeaderBanner(text = "هيئة المحلفين")
                         Spacer(modifier = Modifier.height(16.dp))
                         ParchmentCard(modifier = Modifier.weight(1f), seed = 88L) {
                             Text(
-                                text = "اضغط إدانة على المجرم الحقيقي عشان تحسم الجريمة وترجع حق الضحية!",
+                                text = "اضغط المجرم الحقيقي عشان تحسم الجريمة",
                                 color = Color(0xFF6E1D10),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp,
@@ -225,10 +225,10 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                                             }
                                         }
                                         Button(
-                                            onClick = {viewModel.submitJuryVote(suspect.id) MysteryAudioPlayer.playClick(context)},
+                                            onClick = { viewModel.submitJuryVote(suspect.id) },
                                             colors = ButtonDefaults.buttonColors(containerColor = RedAccent)
                                         ) {
-                                            Text("إدانة", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                            Text("هو ده", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                         }
                                     }
                                 }

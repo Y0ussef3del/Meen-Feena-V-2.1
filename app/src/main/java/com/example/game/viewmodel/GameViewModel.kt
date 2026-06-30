@@ -42,14 +42,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     lastVolume = state.settings.volume
                     MysteryAudioPlayer.setVolume(state.settings.volume)
                 }
-                if (lastMusicEnabled != state.settings.isMusicEnabled) {
-                    lastMusicEnabled = state.settings.isMusicEnabled
-                    if (state.settings.isMusicEnabled) {
-                        MysteryAudioPlayer.startMusic(getApplication())
-                    } else {
-                        MysteryAudioPlayer.stopMusic()
-                    }
-                }
             }
         }
     }
@@ -514,12 +506,19 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val mafiaAlive = alivePlayers.count { it.isMafia }
         val innocentAlive = alivePlayers.size - mafiaAlive
         Log.d(TAG, "Tally outcomes: Total alive = ${alivePlayers.size}, Mafia alive = $mafiaAlive, Innocents alive = $innocentAlive")
-        
+
         when {
+            // 1. لو كل المافيا ماتوا، الأبرياء يكسبوا فوراً
             mafiaAlive == 0 -> {
                 _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "INNOCENTS")
             }
-            // إصلاح الترتيب: التحقق من تبقي لاعبين أولاً وقبل شروط فوز المافيا المباشر لضمان الذهاب للدليل الأخير والمحلفين
+
+            // 2. التعديل هنا: لو مفيش ولا بريء صاحي (بما فيها حالة لو فضل 2 لاعبين والاتنين مافيا)، المافيا تكسب فوراً
+            innocentAlive == 0 -> {
+                _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
+            }
+
+            // 3. لو متبقي لاعبين اتنين (وطالما وصلنا هنا يبجى أكيد واحد مافيا وواحد بريء)، بنروح للمحلفين
             alivePlayers.size == 2 -> {
                 val finalEvidenceIndex = ((state.currentCase?.evidenceList?.size)?.minus(1))?.coerceAtLeast(0) ?: 0
                 _roomState.value = state.copy(
@@ -529,9 +528,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     juryVotes = emptyMap()
                 )
             }
-            mafiaAlive >= innocentAlive -> {
-                _roomState.value = state.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
-            }
+
+            // 4. غير كده اللعبة مكملة عادي للدليل الجنائي اللي بعده والتصويت مستمر
             else -> {
                 val nextEvidenceIndex = (state.currentEvidenceIndex + 1) % (state.currentCase?.evidenceList?.size ?: 6)
                 _roomState.value = state.copy(

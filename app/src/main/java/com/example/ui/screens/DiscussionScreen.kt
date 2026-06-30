@@ -34,12 +34,7 @@ import kotlin.math.sin
 
 @Composable
 fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
-    val suspectedByClick = remember { mutableStateListOf<String>() 
-    val context = LocalContext.current
-    LaunchedEffect(Unit) {
-    com.example.game.audio.MysteryAudioPlayer.lowerVolumeForDiscussion()
-}
-    }
+    val suspectedByClick = remember { mutableStateListOf<String>() }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -47,7 +42,8 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
             .safeDrawingPadding()
             .navigationBarsPadding()
             .statusBarsPadding()
-    ) {
+    )
+    {
         val minSide = minOf(maxWidth, maxHeight)
         val timerSize = (minSide * 0.34f).coerceIn(120.dp, 170.dp)
         val avatarSize = (minSide * 0.14f).coerceIn(52.dp, 68.dp)
@@ -59,7 +55,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                 .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            ParchmentHeaderBanner(text = "مرحلة النقاش والمواجهة")
+            ParchmentHeaderBanner(text = "ده وقت النقاش والمواجهة")
 
             Box(
                 modifier = Modifier
@@ -85,7 +81,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("متبقي", color = GoldYell, fontSize = 12.sp)
+                    Text("فاضل", color = GoldYell, fontSize = 12.sp)
                     Text(
                         text = formattedTime,
                         color = Color.White,
@@ -166,23 +162,20 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-        Button(
-    onClick = { 
-        MysteryAudioPlayer.playClick() 
-        viewModel.advanceFromDiscussionToVoting() 
-    },
-    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
-    shape = RoundedCornerShape(12.dp),
-    modifier = Modifier
-        .fillMaxWidth()
-        .navigationBarsPadding()
-        .heightIn(min = 56.dp)
-        .testTag("voting_advance_button")
-) {
-    Icon(Icons.Default.HowToVote, "Start Votes", tint = GoldShine)
-    Spacer(modifier = Modifier.width(8.dp))
-    Text("يلا ندخل على التصويت", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-}
+            Button(
+                onClick = { viewModel.advanceFromDiscussionToVoting() },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .heightIn(min = 56.dp)
+                    .testTag("voting_advance_button")
+            ) {
+                Icon(Icons.Default.HowToVote, "Start Votes", tint = GoldShine)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("يلا ندخل على التصويت", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            }
         }
     }
 }

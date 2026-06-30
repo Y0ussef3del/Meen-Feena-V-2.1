@@ -24,17 +24,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.game.model.RoomState
 import com.example.game.viewmodel.GameViewModel
+import com.example.game.audio.MysteryAudioPlayer
 import com.example.ui.components.MysteryBackground
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
-import com.example.game.audio.MysteryAudioPlayer
+
 @Composable
 fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
     val context = LocalContext.current
-    val aliveCount = state.players.count { it.isAlive }
-    val isJuryVotingMode = aliveCount == 2
-
     if (state.mode == "PASS_AND_PLAY") {
         val voterPlayer = state.players.getOrNull(state.activePassPlayerIndex) ?: return
         var isDevicePassed by remember(state.activePassPlayerIndex) { mutableStateOf(false) }
@@ -51,7 +49,15 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(text = "فكر قبل ما تصوت ...شغل دماغك !!!", color = Color.LightGray, fontSize = 17.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
                     Spacer(modifier = Modifier.height(30.dp))
-                    Button(onClick = { isDevicePassed = true }, colors = ButtonDefaults.buttonColors(containerColor = RedAccent), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(56.dp)) {
+                    Button(
+                        onClick = {
+                            MysteryAudioPlayer.playClick()
+                            isDevicePassed = true
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = RedAccent),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                    ) {
                         Text("يلا نصوّت", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     }
                 }
@@ -61,8 +67,6 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
         var selectedTargetId by remember { mutableStateOf("") }
         val eligibleCandidates = if (state.tiedVotePlayers.isNotEmpty()) {
             state.players.filter { it.id in state.tiedVotePlayers && it.id != voterPlayer.id }
-        } else if (isJuryVotingMode) {
-            state.players.filter { it.isAlive }
         } else {
             state.players.filter { it.isAlive && it.id != voterPlayer.id }
         }
@@ -81,7 +85,10 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                     items(eligibleCandidates, key = { it.id }) { candidate ->
                         val isSelected = candidate.id == selectedTargetId
                         Row(
-                            modifier = Modifier.fillMaxWidth().background(if (isSelected) Color(0x3B6E1B10) else Color(0x0C000000), RoundedCornerShape(10.dp)).border(2.dp, if (isSelected) RedAccent else Color(0x1F2C1E14), RoundedCornerShape(10.dp)).clickable { selectedTargetId = candidate.id }.padding(14.dp),
+                            modifier = Modifier.fillMaxWidth().background(if (isSelected) Color(0x3B6E1B10) else Color(0x0C000000), RoundedCornerShape(10.dp)).border(2.dp, if (isSelected) RedAccent else Color(0x1F2C1E14), RoundedCornerShape(10.dp)).clickable {
+                                MysteryAudioPlayer.playClick()
+                                selectedTargetId = candidate.id
+                            }.padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(modifier = Modifier.size(38.dp).background(if (isSelected) RedAccent else Color(0xFF421D18), CircleShape), contentAlignment = Alignment.Center) {
@@ -99,8 +106,14 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = {
-                    if (selectedTargetId.isBlank()) Toast.makeText(context, "اختار حد تشك فيه الأول عشان تصوّت", Toast.LENGTH_SHORT).show()
-                    else { viewModel.submitVote(selectedTargetId); selectedTargetId = "" }
+                    if (selectedTargetId.isBlank()) {
+                        MysteryAudioPlayer.playClick()
+                        Toast.makeText(context, "اختار حد تشك فيه الأول عشان تصوّت", Toast.LENGTH_SHORT).show()
+                    } else {
+                        MysteryAudioPlayer.playClick()
+                        viewModel.submitVote(selectedTargetId)
+                        selectedTargetId = ""
+                    }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                 shape = RoundedCornerShape(12.dp),
@@ -111,19 +124,37 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
         }
     } else {
         val localVoter = state.players.find { it.id == viewModel.myPlayerId.value } ?: return
-        val canVoteInNetMode = if (isJuryVotingMode) !localVoter.isAlive else localVoter.isAlive
-
-        if (!canVoteInNetMode) {
+        if (!localVoter.isAlive) {
+            val activePlayers = state.players.filter { it.isAlive }
+            val waitingPlayers = activePlayers.filter { it.id !in state.votes.keys }
             MysteryBackground {
                 Column(modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     ParchmentHeaderBanner(text = " أنت برة اللعب دلوقتي 💀")
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(text = "الف مبرووك اقعد جمب اخواتك", color = PapyrusBgLight, fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(20.dp))
+                    ParchmentCard(modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp)) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("الشفافية والتصويت المفتوح المباشر:", color = Color(0xFF6E1B10), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            val votesCast = state.votes.mapNotNull { (vId, tId) ->
+                                val voterName = state.players.find { it.id == vId }?.name ?: return@mapNotNull null
+                                val targetName = state.players.find { it.id == tId }?.name ?: return@mapNotNull null
+                                "👈 اللاعب $voterName صوّت ضد $targetName"
+                            }
+                            if (votesCast.isEmpty()) Text("في انتظار الصوت العلني الأول لبدء كشف التواطؤ... 🗳️", color = PapyrusTextSecondary, fontSize = 14.sp)
+                            else votesCast.forEach { voteLine -> Text(text = voteLine, color = PapyrusText, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp)) }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("مين اللي لسه مصوّتش:", color = Color(0xFF6E1B10), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            val waitingNames = waitingPlayers.joinToString { it.name }.ifEmpty { "الجميع أدلى بصوته علناً!" }
+                            Text(waitingNames, color = PapyrusTextSecondary, fontSize = 14.sp)
+                        }
+                    }
                 }
             }
         } else if (state.votes.containsKey(localVoter.id)) {
             val activePlayers = state.players.filter { it.isAlive }
-            val waitingPlayers = if (isJuryVotingMode) state.players.filter { !it.isAlive && it.id !in state.votes.keys } else activePlayers.filter { it.id !in state.votes.keys }
+            val waitingPlayers = activePlayers.filter { it.id !in state.votes.keys }
             MysteryBackground {
                 Column(modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     ParchmentHeaderBanner(text = "تم تسجيل صوتك بنجاح! 🗳️")
@@ -153,8 +184,6 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
             var selectedTargetId by remember { mutableStateOf("") }
             val eligibleCandidates = if (state.tiedVotePlayers.isNotEmpty()) {
                 state.players.filter { it.id in state.tiedVotePlayers && it.id != localVoter.id }
-            } else if (isJuryVotingMode) {
-                state.players.filter { it.isAlive }
             } else {
                 state.players.filter { it.isAlive && it.id != localVoter.id }
             }
@@ -173,7 +202,10 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                         items(eligibleCandidates, key = { it.id }) { candidate ->
                             val isSelected = candidate.id == selectedTargetId
                             Row(
-                                modifier = Modifier.fillMaxWidth().background(if (isSelected) Color(0x3B6E1B10) else Color(0x0C000000), RoundedCornerShape(10.dp)).border(2.dp, if (isSelected) RedAccent else Color(0x1F2C1E14), RoundedCornerShape(10.dp)).clickable { selectedTargetId = candidate.id }.padding(14.dp),
+                                modifier = Modifier.fillMaxWidth().background(if (isSelected) Color(0x3B6E1B10) else Color(0x0C000000), RoundedCornerShape(10.dp)).border(2.dp, if (isSelected) RedAccent else Color(0x1F2C1E14), RoundedCornerShape(10.dp)).clickable {
+                                    MysteryAudioPlayer.playClick()
+                                    selectedTargetId = candidate.id
+                                }.padding(14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(modifier = Modifier.size(38.dp).background(if (isSelected) RedAccent else Color(0xFF421D18), CircleShape), contentAlignment = Alignment.Center) {
@@ -189,21 +221,22 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-Button(
-    onClick = {
-        MysteryAudioPlayer.playClick()
-        if (selectedTargetId.isBlank()) {
-            Toast.makeText(context, "اختار حد تشك فيه الأول عشان تصوّت", Toast.LENGTH_SHORT).show()
-        } else {
-            viewModel.submitVote(selectedTargetId)
-        }
-    },
-    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
-    shape = RoundedCornerShape(12.dp),
-    modifier = Modifier.fillMaxWidth().height(56.dp).testTag("submit_vote_action_button")
-) {
-    Text("اللي بعده", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
-}
+                Button(
+                    onClick = {
+                        if (selectedTargetId.isBlank()) {
+                            MysteryAudioPlayer.playClick()
+                            Toast.makeText(context, "اختار حد تشك فيه الأول عشان تصوّت", Toast.LENGTH_SHORT).show()
+                        } else {
+                            MysteryAudioPlayer.playClick()
+                            viewModel.submitVote(selectedTargetId)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp).testTag("submit_vote_action_button")
+                ) {
+                    Text("اللي بعده", color = GoldShine, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                }
             }
         }
     }

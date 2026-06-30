@@ -1,173 +1,296 @@
 package com.example.game.audio
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 import android.media.MediaPlayer
+import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.*
+import kotlin.math.sin
+import kotlin.random.Random
 
 object MysteryAudioPlayer {
     private const val TAG = "MysteryAudioPlayer"
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var musicVolume = 0.5f
-    private var isVolumeLowered = false // مؤشر للحفاظ على خفض الصوت عبر الشاشات
-    private var mediaPlayer: MediaPlayer? = null
-    private var sfxPlayer: MediaPlayer? = null
 
-    // تشغيل صوت الأزرار المميز من ملف mp3
-    fun playClick(context: Context) {
-        scope.launch(Dispatchers.IO) {
-            try {
-                val resId = context.resources.getIdentifier("button_click", "raw", context.packageName)
-                if (resId != 0) {
-                    MediaPlayer.create(context, resId).apply {
-                        // تشغيل المؤثر الصوتي بمستوى الصوت المعتمد
-                        val vol = if (isVolumeLowered) musicVolume * 0.4f else musicVolume
-                        setVolume(vol, vol)
-                        setOnCompletionListener { release() }
-                        start()
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error playing button click sound", e)
-            }
-        }
-    }
-
-    // متوافق مع الاستدعاء القديم بدون سياق لعدم كسر أي كود فرعي آخر
+    // 1. playClick / playSelection: short wooden click feedback
     fun playClick() {
-        // احتياطي للتوافقية
+        playSelection()
     }
 
     fun playSelection() {
-        // احتياطي للتوافقية
+        scope.launch {
+            try {
+                val sampleRate = 22050
+                val numSamples = (sampleRate * 0.04).toInt() // 40ms short tap
+                val buffer = ShortArray(numSamples)
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val freq = 600.0 * (1.0 - t * 20.0).coerceAtLeast(0.2)
+                    val envelope = sin(2.0 * Math.PI * freq * t) * (1.0 - t / 0.04)
+                    buffer[i] = (envelope * 20000.0 * musicVolume).toInt().toShort()
+                }
+                playBufferStatic(buffer, sampleRate)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error playing selection sound", e)
+            }
+        }
     }
 
-    // صوت مميز عند عرض الدلائل لجميع الأجهزة
-    fun playEvidenceReveal(context: Context) {
+    // 2. playSuccess: happy ascending sequence
+    fun playSuccess() {
+        scope.launch {
+            try {
+                val sampleRate = 22050
+                val duration = 0.22 // 220ms total
+                val numSamples = (sampleRate * duration).toInt()
+                val buffer = ShortArray(numSamples)
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val freq = when {
+                        t < 0.07 -> 523.25 // C5
+                        t < 0.14 -> 659.25 // E5
+                        else -> 783.99 // G5
+                    }
+                    val envelope = sin(2.0 * Math.PI * freq * t) * (1.0 - t / duration)
+                    buffer[i] = (envelope * 22000.0 * musicVolume).toInt().toShort()
+                }
+                playBufferStatic(buffer, sampleRate)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error playing success sound", e)
+            }
+        }
+    }
+
+    // 3. playError: low, harsh buzz
+    fun playError() {
+        scope.launch {
+            try {
+                val sampleRate = 22050
+                val duration = 0.25 // 250ms total
+                val numSamples = (sampleRate * duration).toInt()
+                val buffer = ShortArray(numSamples)
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val isSilenced = t in 0.10..0.13
+                    val wave = if (isSilenced) {
+                        0.0
+                    } else {
+                        (sin(2.0 * Math.PI * 120.0 * t) + 0.5 * sin(2.0 * Math.PI * 240.0 * t))
+                    }
+                    val envelope = wave * (1.0 - t / duration)
+                    buffer[i] = (envelope * 24000.0 * musicVolume).toInt().toShort()
+                }
+                playBufferStatic(buffer, sampleRate)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error playing error sound", e)
+            }
+        }
+    }
+
+    // 4. playWarning: metallic double tone beep
+    fun playWarning() {
+        scope.launch {
+            try {
+                val sampleRate = 22050
+                val duration = 0.15 // 150ms
+                val numSamples = (sampleRate * duration).toInt()
+                val buffer = ShortArray(numSamples)
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val wave = sin(2.0 * Math.PI * 440.0 * t) + 0.3 * sin(2.0 * Math.PI * 880.0 * t)
+                    val envelope = wave * (1.0 - t / duration)
+                    buffer[i] = (envelope * 20000.0 * musicVolume).toInt().toShort()
+                }
+                playBufferStatic(buffer, sampleRate)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error playing warning sound", e)
+            }
+        }
+    }
+
+    // 5. playVote: short thumping stamp sound
+    fun playVote() {
+        scope.launch {
+            try {
+                val sampleRate = 22050
+                val duration = 0.12 // 120ms
+                val numSamples = (sampleRate * duration).toInt()
+                val buffer = ShortArray(numSamples)
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val freq = 120.0 * (1.0 - t * 8.0).coerceAtLeast(0.3)
+                    val envelope = sin(2.0 * Math.PI * freq * t) * (1.0 - t / duration)
+                    buffer[i] = (envelope * 25000.0 * musicVolume).toInt().toShort()
+                }
+                playBufferStatic(buffer, sampleRate)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error playing vote sound", e)
+            }
+        }
+    }
+
+    // 6. playTransition: suspenseful rising pitch swoop
+    fun playTransition() {
+        scope.launch {
+            try {
+                val sampleRate = 22050
+                val duration = 0.45 // 450ms
+                val numSamples = (sampleRate * duration).toInt()
+                val buffer = ShortArray(numSamples)
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val freq = 150.0 + 650.0 * (t / duration) * (t / duration)
+                    val volEnvelope = if (t < 0.1) t / 0.1 else (1.0 - t / duration)
+                    val wave = sin(2.0 * Math.PI * freq * t) * volEnvelope
+                    buffer[i] = (wave * 20000.0 * musicVolume).toInt().toShort()
+                }
+                playBufferStatic(buffer, sampleRate)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error playing transition sound", e)
+            }
+        }
+    }
+
+    // 7. playReveal / playTension: dramatic dissonance and sub-bass stinger
+    fun playTension() {
+        playReveal()
+    }
+
+    fun playReveal() {
+        scope.launch {
+            try {
+                val sampleRate = 22050
+                val duration = 0.8 // 800ms
+                val numSamples = (sampleRate * duration).toInt()
+                val buffer = ShortArray(numSamples)
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val chord = sin(2.0 * Math.PI * 220.0 * t) +
+                            0.7 * sin(2.0 * Math.PI * 311.13 * t) +
+                            0.5 * sin(2.0 * Math.PI * 55.0 * t)
+                    val envelope = chord * Math.exp(-3.5 * t)
+                    buffer[i] = (envelope * 24000.0 * musicVolume).toInt().toShort()
+                }
+                playBufferStatic(buffer, sampleRate)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error playing reveal sound", e)
+            }
+        }
+    }
+
+    // 8. Static play helper مع التوافق الكامل لكل إصدارات الأندرويد (Backward Compatibility)
+    @Suppress("DEPRECATION")
+    private suspend fun playBufferStatic(buffer: ShortArray, sampleRate: Int) {
+        val bufferSizeInBytes = buffer.size * 2
+
+        val audioTrack = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val attributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_GAME)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            val format = AudioFormat.Builder()
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setSampleRate(sampleRate)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .build()
+            AudioTrack.Builder()
+                .setAudioAttributes(attributes)
+                .setAudioFormat(format)
+                .setBufferSizeInBytes(bufferSizeInBytes)
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .build()
+        } else {
+            // كود متوافق مع الإصدارات الأقدم من API 23
+            AudioTrack(
+                AudioManager.STREAM_MUSIC,
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                bufferSizeInBytes,
+                AudioTrack.MODE_STATIC
+            )
+        }
+
+        audioTrack.write(buffer, 0, buffer.size)
+        audioTrack.play()
+        delay((buffer.size * 1000L / sampleRate) + 50L)
+        try { audioTrack.release() } catch (_: Throwable) {}
+    }
+
+    /**
+     * دالة مساعدة لحساب عدد الملفات الموجودة في مجلد raw بشكل ديناميكي بناءً على بادئة الاسم
+     */
+    @SuppressLint("DiscouragedApi")
+    private fun countAvailableResources(context: Context, prefix: String): Int {
+        var count = 0
+        while (true) {
+            val nextIndex = count + 1
+            val resId = context.resources.getIdentifier("${prefix}_$nextIndex", "raw", context.packageName)
+            if (resId != 0) {
+                count = nextIndex
+            } else {
+                break
+            }
+        }
+        return count
+    }
+
+    /**
+     * تشغيل صوت عشوائي عند خروج لاعب بريء بشكل ديناميكي بالكامل
+     */
+    fun playPlayerEliminatedInnocent(context: Context) {
+        val availableCount = countAvailableResources(context, "innocent")
+        val randomIndex = if (availableCount > 0) Random.nextInt(1, availableCount + 1) else 1
+        playRawResource(context, "innocent_$randomIndex")
+    }
+
+    /**
+     * تشغيل صوت عشوائي عند خروج لاعب مجرم بشكل ديناميكي بالكامل
+     */
+    fun playPlayerEliminatedCriminal(context: Context) {
+        val availableCount = countAvailableResources(context, "criminal")
+        val randomIndex = if (availableCount > 0) Random.nextInt(1, availableCount + 1) else 1
+        playRawResource(context, "criminal_$randomIndex")
+    }
+
+    /**
+     * تشغيل صوت عند انتهاء اللعبة بناءً على النتيجة بشكل ديناميكي بالكامل
+     */
+    fun playGameOverSound(context: Context, isWin: Boolean) {
+        val prefix = if (isWin) "game_win" else "game_lose"
+        val availableCount = countAvailableResources(context, prefix)
+        val randomIndex = if (availableCount > 0) Random.nextInt(1, availableCount + 1) else 1
+        playRawResource(context, "${prefix}_$randomIndex")
+    }
+
+    @SuppressLint("DiscouragedApi")
+    private fun playRawResource(context: Context, resName: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                val resId = context.resources.getIdentifier("evidence_reveal", "raw", context.packageName)
+                val resId = context.resources.getIdentifier(resName, "raw", context.packageName)
                 if (resId != 0) {
                     MediaPlayer.create(context, resId).apply {
-                        val vol = if (isVolumeLowered) musicVolume * 0.4f else musicVolume
-                        setVolume(vol, vol)
-                        setOnCompletionListener { release() }
+                        setVolume(musicVolume, musicVolume)
                         start()
+                        setOnCompletionListener { release() }
                     }
+                } else {
+                    Log.e(TAG, "Resource $resName not found in res/raw")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error playing evidence reveal sound", e)
+                Log.e(TAG, "Error playing raw resource: $resName", e)
             }
         }
     }
 
-    // تعديل مستوى الصوت الأساسي
+    // تعديل مستوى الصوت فوري للمؤثرات
     fun setVolume(volume: Float) {
         musicVolume = volume.coerceIn(0.0f, 1.0f)
-        applyCurrentVolume()
-    }
-
-    // تطبيق مستوى الصوت الحالي بناءً على حالة اللعبة (منخفض أم طبيعي)
-    private fun applyCurrentVolume() {
-        try {
-            val targetVol = if (isVolumeLowered) (musicVolume * 0.3f) else musicVolume
-            mediaPlayer?.setVolume(targetVol, targetVol)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error applying volume changes", e)
-        }
-    }
-
-    // توطية الموسيقى تلقائياً عند بدء شاشة المناقشة وتثبيتها
-    fun lowerVolumeForDiscussion() {
-        isVolumeLowered = true
-        applyCurrentVolume()
-        Log.d(TAG, "Volume lowered and locked for active gameplay phases.")
-    }
-
-    // إعادة الصوت لطبيعته (يتم استدعاؤها فقط عند العودة للقائمة الرئيسية أو بدء جولة جديدة تماماً)
-    fun restoreNormalVolume() {
-        isVolumeLowered = false
-        applyCurrentVolume()
-        Log.d(TAG, "Normal volume restored.")
-    }
-
-    // تشغيل الخلفية الموسيقية تكرارياً من مجلد raw
-    fun startMusic(context: Context) {
-        if (mediaPlayer == null) {
-            try {
-                val resId = context.resources.getIdentifier("music_background", "raw", context.packageName)
-                if (resId != 0) {
-                    mediaPlayer = MediaPlayer.create(context, resId).apply {
-                        isLooping = true
-                        start()
-                    }
-                    applyCurrentVolume() // التأكد من تطبيق خفض الصوت إذا كان مفعلاً مسبقاً
-                } else {
-                    Log.e(TAG, "Resource music_background not found in res/raw")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error starting background music", e)
-            }
-        } else {
-            if (!mediaPlayer!!.isPlaying) {
-                mediaPlayer?.start()
-            }
-        }
-    }
-
-    fun stopMusic() {
-        try {
-            mediaPlayer?.stop()
-            mediaPlayer?.release()
-            mediaPlayer = null
-        } catch (e: Exception) {
-            Log.e(TAG, "Error stopping background music", e)
-        }
-    }
-
-    // موسيقى مخصصة عند خروج لاعب (بريء أو مجرم) - تحافظ على انخفاض الخلفية الموسيقية
-    fun playEliminationResultMusic(context: Context, isMafia: Boolean) {
-        scope.launch(Dispatchers.IO) {
-            try {
-                sfxPlayer?.stop()
-                sfxPlayer?.release()
-
-                val fileName = if (isMafia) "mafia_eliminated" else "innocent_eliminated"
-                val resId = context.resources.getIdentifier(fileName, "raw", context.packageName)
-                if (resId != 0) {
-                    sfxPlayer = MediaPlayer.create(context, resId).apply {
-                        setVolume(musicVolume, musicVolume)
-                        start()
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error playing elimination music", e)
-            }
-        }
-    }
-
-    // موسيقى مخصصة للشاشة النهائية (عندها يتم إلغاء قفل خفض الصوت لإعادة تهيئة اللعبة لاحقاً)
-    fun playEndgameResultMusic(context: Context, isInnocentsWinner: Boolean) {
-        scope.launch(Dispatchers.IO) {
-            try {
-                stopMusic() // إيقاف موسيقى الخلفية المعتادة لعرض موسيقى النهاية المناسبة بوضوح
-                isVolumeLowered = false // إلغاء القفل للاستعداد للجولة القادمة عند الخروج
-                
-                sfxPlayer?.stop()
-                sfxPlayer?.release()
-
-                val fileName = if (isInnocentsWinner) "innocents_win" else "mafia_win"
-                val resId = context.resources.getIdentifier(fileName, "raw", context.packageName)
-                if (resId != 0) {
-                    sfxPlayer = MediaPlayer.create(context, resId).apply {
-                        isLooping = false
-                        setVolume(musicVolume, musicVolume)
-                        start()
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error playing endgame music", e)
-            }
-        }
     }
 }

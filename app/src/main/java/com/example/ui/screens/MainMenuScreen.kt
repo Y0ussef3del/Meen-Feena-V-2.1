@@ -32,7 +32,7 @@ import com.example.ui.theme.*
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.shadow
-import com.example.game.audio.MysteryAudioPlayer
+
 
 @Composable
 fun MainMenuOrLobbyScreen(viewModel: GameViewModel, state: RoomState) {
@@ -42,12 +42,6 @@ fun MainMenuOrLobbyScreen(viewModel: GameViewModel, state: RoomState) {
     var isSettingsOpen by remember { mutableStateOf(false) }
     val discoveredHosts by LanManager.discoveredHosts.collectAsState()
     val localIp = remember { LanManager.getLocalIpAddress() }
-    // أضف هذا التعديل في شاشة الـ MainMenu أو اللوبي لرفع قفل الصوت التلقائي
-    val context = LocalContext.current
-
-    LaunchedEffect(Unit) {
-        com.example.game.audio.MysteryAudioPlayer.restoreNormalVolume()
-        com.example.game.audio.MysteryAudioPlayer.startMusic(context)}
 
     if (isSettingsOpen) {
         SettingsDialog(viewModel = viewModel) { isSettingsOpen = false }
@@ -94,7 +88,7 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
         Spacer(modifier = Modifier.height(10.dp))
         ParchmentCard(modifier = Modifier.weight(1f), seed = 789L) {
             Text(
-                text = "شارك  الكود مع أصدقائك للانضمام:",
+                text = "شارك الكود مع أصدقائك للانضمام:",
                 color = DarkWoodButton,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
@@ -184,14 +178,14 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
-                onClick = { viewModel.resetToMainMenu() MysteryAudioPlayer.playClick(context)},
+                onClick = { viewModel.resetToMainMenu() },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4A1008)),
                 modifier = Modifier.weight(1f)
             ) {
                 Text("إلغاء الاوضة", color = GoldShine)
             }
             Button(
-                onClick = { MysteryAudioPlayer.playClick(context) viewModel.startInvestigationGame() },
+                onClick = { viewModel.startInvestigationGame() },
                 enabled = state.players.size in 4..6,
                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                 modifier = Modifier.weight(1.5f)
@@ -286,7 +280,7 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
         }
         Spacer(modifier = Modifier.height(14.dp))
         Button(
-            onClick = {MysteryAudioPlayer.playClick(context) viewModel.resetToMainMenu() },
+            onClick = { viewModel.resetToMainMenu() },
             colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -322,7 +316,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                 OutlinedTextField(
                     value = tempPlayerName,
                     onValueChange = { tempPlayerName = it },
-                    label = { Text("اسم اللاعب ") },
+                    label = { Text("اسم اللاعب") },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = PapyrusText,
                         unfocusedTextColor = PapyrusText,
@@ -333,7 +327,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                     singleLine = true
                 )
                 Button(
-                    onClick = {MysteryAudioPlayer.playClick(context)
+                    onClick = {
                         if (tempPlayerName.isNotBlank()) {
                             if (state.players.size < 6) {
                                 viewModel.addLocalLobbyPlayer(tempPlayerName)
@@ -391,7 +385,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                 Text("رجوع")
             }
             Button(
-                onClick = {MysteryAudioPlayer.playClick(context)
+                onClick = {
                     if (state.players.size < 4) Toast.makeText(context, "اقل حاجة 4 لاعيبة", Toast.LENGTH_SHORT).show()
                     else viewModel.startInvestigationGame()
                 },
@@ -417,7 +411,7 @@ fun LanJoinLobbyScreen(
 ) {
     val context = LocalContext.current
     var inputCode by remember { mutableStateOf("") }
-    var playerNameInput by remember { mutableStateOf("حمادة") }
+    var playerNameInput by remember { mutableStateOf("") }
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -472,11 +466,11 @@ fun LanJoinLobbyScreen(
                     singleLine = true
                 )
                 Button(
-                    onClick = {MysteryAudioPlayer.playClick(context)
+                    onClick = {
                         if (inputCode.length == 5) {
                             val success = viewModel.joinLanHostByCode(inputCode, playerNameInput)
                             if (!success) Toast.makeText(context, "يبدو أن الرمز غير نشط بالشبكة حالياً. تأكد من تشغيل الاوضة من المضيف.", Toast.LENGTH_LONG).show()
-                        } else Toast.makeText(context, "الرمز يجب أن يتكون من 5 أرقام", Toast.LENGTH_SHORT).show()
+                        } else Toast.makeText(context, "الرمز لازم يبقي 5 أرقام", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                     modifier = Modifier.weight(1f)
@@ -486,7 +480,7 @@ fun LanJoinLobbyScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "أو اختر اوضة من كشف الشبكة (UDP):",
+                text = "أو اختر اوضة من كشف الشبكة:",
                 color = DarkWoodButton,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
@@ -534,7 +528,7 @@ fun LanJoinLobbyScreen(
         }
         Spacer(modifier = Modifier.height(16.dp))
         Button(
-            onClick = {MysteryAudioPlayer.playClick(context) LanManager.stopDiscovery(); onBack() },
+            onClick = { LanManager.stopDiscovery(); onBack() },
             colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
             modifier = Modifier.fillMaxWidth()
         ) {

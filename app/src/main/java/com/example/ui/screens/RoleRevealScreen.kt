@@ -14,17 +14,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.game.model.RoomState
 import com.example.game.viewmodel.GameViewModel
+import com.example.game.audio.MysteryAudioPlayer
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
-import com.example.game.audio.MysteryAudioPlayer
+
 @Composable
 fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
     val isPassAndPlay = state.mode == "PASS_AND_PLAY"
@@ -42,7 +42,7 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        ParchmentHeaderBanner(text = "كشف الشخصيات السرية")
+        ParchmentHeaderBanner(text = "كشف الشخصيات")
         Spacer(modifier = Modifier.height(10.dp))
         if (!revealed) {
             Column(
@@ -60,7 +60,14 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                 Text(text = "ادي التلفون ل : ", color = PapyrusBgLight.copy(alpha = 0.8f), fontSize = 16.sp, textAlign = TextAlign.Center)
                 Text(text = activePassPlayer.name, color = GoldShine, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, modifier = Modifier.testTag("pass_name_reveal"))
                 Spacer(modifier = Modifier.height(30.dp))
-                Button(onClick = { revealed = true }, colors = ButtonDefaults.buttonColors(containerColor = GoldYell), modifier = Modifier.testTag("reveal_role_button")) {
+                Button(
+                    onClick = {
+                        MysteryAudioPlayer.playReveal()
+                        revealed = true
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = GoldYell),
+                    modifier = Modifier.testTag("reveal_role_button")
+                ) {
                     Text("اكتشف الدور السري 👁️", color = Color(0xFF2C150A), fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -86,40 +93,43 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(if (activePassPlayer.isMafia) RedAccent else InnocentAccent).padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
-                    ) {
+                    )
+                    {
                         Icon(imageVector = if (activePassPlayer.isMafia) Icons.Default.Dangerous else Icons.Default.Security, contentDescription = "Role Symbol", tint = Color.White, modifier = Modifier.size(24.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = if (activePassPlayer.isMafia) "أنت : المجرم الحقيقي" else "أنت : بريء من الجريمة", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
                     }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("الدافع : ${char.hiddenMotive}", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 }
             }
             Spacer(modifier = Modifier.height(10.dp))
             Button(
-    onClick = { 
-        MysteryAudioPlayer.playClick() 
-        viewModel.confirmSecretsRevealed()
-        revealed = false 
-    },
-    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
-    shape = RoundedCornerShape(12.dp),
-    modifier = Modifier
-        .fillMaxWidth()
-        .heightIn(min = 56.dp),
-    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-) {
-    Text(
-        text = if (isPassAndPlay && state.activePassPlayerIndex < state.players.size - 1) 
-            "خبي ملفك وهات اللي بعده" 
-        else 
-            "يلا على تفاصيل القضية",
-        color = GoldShine,
-        fontWeight = FontWeight.Bold,
-        fontSize = 16.sp,
-        textAlign = TextAlign.Center,
-        maxLines = 2,
-        lineHeight = 20.sp
-    )
-}
+                onClick = {
+                    MysteryAudioPlayer.playClick()
+                    viewModel.confirmSecretsRevealed()
+                    revealed = false
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = if (isPassAndPlay && state.activePassPlayerIndex < state.players.size - 1)
+                        "خبي ملفك وهات اللي بعده"
+                    else
+                        "يلا على تفاصيل القضية",
+                    color = GoldShine,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    lineHeight = 20.sp
+                )
+            }
         }
     }
 }

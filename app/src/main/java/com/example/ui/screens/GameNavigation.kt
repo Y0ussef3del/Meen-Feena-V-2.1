@@ -36,10 +36,10 @@ fun GameNavigation(viewModel: GameViewModel) {
                 transitionSpec = {
                     val duration = 800
                     (fadeIn(animationSpec = tween(duration)) +
-                     slideInVertically(initialOffsetY = { 80 }, animationSpec = tween(duration)) +
-                     scaleIn(initialScale = 0.95f, animationSpec = tween(duration))) togetherWith
-                    (fadeOut(animationSpec = tween(500)) +
-                     scaleOut(targetScale = 1.05f, animationSpec = tween(500)))
+                            slideInVertically(initialOffsetY = { 80 }, animationSpec = tween(duration)) +
+                            scaleIn(initialScale = 0.95f, animationSpec = tween(duration))) togetherWith
+                            (fadeOut(animationSpec = tween(500)) +
+                                    scaleOut(targetScale = 1.05f, animationSpec = tween(500)))
                 },
                 label = "PhaseTransition"
             ) { phase ->
