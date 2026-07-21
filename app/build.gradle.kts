@@ -2,6 +2,7 @@ import java.io.File
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.net.URI
 
 plugins {
   alias(libs.plugins.android.application)
@@ -9,34 +10,54 @@ plugins {
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
+    kotlin("plugin.serialization") version "1.9.0"
 }
 
 android {
-  namespace = "com.example"
-  compileSdk { version = release(36) { minorApiLevel = 1 } }
+    namespace = "com.example"
+    compileSdk { version = release(36) { minorApiLevel = 1 } }
 
-  defaultConfig {
-    applicationId = "com.youssef.meenfeena"
-    minSdk = 24
-    targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    // 1️⃣ أولاً: تعريف مفاتيح التوقيع (Signing Configurations)
+    signingConfigs {
+        create("release") {
+            // قم بتغيير هذه القيم إلى مسار وكلمات مرور ملف الـ Keystore الخاص بك
+            storeFile = file("my-release-key.jks") // مسار ملف الكيستور في مجلد المشروع
+            storePassword = "012253"
+            keyAlias = "my-key-alias"
+            keyPassword = "012253"
+        }
+    }
 
-    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-  }
+    defaultConfig {
+        applicationId = "com.youssef.meenfeena"
+        minSdk = 24
+        targetSdk = 36
+        versionCode = 4
+        versionName = "2.0"
 
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
 
+    // 2️⃣ ثانياً: ربط مفتاح التوقيع بنوع الإصدار النهائي (Release Build)
+    buildTypes {
+        release {
+            isMinifyEnabled = false // يمكنك جعلها true لتفعيل حماية الـ Proguard وتقليص الحجم
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
 
+            // ربط التوقيع هنا
+            signingConfig = signingConfigs.getByName("release")
+        }
+    }
 
-  compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
-  }
-  buildFeatures {
-    compose = true
-    buildConfig = true
-  }
-  testOptions { unitTests { isIncludeAndroidResources = true } }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+    testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
@@ -99,6 +120,8 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
+  implementation("com.google.android.gms:play-services-ads:23.0.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 }
 
 // Automatically provision molhim.ttf and handjet.ttf from remote repositories or standard system font assets for 100% offline robustness
@@ -110,7 +133,7 @@ abstract class ProvisionMolhimFontTask : DefaultTask() {
     fun run() {
         val destDir = outputDir.get().asFile
         destDir.mkdirs()
-        
+
         val destFile = File(destDir, "molhim.ttf")
         if (!destFile.exists()) {
             val systemFonts = listOf(
@@ -137,11 +160,18 @@ abstract class ProvisionMolhimFontTask : DefaultTask() {
         if (!handjetFile.exists()) {
             var downloaded = false
             try {
-                val url = URL("https://raw.githubusercontent.com/google/fonts/main/ofl/handjet/Handjet%5BELGR%2CELSH%2Cwght%5D.ttf")
+                // الآن نستخدم URI و URL مباشرة بعد إضافتهما في الـ import فوق
+                val uri = URI("https://raw.githubusercontent.com/google/fonts/main/ofl/handjet/Handjet%5BELGR%2CELSH%2Cwght%5D.ttf")
+                val url: URL = uri.toURL()
+
                 url.openStream().use { input ->
                     Files.copy(input, handjetFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
                 }
                 downloaded = true
+            } catch (e: Exception) {
+                println("Failed to download Handjet font from github: ${e.message}")
+            }catch (e: Exception) {
+                println("Failed to download Handjet font from github: ${e.message}")
             } catch (e: Exception) {
                 println("Failed to download Handjet font from github: ${e.message}")
             }

@@ -16,7 +16,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -25,36 +24,41 @@ import com.example.ui.theme.*
 import kotlin.random.Random
 
 /**
- * دالة إنشاء شكل الورقة ذات الحواف المتعرجة
+ * دالة إنشاء شكل الورقة ذات الحواف المتعرجة مع إعطاء أداء عالي وعالي السلاسة
  */
 fun createTornPaperShape(seed: Long = 42L): GenericShape {
-    return GenericShape { size, _ ->
-        val rand = Random(seed)
-        val numPoints = 60
+    val rand = Random(seed)
+    val numPoints = 60
 
+    val topOffsets = FloatArray(numPoints + 1) { i -> if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f) }
+    val rightOffsets = FloatArray(numPoints + 1) { i -> if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f) }
+    val bottomOffsets = FloatArray(numPoints + 1) { i -> if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f) }
+    val leftOffsets = FloatArray(numPoints + 1) { i -> if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f) }
+
+    return GenericShape { size, _ ->
         moveTo(0f, 0f)
         for (i in 0..numPoints) {
             val fraction = i.toFloat() / numPoints
             val x = size.width * fraction
-            val y = if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f)
+            val y = topOffsets[i]
             lineTo(x, y)
         }
         for (i in 0..numPoints) {
             val fraction = i.toFloat() / numPoints
             val y = size.height * fraction
-            val x = size.width + (if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f))
+            val x = size.width + rightOffsets[i]
             lineTo(x, y)
         }
         for (i in numPoints downTo 0) {
             val fraction = i.toFloat() / numPoints
             val x = size.width * fraction
-            val y = size.height + (if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f))
+            val y = size.height + bottomOffsets[i]
             lineTo(x, y)
         }
         for (i in numPoints downTo 0) {
             val fraction = i.toFloat() / numPoints
             val y = size.height * fraction
-            val x = if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f)
+            val x = leftOffsets[i]
             lineTo(x, y)
         }
         close()
@@ -73,10 +77,9 @@ fun ParchmentCard(
     val tornShape = remember(seed) { createTornPaperShape(seed) }
     val responsiveElevation = scaledDp(elevation.value.toInt())
 
-    // أنميشن الفتح الأولي للورقة - معزز الأداء باستخدام Easing خفيف ومستقر
     val unfoldProgressAnim = remember { Animatable(0f) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(isAnimated) {
         if (isAnimated) {
             unfoldProgressAnim.animateTo(
                 targetValue = 1f,
@@ -92,7 +95,6 @@ fun ParchmentCard(
 
     Box(
         modifier = modifier
-            // تحسين الأداء: الأنيميشن يعمل هنا على مستوى الـ GPU فقط ولا يسبب Re-composition للمحتوى الداخلي
             .graphicsLayer {
                 val progress = unfoldProgressAnim.value
 
@@ -100,7 +102,6 @@ fun ParchmentCard(
                 rotationX = (1f - progress) * -45f
                 alpha = (progress * 1.5f).coerceIn(0f, 1f)
 
-                // تم إلغاء حركات التموج العائمة (rotationZ و translationY) لثبات تام في الأداء ومنع استهلاك المعالج
                 transformOrigin = TransformOrigin(0.5f, 0f)
             }
             .shadow(
@@ -120,7 +121,6 @@ fun ParchmentCard(
             .drawBehind {
                 val progress = unfoldProgressAnim.value
 
-                // رسم خط التجعيدة الوسطى أثناء فتح الورقة فقط ويختفي تدريجياً
                 if (progress < 0.98f) {
                     val creaseAlpha = (1f - progress) * 0.3f
                     drawLine(
@@ -130,7 +130,6 @@ fun ParchmentCard(
                         strokeWidth = 4f
                     )
                 } else {
-                    // تجاعيد خفيفة وثابتة في الخلفية لا تستهلك أي معالجة مستمرة
                     drawLine(
                         color = Color.Black.copy(alpha = 0.03f),
                         start = Offset(0f, size.height * 0.35f),
@@ -139,7 +138,6 @@ fun ParchmentCard(
                     )
                 }
 
-                // رسم الإطار الداخلي المنقط بديناميكية تامة ومباشرة بدون إنشاء كائنات جديدة بالذاكرة
                 drawRect(
                     color = Color(0x3B2C1E14),
                     topLeft = Offset(inset, inset),
@@ -154,7 +152,6 @@ fun ParchmentCard(
     ) {
         Column(
             modifier = Modifier.graphicsLayer {
-                // المحتوى الداخلي يظهر بسلاسة تامة مع اقتراب الأنميشن من النهاية لتقديم مظهر احترافي
                 alpha = (unfoldProgressAnim.value * 3f - 2f).coerceIn(0f, 1f)
             },
             horizontalAlignment = Alignment.CenterHorizontally,

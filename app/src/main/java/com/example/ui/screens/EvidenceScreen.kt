@@ -1,7 +1,6 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -33,6 +32,7 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
     val clueIndex = state.currentEvidenceIndex
     val currentClue = currentCase.evidenceList.getOrElse(clueIndex) { "لا أدلة إضافية حالياً." }
     var showHint by remember(clueIndex) { mutableStateOf(false) }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,

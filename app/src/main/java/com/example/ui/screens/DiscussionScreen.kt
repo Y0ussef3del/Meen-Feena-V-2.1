@@ -36,18 +36,28 @@ import kotlin.math.sin
 fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
     val suspectedByClick = remember { mutableStateListOf<String>() }
 
+    val alivePlayers = remember(state.players) {
+        state.players.filter { it.isAlive }
+    }
+
+    if (alivePlayers.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("لا يوجد لاعبين أحياء حالياً في الغرفة", color = Color.White)
+        }
+        return
+    }
+
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .safeDrawingPadding()
             .navigationBarsPadding()
             .statusBarsPadding()
-    )
-    {
+    ) {
         val minSide = minOf(maxWidth, maxHeight)
-        val timerSize = (minSide * 0.34f).coerceIn(120.dp, 170.dp)
-        val avatarSize = (minSide * 0.14f).coerceIn(52.dp, 68.dp)
-        val radius = (minSide * 0.32f).coerceIn(90.dp, 150.dp)
+        val timerSize = remember(minSide) { (minSide * 0.34f).coerceIn(120.dp, 170.dp) }
+        val avatarSize = remember(minSide) { (minSide * 0.14f).coerceIn(52.dp, 68.dp) }
+        val radius = remember(minSide) { (minSide * 0.32f).coerceIn(90.dp, 150.dp) }
 
         Column(
             modifier = Modifier
@@ -63,7 +73,9 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                     .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                val formattedTime = String.format("%02d:%02d", state.timerSecondsLeft / 60, state.timerSecondsLeft % 60)
+                val formattedTime = remember(state.timerSecondsLeft) {
+                    String.format("%02d:%02d", state.timerSecondsLeft / 60, state.timerSecondsLeft % 60)
+                }
 
                 Canvas(modifier = Modifier.size(timerSize)) {
                     drawCircle(color = Color(0xFF1E0604), radius = size.minDimension / 2)
@@ -93,12 +105,12 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                     Text("للإدلاء بالاستنتاج", color = PapyrusBgLight.copy(alpha = 0.5f), fontSize = 10.sp)
                 }
 
-                val alivePlayers = state.players.filter { it.isAlive }
+                val playerCount = alivePlayers.size.coerceAtLeast(1)
 
                 alivePlayers.forEachIndexed { index, player ->
-                    val angleRad = (2 * Math.PI * index) / maxOf(alivePlayers.size, 1)
-                    val xOffset = (radius.value * cos(angleRad)).dp
-                    val yOffset = (radius.value * sin(angleRad)).dp
+                    val angleRad = remember(playerCount, index) { (2 * Math.PI * index) / playerCount }
+                    val xOffset = remember(radius.value, angleRad) { (radius.value * cos(angleRad)).dp }
+                    val yOffset = remember(radius.value, angleRad) { (radius.value * sin(angleRad)).dp }
                     val isClickSuspected = player.id in suspectedByClick
 
                     Box(

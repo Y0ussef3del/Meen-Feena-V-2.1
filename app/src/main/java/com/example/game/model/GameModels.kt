@@ -1,14 +1,18 @@
 package com.example.game.model
 
+import android.util.Log
+import androidx.annotation.Keep
+import kotlinx.serialization.Serializable
 import org.json.JSONArray
 import org.json.JSONObject
 
-// Game settings
+@Keep
+@Serializable
 data class GameSettings(
-    val discussionTimeMinutes: Int = 4,
-    val votingTimeMinutes: Int = 2,
+    val discussionTimeMinutes: Int = 6,
+    val votingTimeMinutes: Int = 10,
     val isMusicEnabled: Boolean = true,
-    val volume: Float = 0.5f
+    val volume: Float = 1f
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
@@ -22,16 +26,17 @@ data class GameSettings(
     companion object {
         fun fromJsonObject(json: JSONObject): GameSettings {
             return GameSettings(
-                discussionTimeMinutes = json.optInt("discussionTimeMinutes", 4),
-                votingTimeMinutes = json.optInt("votingTimeMinutes", 2),
+                discussionTimeMinutes = json.optInt("discussionTimeMinutes", 6),
+                votingTimeMinutes = json.optInt("votingTimeMinutes", 10),
                 isMusicEnabled = json.optBoolean("isMusicEnabled", true),
-                volume = json.optDouble("volume", 0.5).toFloat()
+                volume = json.optDouble("volume", 1.0).toFloat()
             )
         }
     }
 }
 
-// Player details
+@Keep
+@Serializable
 data class Player(
     val id: String,
     val name: String,
@@ -56,6 +61,12 @@ data class Player(
     companion object {
         fun fromJsonObject(json: JSONObject): Player {
             val charJson = json.optJSONObject("character")
+            val character = try {
+                charJson?.let { Character.fromJsonObject(it) }
+            } catch (e: Exception) {
+                Log.w("GameModels", "Failed to parse character, using null", e)
+                null
+            }
             return Player(
                 id = json.optString("id", ""),
                 name = json.optString("name", "مجهول"),
@@ -63,13 +74,14 @@ data class Player(
                 isAlive = json.optBoolean("isAlive", true),
                 isConnected = json.optBoolean("isConnected", true),
                 avatarId = json.optInt("avatarId", 0),
-                character = charJson?.let { Character.fromJsonObject(it) }
+                character = character
             )
         }
     }
 }
 
-// بيانات الشخصية داخل القضية
+@Keep
+@Serializable
 data class Character(
     val name: String,
     val age: Int,
@@ -101,7 +113,7 @@ data class Character(
             put("notes", relationshipToOtherSuspects)
             put("possibleMotive", possibleMotive)
             put("hiddenTrait", relevantHistory)
-            put("ismafia", isMafia)
+            put("isMafia", isMafia)
         }
     }
 
@@ -125,14 +137,16 @@ data class Character(
                 relationshipToOtherSuspects = json.optString("notes", json.optString("relationshipToOtherSuspects", "")),
                 possibleMotive = json.optString("possibleMotive", hm),
                 relevantHistory = json.optString("hiddenTrait", json.optString("relevantHistory", "سجل خالي من السوابق")),
-                isMafia = json.optBoolean("ismafia", false)
+                isMafia = json.optBoolean("isMafia", json.optBoolean("ismafia", false))
             )
         }
     }
 }
 
-// Game Case including deep evidence progress
+@Keep
+@Serializable
 data class Case(
+    val id: String = java.util.UUID.randomUUID().toString(),
     val title: String,
     val location: String,
     val time: String,
@@ -147,6 +161,7 @@ data class Case(
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
+            put("id", id)
             put("title", title)
             put("location", location)
             put("time", time)
@@ -191,7 +206,11 @@ data class Case(
                 }
             }
 
+            val rawId = json.optString("id", "")
+            val validId = if (rawId.isBlank()) java.util.UUID.randomUUID().toString() else rawId
+
             return Case(
+                id = validId,
                 title = json.optString("title", "قضية مجهولة"),
                 location = json.optString("location", ""),
                 time = json.optString("time", ""),
@@ -208,20 +227,10 @@ data class Case(
     }
 }
 
-// Current game phase enumeration
 enum class GamePhase {
-    LOBBY,
-    ROLE_REVEAL,
-    CASE_INTRO,
-    EVIDENCE_ROUND,
-    DISCUSSION,
-    VOTING,
-    VOTE_RESULT,
-    JURY_ROUND,
-    ENDGAME
+    LOBBY, ROLE_REVEAL, CASE_INTRO, EVIDENCE_ROUND, DISCUSSION, VOTING, VOTE_RESULT, JURY_ROUND, ENDGAME
 }
 
-// The comprehensive shared room game state
 data class RoomState(
     val roomId: String = "",
     val mode: String = "PASS_AND_PLAY",
@@ -241,7 +250,9 @@ data class RoomState(
     val winnerSide: String = "",
     val tiedVotePlayers: List<String> = emptyList(),
     val lastEliminatedResult: String = "",
-    val encryptedRoles: Map<String, String> = emptyMap() // Secure synchronized delivery vehicle
+    val encryptedRoles: Map<String, String> = emptyMap(),
+    val heartsCount: Int = 1,
+    val canPlay: Boolean = true
 ) {
     fun toSharedJsonString(): String {
         val root = JSONObject().apply {
@@ -258,6 +269,8 @@ data class RoomState(
             put("winnerSide", winnerSide)
             put("lastEliminatedResult", lastEliminatedResult)
             put("settings", settings.toJsonObject())
+            put("heartsCount", heartsCount)
+            put("canPlay", canPlay)
 
             val tvArray = JSONArray()
             tiedVotePlayers.forEach { tvArray.put(it) }
@@ -288,9 +301,14 @@ data class RoomState(
         fun fromSharedJsonString(jsonStr: String): RoomState {
             val root = JSONObject(jsonStr)
             val playersList = mutableListOf<Player>()
-            val playersArr = root.getJSONArray("players")
-            for (i in 0 until playersArr.length()) {
-                playersList.add(Player.fromJsonObject(playersArr.getJSONObject(i)))
+            val playersArr = root.optJSONArray("players")
+            if (playersArr != null) {
+                for (i in 0 until playersArr.length()) {
+                    val pObj = playersArr.optJSONObject(i)
+                    if (pObj != null) {
+                        playersList.add(Player.fromJsonObject(pObj))
+                    }
+                }
             }
 
             val votesMap = mutableMapOf<String, String>()
@@ -299,7 +317,7 @@ data class RoomState(
                 val keys = votesObj.keys()
                 while (keys.hasNext()) {
                     val k = keys.next()
-                    votesMap[k] = votesObj.getString(k)
+                    votesMap[k] = votesObj.optString(k, "")
                 }
             }
 
@@ -309,7 +327,7 @@ data class RoomState(
                 val keys = jVotesObj.keys()
                 while (keys.hasNext()) {
                     val k = keys.next()
-                    jVotesMap[k] = jVotesObj.getString(k)
+                    jVotesMap[k] = jVotesObj.optString(k, "")
                 }
             }
 
@@ -319,7 +337,7 @@ data class RoomState(
                 val keys = encRolesObj.keys()
                 while (keys.hasNext()) {
                     val k = keys.next()
-                    encRolesMap[k] = encRolesObj.getString(k)
+                    encRolesMap[k] = encRolesObj.optString(k, "")
                 }
             }
 
@@ -334,15 +352,25 @@ data class RoomState(
             val tvArray = root.optJSONArray("tiedVotePlayers")
             if (tvArray != null) {
                 for (i in 0 until tvArray.length()) {
-                    tvList.add(tvArray.getString(i))
+                    val item = tvArray.optString(i, "")
+                    if (item.isNotEmpty()) {
+                        tvList.add(item)
+                    }
                 }
+            }
+
+            val phaseStr = root.optString("phase", GamePhase.LOBBY.name)
+            val parsedPhase = try {
+                GamePhase.valueOf(phaseStr)
+            } catch (e: Exception) {
+                GamePhase.LOBBY
             }
 
             return RoomState(
                 roomId = root.optString("roomId", ""),
                 mode = root.optString("mode", "PASS_AND_PLAY"),
                 hostId = root.optString("hostId", ""),
-                phase = GamePhase.valueOf(root.optString("phase", GamePhase.LOBBY.name)),
+                phase = parsedPhase,
                 players = playersList,
                 currentCase = case,
                 currentEvidenceIndex = root.optInt("currentEvidenceIndex", 0),
@@ -357,7 +385,9 @@ data class RoomState(
                 winnerSide = root.optString("winnerSide", ""),
                 tiedVotePlayers = tvList,
                 lastEliminatedResult = lastResult,
-                encryptedRoles = encRolesMap
+                encryptedRoles = encRolesMap,
+                heartsCount = root.optInt("heartsCount", 1),
+                canPlay = root.optBoolean("canPlay", true)
             )
         }
     }

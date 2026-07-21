@@ -10,24 +10,31 @@ import android.media.MediaPlayer
 import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.*
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.sin
 import kotlin.random.Random
 
 object MysteryAudioPlayer {
     private const val TAG = "MysteryAudioPlayer"
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    @Volatile
     private var musicVolume = 0.5f
 
-    // 1. playClick / playSelection: short wooden click feedback
-    fun playClick() {
-        playSelection()
+    private val resourceCountCache = ConcurrentHashMap<String, Int>()
+
+    fun shutdown() {
+        scope.coroutineContext.cancelChildren()
+    }
+
+    fun playClick(context: Context) {
+        playRawResource(context, "click")
     }
 
     fun playSelection() {
         scope.launch {
             try {
                 val sampleRate = 22050
-                val numSamples = (sampleRate * 0.04).toInt() // 40ms short tap
+                val numSamples = (sampleRate * 0.04).toInt()
                 val buffer = ShortArray(numSamples)
                 for (i in 0 until numSamples) {
                     val t = i.toDouble() / sampleRate
@@ -42,20 +49,19 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 2. playSuccess: happy ascending sequence
     fun playSuccess() {
         scope.launch {
             try {
                 val sampleRate = 22050
-                val duration = 0.22 // 220ms total
+                val duration = 0.22
                 val numSamples = (sampleRate * duration).toInt()
                 val buffer = ShortArray(numSamples)
                 for (i in 0 until numSamples) {
                     val t = i.toDouble() / sampleRate
                     val freq = when {
-                        t < 0.07 -> 523.25 // C5
-                        t < 0.14 -> 659.25 // E5
-                        else -> 783.99 // G5
+                        t < 0.07 -> 523.25
+                        t < 0.14 -> 659.25
+                        else -> 783.99
                     }
                     val envelope = sin(2.0 * Math.PI * freq * t) * (1.0 - t / duration)
                     buffer[i] = (envelope * 22000.0 * musicVolume).toInt().toShort()
@@ -67,12 +73,11 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 3. playError: low, harsh buzz
     fun playError() {
         scope.launch {
             try {
                 val sampleRate = 22050
-                val duration = 0.25 // 250ms total
+                val duration = 0.25
                 val numSamples = (sampleRate * duration).toInt()
                 val buffer = ShortArray(numSamples)
                 for (i in 0 until numSamples) {
@@ -93,12 +98,11 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 4. playWarning: metallic double tone beep
     fun playWarning() {
         scope.launch {
             try {
                 val sampleRate = 22050
-                val duration = 0.15 // 150ms
+                val duration = 0.15
                 val numSamples = (sampleRate * duration).toInt()
                 val buffer = ShortArray(numSamples)
                 for (i in 0 until numSamples) {
@@ -114,12 +118,11 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 5. playVote: short thumping stamp sound
     fun playVote() {
         scope.launch {
             try {
                 val sampleRate = 22050
-                val duration = 0.12 // 120ms
+                val duration = 0.12
                 val numSamples = (sampleRate * duration).toInt()
                 val buffer = ShortArray(numSamples)
                 for (i in 0 until numSamples) {
@@ -135,12 +138,11 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 6. playTransition: suspenseful rising pitch swoop
     fun playTransition() {
         scope.launch {
             try {
                 val sampleRate = 22050
-                val duration = 0.45 // 450ms
+                val duration = 0.45
                 val numSamples = (sampleRate * duration).toInt()
                 val buffer = ShortArray(numSamples)
                 for (i in 0 until numSamples) {
@@ -157,7 +159,6 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 7. playReveal / playTension: dramatic dissonance and sub-bass stinger
     fun playTension() {
         playReveal()
     }
@@ -166,7 +167,7 @@ object MysteryAudioPlayer {
         scope.launch {
             try {
                 val sampleRate = 22050
-                val duration = 0.8 // 800ms
+                val duration = 0.8
                 val numSamples = (sampleRate * duration).toInt()
                 val buffer = ShortArray(numSamples)
                 for (i in 0 until numSamples) {
@@ -184,7 +185,6 @@ object MysteryAudioPlayer {
         }
     }
 
-    // 8. Static play helper مع التوافق الكامل لكل إصدارات الأندرويد (Backward Compatibility)
     @Suppress("DEPRECATION")
     private suspend fun playBufferStatic(buffer: ShortArray, sampleRate: Int) {
         val bufferSizeInBytes = buffer.size * 2
@@ -206,7 +206,6 @@ object MysteryAudioPlayer {
                 .setTransferMode(AudioTrack.MODE_STATIC)
                 .build()
         } else {
-            // كود متوافق مع الإصدارات الأقدم من API 23
             AudioTrack(
                 AudioManager.STREAM_MUSIC,
                 sampleRate,
@@ -217,51 +216,67 @@ object MysteryAudioPlayer {
             )
         }
 
-        audioTrack.write(buffer, 0, buffer.size)
-        audioTrack.play()
-        delay((buffer.size * 1000L / sampleRate) + 50L)
-        try { audioTrack.release() } catch (_: Throwable) {}
+        try {
+            audioTrack.write(buffer, 0, buffer.size)
+            audioTrack.notificationMarkerPosition = buffer.size
+
+            val playbackCompletion = CompletableDeferred<Unit>()
+
+            audioTrack.setPlaybackPositionUpdateListener(object : AudioTrack.OnPlaybackPositionUpdateListener {
+                override fun onMarkerReached(track: AudioTrack?) {
+                    playbackCompletion.complete(Unit)
+                }
+                override fun onPeriodicNotification(track: AudioTrack?) {}
+            })
+
+            audioTrack.play()
+
+            val estimatedDurationMs = ((buffer.size.toDouble() / sampleRate) * 1000).toLong() + 200L
+            withTimeoutOrNull(estimatedDurationMs) {
+                playbackCompletion.await()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during static playback", e)
+        } finally {
+            try {
+                if (audioTrack.state != AudioTrack.STATE_UNINITIALIZED) {
+                    audioTrack.stop()
+                    audioTrack.release()
+                }
+            } catch (_: Throwable) {}
+        }
     }
 
-    /**
-     * دالة مساعدة لحساب عدد الملفات الموجودة في مجلد raw بشكل ديناميكي بناءً على بادئة الاسم
-     */
     @SuppressLint("DiscouragedApi")
     private fun countAvailableResources(context: Context, prefix: String): Int {
-        var count = 0
-        while (true) {
-            val nextIndex = count + 1
-            val resId = context.resources.getIdentifier("${prefix}_$nextIndex", "raw", context.packageName)
-            if (resId != 0) {
-                count = nextIndex
-            } else {
-                break
+        return resourceCountCache.getOrPut(prefix) {
+            var count = 0
+            val appContext = context.applicationContext
+            while (true) {
+                val nextIndex = count + 1
+                val resId = appContext.resources.getIdentifier("${prefix}_$nextIndex", "raw", appContext.packageName)
+                if (resId != 0) {
+                    count = nextIndex
+                } else {
+                    break
+                }
             }
+            count
         }
-        return count
     }
 
-    /**
-     * تشغيل صوت عشوائي عند خروج لاعب بريء بشكل ديناميكي بالكامل
-     */
     fun playPlayerEliminatedInnocent(context: Context) {
         val availableCount = countAvailableResources(context, "innocent")
         val randomIndex = if (availableCount > 0) Random.nextInt(1, availableCount + 1) else 1
         playRawResource(context, "innocent_$randomIndex")
     }
 
-    /**
-     * تشغيل صوت عشوائي عند خروج لاعب مجرم بشكل ديناميكي بالكامل
-     */
     fun playPlayerEliminatedCriminal(context: Context) {
         val availableCount = countAvailableResources(context, "criminal")
         val randomIndex = if (availableCount > 0) Random.nextInt(1, availableCount + 1) else 1
         playRawResource(context, "criminal_$randomIndex")
     }
 
-    /**
-     * تشغيل صوت عند انتهاء اللعبة بناءً على النتيجة بشكل ديناميكي بالكامل
-     */
     fun playGameOverSound(context: Context, isWin: Boolean) {
         val prefix = if (isWin) "game_win" else "game_lose"
         val availableCount = countAvailableResources(context, prefix)
@@ -271,14 +286,22 @@ object MysteryAudioPlayer {
 
     @SuppressLint("DiscouragedApi")
     private fun playRawResource(context: Context, resName: String) {
+        val appContext = context.applicationContext
         scope.launch(Dispatchers.IO) {
             try {
-                val resId = context.resources.getIdentifier(resName, "raw", context.packageName)
+                val resId = appContext.resources.getIdentifier(resName, "raw", appContext.packageName)
                 if (resId != 0) {
-                    MediaPlayer.create(context, resId).apply {
+                    val mediaPlayer = MediaPlayer.create(appContext, resId)
+                    mediaPlayer?.apply {
                         setVolume(musicVolume, musicVolume)
+                        setOnCompletionListener { mp ->
+                            try { mp.release() } catch (_: Exception) {}
+                        }
+                        setOnErrorListener { mp, _, _ ->
+                            try { mp.release() } catch (_: Exception) {}
+                            true
+                        }
                         start()
-                        setOnCompletionListener { release() }
                     }
                 } else {
                     Log.e(TAG, "Resource $resName not found in res/raw")
@@ -289,7 +312,6 @@ object MysteryAudioPlayer {
         }
     }
 
-    // تعديل مستوى الصوت فوري للمؤثرات
     fun setVolume(volume: Float) {
         musicVolume = volume.coerceIn(0.0f, 1.0f)
     }

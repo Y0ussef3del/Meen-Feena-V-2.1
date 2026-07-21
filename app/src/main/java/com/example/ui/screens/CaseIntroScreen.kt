@@ -30,7 +30,6 @@ import com.example.ui.theme.*
 fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
     val currentCase = state.currentCase ?: return
 
-    // إجبار محتوى الشاشة بالكامل على الالتزام باتجاه من اليمين إلى اليسار (RTL)
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Column(
             modifier = Modifier
@@ -49,8 +48,7 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(bottom = 10.dp)
                 ) {
-                    // 1. عنوان القضية
-                    item {
+                    item(key = "case_title") {
                         Text(
                             text = currentCase.title,
                             color = Color(0xFF7A1B0C),
@@ -61,8 +59,7 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
                         )
                     }
 
-                    // 2. المكان والضحية
-                    item {
+                    item(key = "case_meta") {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -88,8 +85,7 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
                         }
                     }
 
-                    // 3. وصف القضية (السطور هتبدأ وتلف من اليمين تلقائياً)
-                    item {
+                    item(key = "case_desc") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -101,13 +97,12 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
                                 color = PapyrusText,
                                 fontSize = 14.sp,
                                 lineHeight = 21.sp,
-                                textAlign = TextAlign.Start // الـ Start مع الـ RTL تعني اليمين تلقائياً وهو الأصح برمجياً
+                                textAlign = TextAlign.Start
                             )
                         }
                     }
 
-                    // 4. عنوان فرعي للمشتبه فيهم
-                    item {
+                    item(key = "suspects_header") {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "المشتبه فيهم :",
@@ -118,8 +113,10 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
                         )
                     }
 
-                    // 5. عرض الـ Boxes الخاصة بالشخصيات
-                    items(currentCase.characters) { character ->
+                    items(
+                        items = currentCase.characters,
+                        key = { character -> character.name + character.occupation }
+                    ) { character ->
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -130,7 +127,7 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = character.name+" ( "+character.occupation+" ) ",
+                                    text = character.name + " ( " + character.occupation + " ) ",
                                     color = Color(0xFF7A1B0C),
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.ExtraBold

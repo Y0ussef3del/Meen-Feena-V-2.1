@@ -1,7 +1,5 @@
 package com.example.game.network
 
-import android.content.Context
-import android.net.wifi.WifiManager
 import android.util.Log
 import com.example.game.model.RoomState
 import kotlinx.coroutines.*
@@ -19,12 +17,19 @@ object LanManager {
     private const val TCP_PORT = 8888
     private const val UDP_PORT = 8889
 
+    private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     @Volatile
     private var serverSocket: ServerSocket? = null
+    @Volatile
+    private var udpBroadcastSocket: DatagramSocket? = null
+    @Volatile
+    private var udpDiscoverySocket: DatagramSocket? = null
+
     private var tcpServerJob: Job? = null
     private var udpBroadcastJob: Job? = null
     private var udpDiscoveryJob: Job? = null
-    
+
     @Volatile
     private var clientSocket: Socket? = null
     private var clientReadJob: Job? = null
@@ -61,8 +66,8 @@ object LanManager {
     fun startHost(hostName: String, roomCode: String) {
         stopAll()
         Log.d(TAG, "Starting Host at Port $TCP_PORT...")
-        
-        tcpServerJob = CoroutineScope(Dispatchers.IO).launch {
+
+        tcpServerJob = managerScope.launch {
             try {
                 serverSocket = ServerSocket(TCP_PORT).apply {
                     reuseAddress = true
@@ -71,33 +76,31 @@ object LanManager {
                     val socket = serverSocket?.accept() ?: break
                     Log.d(TAG, "Client connected: ${socket.inetAddress.hostAddress}")
                     val connection = ClientConnection(socket)
-                    synchronized(clientConnections) {
-                        clientConnections.add(connection)
-                    }
+                    clientConnections.add(connection)
                     connection.startReading { clientIp, command ->
-                        CoroutineScope(Dispatchers.IO).launch {
-                            incomingCommands.emit(Pair(clientIp, command))
-                        }
+                        incomingCommands.tryEmit(Pair(clientIp, command))
                     }
                 }
             } catch (e: Throwable) {
-                Log.e(TAG, "TCP Server failed", e)
+                if (e !is SocketException) {
+                    Log.e(TAG, "TCP Server failed", e)
+                }
             } finally {
-                try { serverSocket?.close() } catch (e: Throwable) {}
+                try { serverSocket?.close() } catch (_: Throwable) {}
                 serverSocket = null
             }
         }
 
-        udpBroadcastJob = CoroutineScope(Dispatchers.IO).launch {
-            var broadcastSocket: DatagramSocket? = null
+        udpBroadcastJob = managerScope.launch {
             try {
-                broadcastSocket = DatagramSocket().apply {
+                val broadcastSocket = DatagramSocket().apply {
                     broadcast = true
                     reuseAddress = true
                 }
+                udpBroadcastSocket = broadcastSocket
                 val broadcastMsg = "WHO_AMONG_US_HOST|$hostName|${getLocalIpAddress()}|$roomCode"
                 val packetData = broadcastMsg.toByteArray()
-                
+
                 while (isActive) {
                     try {
                         val address = InetAddress.getByName("255.255.255.255")
@@ -119,7 +122,8 @@ object LanManager {
             } catch (outer: Throwable) {
                 Log.e(TAG, "UDP Socket creation failed", outer)
             } finally {
-                try { broadcastSocket?.close() } catch (e: Throwable) {}
+                try { udpBroadcastSocket?.close() } catch (_: Throwable) {}
+                udpBroadcastSocket = null
             }
         }
     }
@@ -144,17 +148,20 @@ object LanManager {
             put("data", stateStr)
         }.toString()
 
-        CoroutineScope(Dispatchers.IO).launch {
-            synchronized(clientConnections) {
-                val iterator = clientConnections.iterator()
-                while (iterator.hasNext()) {
-                    val conn = iterator.next()
-                    if (!conn.write(envelope)) {
-                        Log.d(TAG, "Removing dead connection: ${conn.ip}")
-                        conn.close()
-                        iterator.remove()
-                    }
+        managerScope.launch {
+            val snapshot = synchronized(clientConnections) { clientConnections.toList() }
+            val deadConnections = mutableListOf<ClientConnection>()
+
+            for (conn in snapshot) {
+                if (!conn.write(envelope)) {
+                    Log.d(TAG, "Removing dead connection: ${conn.ip}")
+                    conn.close()
+                    deadConnections.add(conn)
                 }
+            }
+
+            if (deadConnections.isNotEmpty()) {
+                clientConnections.removeAll(deadConnections)
             }
         }
     }
@@ -166,13 +173,15 @@ object LanManager {
 
     fun startDiscovery() {
         discoveredHosts.value = emptyMap()
-        udpDiscoveryJob?.cancel()
-        udpDiscoveryJob = CoroutineScope(Dispatchers.IO).launch {
+        stopDiscovery()
+
+        udpDiscoveryJob = managerScope.launch {
             var ds: DatagramSocket? = null
             try {
                 ds = DatagramSocket(UDP_PORT).apply {
                     reuseAddress = true
                 }
+                udpDiscoverySocket = ds
                 val buffer = ByteArray(1024)
                 while (isActive) {
                     val packet = DatagramPacket(buffer, buffer.size)
@@ -180,11 +189,12 @@ object LanManager {
                     val rxStr = String(packet.data, 0, packet.length).trim()
                     if (rxStr.startsWith("WHO_AMONG_US_HOST")) {
                         val parts = rxStr.split("|")
+                        val myIp = getLocalIpAddress()
                         if (parts.size >= 4) {
                             val name = parts[1]
                             val ip = parts[2]
                             val rCode = parts[3]
-                            if (ip != getLocalIpAddress()) {
+                            if (ip != myIp) {
                                 val current = discoveredHosts.value.toMutableMap()
                                 current[ip] = "$name|$rCode"
                                 discoveredHosts.value = current
@@ -192,7 +202,7 @@ object LanManager {
                         } else if (parts.size == 3) {
                             val name = parts[1]
                             val ip = parts[2]
-                            if (ip != getLocalIpAddress()) {
+                            if (ip != myIp) {
                                 val current = discoveredHosts.value.toMutableMap()
                                 current[ip] = "$name|99999"
                                 discoveredHosts.value = current
@@ -201,9 +211,12 @@ object LanManager {
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "UDP Discovery error", e)
+                if (e !is SocketException) {
+                    Log.e(TAG, "UDP Discovery error", e)
+                }
             } finally {
-                try { ds?.close() } catch (e: Exception) {}
+                try { ds?.close() } catch (_: Exception) {}
+                udpDiscoverySocket = null
             }
         }
     }
@@ -211,14 +224,17 @@ object LanManager {
     fun stopDiscovery() {
         udpDiscoveryJob?.cancel()
         udpDiscoveryJob = null
+        try { udpDiscoverySocket?.close() } catch (_: Exception) {}
+        udpDiscoverySocket = null
     }
 
     fun connectToHost(hostIp: String, playerName: String, deviceId: String) {
         isClientConnected.value = false
         clientConnectionError.value = null
-        
-        clientReadJob?.cancel()
-        clientReadJob = CoroutineScope(Dispatchers.IO).launch {
+
+        disconnectFromHost()
+
+        clientReadJob = managerScope.launch {
             var socket: Socket? = null
             try {
                 Log.d(TAG, "Connecting to Host: $hostIp...")
@@ -227,16 +243,16 @@ object LanManager {
                 }
                 clientSocket = socket
                 isClientConnected.value = true
-                
+
                 val joinCommand = JSONObject().apply {
                     put("type", "JOIN")
                     put("playerName", playerName)
                     put("deviceId", deviceId)
                 }.toString()
-                
+
                 val writer = PrintWriter(socket.getOutputStream(), true)
                 writer.println(joinCommand)
-                
+
                 val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
                 while (isActive) {
                     val line = reader.readLine() ?: break
@@ -247,14 +263,14 @@ object LanManager {
                 clientConnectionError.value = e.localizedMessage ?: "فشل الاتصال بالغرفة المحلية"
                 isClientConnected.value = false
             } finally {
-                try { socket?.close() } catch (e: Exception) {}
+                try { socket?.close() } catch (_: Exception) {}
                 clientSocket = null
             }
         }
     }
 
     fun sendCommandToHost(jsonString: String) {
-        CoroutineScope(Dispatchers.IO).launch {
+        managerScope.launch {
             val socket = clientSocket
             if (socket != null && isClientConnected.value) {
                 try {
@@ -271,7 +287,7 @@ object LanManager {
         Log.d(TAG, "Disconnecting from host...")
         clientReadJob?.cancel()
         clientReadJob = null
-        try { clientSocket?.close() } catch (e: Exception) {}
+        try { clientSocket?.close() } catch (_: Exception) {}
         clientSocket = null
         isClientConnected.value = false
     }
@@ -287,27 +303,33 @@ object LanManager {
         udpDiscoveryJob = null
         clientReadJob = null
 
-        try { serverSocket?.close() } catch (e: Exception) {}
+        try { serverSocket?.close() } catch (_: Exception) {}
         serverSocket = null
+
+        try { udpBroadcastSocket?.close() } catch (_: Exception) {}
+        udpBroadcastSocket = null
+
+        try { udpDiscoverySocket?.close() } catch (_: Exception) {}
+        udpDiscoverySocket = null
 
         synchronized(clientConnections) {
             clientConnections.forEach { it.close() }
             clientConnections.clear()
         }
 
-        try { clientSocket?.close() } catch (e: Exception) {}
+        try { clientSocket?.close() } catch (_: Exception) {}
         clientSocket = null
         isClientConnected.value = false
     }
 
     private class ClientConnection(val socket: Socket) {
-        val ip: String = socket.inetAddress.hostAddress ?: ""
+        val ip: String = socket.inetAddress?.hostAddress ?: ""
         private var writer: PrintWriter? = null
         private var reader: BufferedReader? = null
         private var bgJob: Job? = null
 
         fun startReading(onCommandReceived: (String, String) -> Unit) {
-            bgJob = CoroutineScope(Dispatchers.IO).launch {
+            bgJob = managerScope.launch {
                 try {
                     writer = PrintWriter(socket.getOutputStream(), true)
                     reader = BufferedReader(InputStreamReader(socket.getInputStream()))
@@ -335,7 +357,7 @@ object LanManager {
 
         fun close() {
             bgJob?.cancel()
-            try { socket.close() } catch (e: Exception) {}
+            try { socket.close() } catch (_: Exception) {}
         }
     }
 }

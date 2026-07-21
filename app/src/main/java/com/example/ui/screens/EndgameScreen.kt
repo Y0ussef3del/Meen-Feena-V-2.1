@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.app.Activity
+import android.content.Context
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -9,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,9 +38,32 @@ import com.example.game.viewmodel.GameViewModel
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
-import com.example.R // تأكد من مطابقة اسم الباكيج الخاص بمشروعك لملف الـ R
+import com.example.R
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.android.gms.ads.FullScreenContentCallback
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+private fun loadMainMenuInterstitialAd(context: Context, onAdLoaded: (InterstitialAd?) -> Unit) {
+    val adRequest = AdRequest.Builder().build()
+    InterstitialAd.load(
+        context,
+        "ca-app-pub-6722529223110069/3139787314",
+        adRequest,
+        object : InterstitialAdLoadCallback() {
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                onAdLoaded(null)
+            }
+
+            override fun onAdLoaded(interstitialAd: InterstitialAd) {
+                onAdLoaded(interstitialAd)
+            }
+        }
+    )
+}
 
 @Composable
 fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
@@ -45,22 +71,26 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
     val isInnocentsWinner = state.winnerSide == "INNOCENTS"
     val context = LocalContext.current
 
-    // قيم البداية للأنيميشن (الختم معلق في الهواء، ضخم، مائل ومخفي)
+    var mInterstitialAd by remember { mutableStateOf<InterstitialAd?>(null) }
+    var showNoInternetDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        loadMainMenuInterstitialAd(context) { ad ->
+            mInterstitialAd = ad
+        }
+    }
+
     val stampScale = remember { Animatable(5f) }
     val stampTranslationY = remember { Animatable(-300f) }
     val stampRotation = remember { Animatable(-55f) }
     val stampAlpha = remember { Animatable(0f) }
 
-    LaunchedEffect(isInnocentsWinner, state.phase) {
+    LaunchedEffect(Unit) {
         if (state.phase == GamePhase.ENDGAME) {
-            // 1. شغل صوت النهاية (فوز أو خسارة) فوراً عند دخول الشاشة
             MysteryAudioPlayer.playGameOverSound(context, isInnocentsWinner)
 
-            // 2. انتظر حتى ينتهي الصوت تماماً (مثلاً الصوت مدته ثانيتين ونصف 2500ms)
-            // يمكنك زيادة أو تقليل هذا الرقم ليناسب طول ملف الصوت لديك بالظبط
             delay(2500)
 
-            // 3. الآن بعد انتهاء الصوت، ابدأ أنيميشن الختم المتزامن والسريع
             launch {
                 stampAlpha.animateTo(
                     targetValue = 1f,
@@ -78,7 +108,6 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                 )
             }
 
-            // السقوط سينتهي عند نقطة الصفر (التي سنقوم بتزحزيحها لأسفل داخل الـ graphicsLayer)
             stampTranslationY.animateTo(
                 targetValue = 0f,
                 animationSpec = spring(
@@ -87,7 +116,6 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                 )
             )
 
-            // انكماش الختم للحجم الطبيعي لإعطاء تأثير الارتطام بالورقة
             stampScale.animateTo(
                 targetValue = 1f,
                 animationSpec = spring(
@@ -96,6 +124,36 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                 )
             )
         }
+    }
+
+    if (showNoInternetDialog) {
+        AlertDialog(
+            onDismissRequest = { showNoInternetDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showNoInternetDialog = false }) {
+                    Text("حسناً", color = RedAccent, fontWeight = FontWeight.Bold)
+                }
+            },
+            title = {
+                Text(
+                    text = "مفيش إنترنت",
+                    color = Color(0xFF4A1008),
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Right,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Text(
+                    text = "برجاء الاتصال بالإنترنت لمواصلة اللعب.",
+                    color = PapyrusText,
+                    textAlign = TextAlign.Right,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            containerColor = PapyrusBg,
+            shape = RoundedCornerShape(12.dp)
+        )
     }
 
     Column(
@@ -119,7 +177,7 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Box(modifier = Modifier.fillMaxWidth().weight(1f).background(Color(0x0C000000), RoundedCornerShape(10.dp)).padding(14.dp)) {
                     LazyColumn(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        item {
+                        item(key = "case_explanation_section") {
                             HorizontalDivider(color = Color(0x3B2C1E14))
                             Spacer(modifier = Modifier.height(14.dp))
                             HorizontalDivider(color = Color(0x3B2C1E14))
@@ -134,18 +192,18 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(text = "كشف هويات :", color = DarkWoodButton, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             Spacer(modifier = Modifier.height(8.dp))
-                            state.players.forEach { p ->
-                                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(text = if (p.isMafia) "مجرم" else "بريء ", color = if (p.isMafia) RedAccent else InnocentAccent, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                    Text(text = "${p.name} (${p.character?.name ?: ""})", color = PapyrusTextSecondary, fontSize = 15.sp)
-                                }
+                        }
+
+                        items(items = state.players, key = { it.id }) { p ->
+                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(text = if (p.isMafia) "مجرم" else "بريء ", color = if (p.isMafia) RedAccent else InnocentAccent, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Text(text = "${p.name} (${p.character?.name ?: ""})", color = PapyrusTextSecondary, fontSize = 15.sp)
                             }
                         }
                     }
                 }
             }
 
-            // اختيار ملف الختم المناسب
             val imageRes = if (isInnocentsWinner) R.drawable.stamp_success else R.drawable.stamp_failed
 
             Image(
@@ -153,13 +211,11 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                 contentDescription = "Game Result Stamp",
                 colorFilter = ColorFilter.tint(Color.Unspecified, blendMode = BlendMode.Screen),
                 modifier = Modifier
-                    .fillMaxWidth(0.55f) // تم تصغير العرض من 0.85f ليكون أصغر وأكثر تناسقاً
+                    .fillMaxWidth(0.55f)
                     .aspectRatio(1.8f)
                     .graphicsLayer {
                         scaleX = stampScale.value
                         scaleY = stampScale.value
-                        // إزاحة نقطة الاستقرار بمقدار 130dp لأسفل الشاشة لكي يظهر الختم أسفل الكارت
-                        // عند السقوط، سيبدأ من (-300 + 130) وينتهي بسلاسة عند (0 + 130)
                         translationY = stampTranslationY.value + 130.dp.toPx()
                         rotationZ = stampRotation.value
                         alpha = stampAlpha.value
@@ -169,12 +225,51 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
 
         Spacer(modifier = Modifier.height(16.dp))
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { viewModel.playButtonClick(); viewModel.playAgain() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(56.dp).testTag("play_again_button"), contentPadding = PaddingValues(15.dp)) {
+            Button(
+                onClick = {
+                    viewModel.playButtonClick()
+                    if (context is Activity) {
+                        viewModel.playAgainWithActivity(context) {
+                            showNoInternetDialog = true
+                        }
+                    } else {
+                        viewModel.playAgain()
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp).testTag("play_again_button"),
+                contentPadding = PaddingValues(15.dp)
+            ) {
                 Icon(Icons.Default.Refresh, "Play again", tint = GoldShine)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("لعب جولة وقضية جديدة", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                val textLabel = if (state.heartsCount > 0) "لعب جولة وقضية جديدة" else "شاهد إعلان للعب قضية جديدة"
+                Text(textLabel, color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
-            OutlinedButton(onClick = { viewModel.playButtonClick(); viewModel.resetToMainMenu() }, colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldShine), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(56.dp)) {
+
+            OutlinedButton(
+                onClick = {
+                    viewModel.playButtonClick()
+                    val ad = mInterstitialAd
+                    if (ad != null && context is Activity) {
+                        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                            override fun onAdDismissedFullScreenContent() {
+                                viewModel.resetToMainMenu()
+                            }
+
+                            override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
+                                viewModel.resetToMainMenu()
+                            }
+                        }
+                        ad.show(context)
+                    } else {
+                        viewModel.resetToMainMenu()
+                    }
+                },
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldShine),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+            ) {
                 Icon(Icons.Default.Home, "Main menu", tint = GoldShine)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("العودة للقائمة الرئيسية", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 18.sp)

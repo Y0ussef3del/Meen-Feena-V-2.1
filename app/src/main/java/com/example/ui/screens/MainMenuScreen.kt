@@ -1,8 +1,11 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.background
+import android.app.Activity
 import android.widget.Toast
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -23,54 +27,231 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.game.model.RoomState
+import com.example.game.model.Case as UserCase
 import com.example.game.network.LanManager
 import com.example.game.viewmodel.GameViewModel
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.draw.shadow
-
 
 @Composable
-fun MainMenuOrLobbyScreen(viewModel: GameViewModel, state: RoomState) {
+fun MainMenuOrLobbyScreen(
+    viewModel: GameViewModel,
+    state: RoomState,
+    navController: NavController
+) {
     val context = LocalContext.current
     var showPlayerSetup by remember { mutableStateOf(false) }
     var showLanJoinLobby by remember { mutableStateOf(false) }
     var isSettingsOpen by remember { mutableStateOf(false) }
+
+    var showNoHeartsDialog by remember { mutableStateOf(false) }
+    var showNoInternetDialog by remember { mutableStateOf(false) }
+
+    var selectedCustomCase by remember { mutableStateOf<UserCase?>(null) }
+
     val discoveredHosts by LanManager.discoveredHosts.collectAsState()
     val localIp = remember { LanManager.getLocalIpAddress() }
 
-    if (isSettingsOpen) {
-        SettingsDialog(viewModel = viewModel) { isSettingsOpen = false }
+    LaunchedEffect(state.currentCase) {
+        if (state.currentCase != null && state.roomId == "PASS_AND_PLAY_ROOM") {
+            showPlayerSetup = true
+        }
     }
 
-    if (state.mode == "LAN") {
-        val isHost = state.hostId == viewModel.myPlayerId.value
-        if (isHost) {
-            HostLobbyScreen(viewModel, state)
-        } else {
-            ClientWaitingScreen(viewModel, state)
+    if (isSettingsOpen) {
+        SettingsDialog(viewModel = viewModel, navController = navController) {
+            isSettingsOpen = false
         }
-    } else {
-        if (showPlayerSetup) {
-            LocalSetupScreen(viewModel, state) { showPlayerSetup = false }
-        } else if (showLanJoinLobby) {
-            LanJoinLobbyScreen(viewModel, state, discoveredHosts, localIp) { showLanJoinLobby = false }
-        } else {
-            MainMenuHomeScreen(
-                viewModel = viewModel,
-                onStartPassPlay = {
-                    viewModel.setupPassAndPlayGame()
-                    showPlayerSetup = true
-                },
-                onOpenLanJoin = {
-                    LanManager.startDiscovery()
-                    showLanJoinLobby = true
-                },
-                onOpenSettings = { isSettingsOpen = true }
+    }
+
+    if (showNoInternetDialog) {
+        AlertDialog(
+            onDismissRequest = { showNoInternetDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showNoInternetDialog = false }) {
+                    Text("حسناً", color = RedAccent, fontWeight = FontWeight.Bold)
+                }
+            },
+            title = {
+                Text(
+                    text = "مفيش إنترنت",
+                    color = Color(0xFF4A1008),
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Right,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Text(
+                    text = "برجاء الاتصال بالإنترنت لمواصلة اللعب.",
+                    color = PapyrusText,
+                    textAlign = TextAlign.Right,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            containerColor = PapyrusBg,
+            shape = RoundedCornerShape(12.dp)
+        )
+    }
+
+    if (showNoHeartsDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showNoHeartsDialog = false
+                selectedCustomCase = null
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showNoHeartsDialog = false
+                        if (context is Activity) {
+                            viewModel.showAdToEarnHeart(context) { success ->
+                                if (success) {
+                                    selectedCustomCase?.let {
+                                        viewModel.selectCustomCase(it)
+                                        selectedCustomCase = null
+                                    }
+                                    viewModel.setupPassAndPlayGame()
+                                    showPlayerSetup = true
+                                } else {
+                                    showNoInternetDialog = true
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text("مشاهدة إعلان", color = RedAccent, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showNoHeartsDialog = false
+                    selectedCustomCase = null
+                }) {
+                    Text("إلغاء", color = PapyrusTextSecondary)
+                }
+            },
+            title = {
+                Text(
+                    text = "القلوب خلصت",
+                    color = Color(0xFF4A1008),
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Right,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Text(
+                    text = "لا توجد قلوب كافية لبدء قضية جديدة. يجب مشاهدة إعلان للحصول على 1 قلب للعب.",
+                    color = PapyrusText,
+                    textAlign = TextAlign.Right,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            containerColor = PapyrusBg,
+            shape = RoundedCornerShape(12.dp)
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (state.mode == "LAN") {
+                val isHost = state.hostId == viewModel.myPlayerId.value
+                if (isHost) {
+                    HostLobbyScreen(viewModel, state)
+                } else {
+                    ClientWaitingScreen(viewModel, state)
+                }
+            } else {
+                if (showPlayerSetup) {
+                    LocalSetupScreen(viewModel, state) {
+                        showPlayerSetup = false
+                        viewModel.resetToMainMenu()
+                    }
+                } else if (showLanJoinLobby) {
+                    LanJoinLobbyScreen(viewModel, state, discoveredHosts, localIp) { showLanJoinLobby = false }
+                } else {
+                    MainMenuHomeScreen(
+                        viewModel = viewModel,
+                        onStartPassPlay = {
+                            if (viewModel.hasHeartsToPlay()) {
+                                viewModel.setupPassAndPlayGame()
+                                showPlayerSetup = true
+                            } else {
+                                showNoHeartsDialog = true
+                            }
+                        },
+                        onOpenLanJoin = {
+                            showLanJoinLobby = true
+                        },
+                        onOpenSettings = { isSettingsOpen = true },
+                        onPlayCustomCaseRequested = { customCase ->
+                            if (viewModel.hasHeartsToPlay()) {
+                                viewModel.selectCustomCase(customCase)
+                                viewModel.setupPassAndPlayGame()
+                                showPlayerSetup = true
+                            } else {
+                                selectedCustomCase = customCase
+                                showNoHeartsDialog = true
+                            }
+                        },
+                        navController = navController
+                    )
+                }
+            }
+        }
+
+        HeartsIndicator(
+            heartsCount = state.heartsCount,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(top = 16.dp, end = 16.dp)
+        )
+    }
+}
+
+@Composable
+fun HeartsIndicator(heartsCount: Int, modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "HeartBeat")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 1.18f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(650, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "HeartScale"
+    )
+
+    Surface(
+        modifier = modifier
+            .shadow(6.dp, shape = RoundedCornerShape(20.dp))
+            .border(1.5.dp, GoldShine, RoundedCornerShape(20.dp)),
+        color = Color(0xFF35120D),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = heartsCount.toString(),
+                color = GoldShine,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Icon(
+                imageVector = Icons.Default.Favorite,
+                contentDescription = "Hearts Left",
+                tint = RedAccent,
+                modifier = Modifier
+                    .size(20.dp)
+                    .scale(scale)
             )
         }
     }
@@ -293,21 +474,39 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
 fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> Unit) {
     val context = LocalContext.current
     var tempPlayerName by remember { mutableStateOf("") }
+
+    val customCasePlayersCount = state.currentCase?.characters?.size
+
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        ParchmentHeaderBanner(text = "إعداد اللاعبين")
+        ParchmentHeaderBanner(text = if (customCasePlayersCount != null) "قضية مخصصة: ${state.currentCase.title}" else "إعداد اللاعبين")
         Spacer(modifier = Modifier.height(10.dp))
         ThrillerTitleComponent(fontSize = 32.sp)
         Spacer(modifier = Modifier.height(10.dp))
         ParchmentCard(modifier = Modifier.weight(1f), seed = 123L) {
-            Text(
-                text = "عدد اللاعبين: ${state.players.size} ",
-                color = Color(0xFF4A1008),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "عدد اللاعبين الحالي: ${state.players.size}",
+                    color = Color(0xFF4A1008),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                if (customCasePlayersCount != null) {
+                    Text(
+                        text = "المطلوب للقضية: $customCasePlayersCount لاعبين",
+                        color = RedAccent,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -329,11 +528,12 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                 Button(
                     onClick = {
                         if (tempPlayerName.isNotBlank()) {
-                            if (state.players.size < 6) {
+                            val limit = customCasePlayersCount ?: 6
+                            if (state.players.size < limit) {
                                 viewModel.addLocalLobbyPlayer(tempPlayerName)
                                 tempPlayerName = ""
                             } else {
-                                Toast.makeText(context, "اخرك 6 لاعيبة", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "الحد الأقصى الحالي هو $limit لاعبين", Toast.LENGTH_SHORT).show()
                             }
                         }
                     },
@@ -386,8 +586,13 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
             }
             Button(
                 onClick = {
-                    if (state.players.size < 4) Toast.makeText(context, "اقل حاجة 4 لاعيبة", Toast.LENGTH_SHORT).show()
-                    else viewModel.startInvestigationGame()
+                    if (customCasePlayersCount != null && state.players.size != customCasePlayersCount) {
+                        Toast.makeText(context, "يجب إدخال $customCasePlayersCount لاعبين للعب هذه القضية المخصصة!", Toast.LENGTH_LONG).show()
+                    } else if (state.players.size < 4) {
+                        Toast.makeText(context, "أقل حاجة للعب 4 لاعيبة", Toast.LENGTH_SHORT).show()
+                    } else {
+                        viewModel.startInvestigationGame()
+                    }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                 modifier = Modifier.weight(1.5f).testTag("start_game_button"),
@@ -412,6 +617,14 @@ fun LanJoinLobbyScreen(
     val context = LocalContext.current
     var inputCode by remember { mutableStateOf("") }
     var playerNameInput by remember { mutableStateOf("") }
+
+    DisposableEffect(Unit) {
+        LanManager.startDiscovery()
+        onDispose {
+            LanManager.stopDiscovery()
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -504,7 +717,7 @@ fun LanJoinLobbyScreen(
                         val parts = remember(hostDetails) { hostDetails.split("|") }
                         val hostName = parts.getOrNull(0) ?: "اوضة مجهولة"
                         val rCode = parts.getOrNull(1) ?: "----"
-                        
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -528,8 +741,8 @@ fun LanJoinLobbyScreen(
         }
         Spacer(modifier = Modifier.height(16.dp))
         Button(
-            onClick = { LanManager.stopDiscovery(); onBack() },
-            colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+            onClick = onBack,
+            colors = ButtonColors(containerColor = DarkWoodButton, contentColor = GoldShine, disabledContainerColor = Color.Gray, disabledContentColor = Color.White),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("الرجوع للقائمة الرئيسية", color = GoldShine)
@@ -542,7 +755,9 @@ fun MainMenuHomeScreen(
     viewModel: GameViewModel,
     onStartPassPlay: () -> Unit,
     onOpenLanJoin: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onPlayCustomCaseRequested: (UserCase) -> Unit,
+    navController: NavController
 ) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
@@ -574,6 +789,29 @@ fun MainMenuHomeScreen(
                     Icon(Icons.Default.ArrowBack, contentDescription = "Go play", tint = DarkWoodButton)
                 }
             }
+
+            Card(
+                modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(12.dp)).clickable {
+                    navController.navigate("cases_library")
+                },
+                colors = CardDefaults.cardColors(containerColor = PapyrusBg),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(2.dp, DarkWoodButton)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp).fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Icon(Icons.Default.FolderSpecial, contentDescription = "Library Cases", tint = DarkWoodButton, modifier = Modifier.size(36.dp))
+                    Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp), horizontalAlignment = Alignment.End) {
+                        Text("مكتبة القضايا", color = Color(0xFF4A1008), fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                        Text("(قضايا مستوردة ومصنوعة)", color = PapyrusTextSecondary, fontSize = 12.sp)
+                    }
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Go Library", tint = DarkWoodButton)
+                }
+            }
+
             Card(
                 modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(12.dp)).clickable { onOpenLanJoin() }.testTag("lan_multiplayer_button"),
                 colors = CardDefaults.cardColors(containerColor = PapyrusBg),
@@ -592,6 +830,7 @@ fun MainMenuHomeScreen(
                     Icon(Icons.Default.ArrowBack, contentDescription = "Go LAN Connect", tint = DarkWoodButton)
                 }
             }
+
             Card(
                 modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(12.dp)).clickable { viewModel.startLanHost("مضيف التحقيق") },
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF35120D)),
@@ -608,6 +847,7 @@ fun MainMenuHomeScreen(
                     Text("إنشاء ومشاركة اوضة جديدة", color = GoldShine, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
             }
+
             Card(
                 modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(12.dp)).clickable { onOpenSettings() }.testTag("settings_button"),
                 colors = CardDefaults.cardColors(containerColor = PapyrusBg),
@@ -628,7 +868,7 @@ fun MainMenuHomeScreen(
             }
         }
         Text(
-            text = " !! القاعدة الاولي والاخيرة ... شك في الجميع",
+            text = " القاعدة الاولي والاخيرة ... شك في الجميع",
             color = PapyrusBgLight.copy(alpha = 0.5f),
             fontSize = 15.sp,
             textAlign = TextAlign.Center,

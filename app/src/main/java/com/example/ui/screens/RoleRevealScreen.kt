@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -27,6 +28,7 @@ import com.example.ui.theme.*
 
 @Composable
 fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
+    val context = LocalContext.current
     val isPassAndPlay = state.mode == "PASS_AND_PLAY"
     val activePassPlayer = if (isPassAndPlay) {
         state.players.getOrNull(state.activePassPlayerIndex)
@@ -62,7 +64,7 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                 Spacer(modifier = Modifier.height(30.dp))
                 Button(
                     onClick = {
-                        MysteryAudioPlayer.playReveal()
+                        MysteryAudioPlayer.playClick(context)
                         revealed = true
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = GoldYell),
@@ -87,14 +89,13 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                     Text("الاسم : ${char.name}", color = PapyrusText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     Text("السن : ${char.age} سنة | المهنة: ${char.occupation}", color = PapyrusTextSecondary, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(12.dp))
-                    Divider(color = Color(0x3B2C1E14), thickness = 1.dp)
+                    HorizontalDivider(color = Color(0x3B2C1E14), thickness = 1.dp)
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(if (activePassPlayer.isMafia) RedAccent else InnocentAccent).padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
-                    )
-                    {
+                    ) {
                         Icon(imageVector = if (activePassPlayer.isMafia) Icons.Default.Dangerous else Icons.Default.Security, contentDescription = "Role Symbol", tint = Color.White, modifier = Modifier.size(24.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = if (activePassPlayer.isMafia) "أنت : المجرم الحقيقي" else "أنت : بريء من الجريمة", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
@@ -106,7 +107,7 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
             Spacer(modifier = Modifier.height(10.dp))
             Button(
                 onClick = {
-                    MysteryAudioPlayer.playClick()
+                    MysteryAudioPlayer.playClick(context)
                     viewModel.confirmSecretsRevealed()
                     revealed = false
                 },
