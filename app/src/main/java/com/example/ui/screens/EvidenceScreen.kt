@@ -33,6 +33,8 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
     val currentClue = currentCase.evidenceList.getOrElse(clueIndex) { "لا أدلة إضافية حالياً." }
     var showHint by remember(clueIndex) { mutableStateOf(false) }
 
+    val isHost = state.mode != "ONLINE" || state.hostId == viewModel.myPlayerId.value
+
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -64,10 +66,31 @@ fun EvidenceScreen(viewModel: GameViewModel, state: RoomState) {
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { viewModel.advanceFromEvidenceToDiscussion() }, colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton), modifier = Modifier.fillMaxWidth().testTag("evidence_reveal_advance"), contentPadding = PaddingValues(15.dp)) {
-            Icon(Icons.Default.RecordVoiceOver, "Discuss", tint = GoldShine)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("خش علي المناقشة🗣️", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        if (isHost) {
+            Button(
+                onClick = { viewModel.advanceFromEvidenceToDiscussion() },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                modifier = Modifier.fillMaxWidth().testTag("evidence_reveal_advance"),
+                contentPadding = PaddingValues(15.dp)
+            ) {
+                Icon(Icons.Default.RecordVoiceOver, "Discuss", tint = GoldShine)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("خش علي المناقشة🗣️", color = GoldShine, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        } else {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0x1F2C1E14)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "في انتظار المضيف لبدء المناقشة...",
+                    color = GoldShine,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(14.dp)
+                )
+            }
         }
     }
 }

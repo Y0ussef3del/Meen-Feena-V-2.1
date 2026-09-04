@@ -14,24 +14,27 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
-import com.google.android.gms.ads.MobileAds
 import com.example.game.audio.MysteryAudioPlayer
 import com.example.game.data.CaseRepository
 import com.example.game.viewmodel.GameViewModel
 import com.example.ui.screens.GameNavigation
 import com.example.ui.theme.MyApplicationTheme
+import com.google.android.gms.ads.MobileAds
+import com.google.firebase.FirebaseApp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // تفعيل EdgeToEdge الحديث من أندرويد
+        // تهيئة محرك الفيربيس فور فتح التطبيق
+        FirebaseApp.initializeApp(this)
+
+        // تفعيل EdgeToEdge الحديث من أندرويد متوافق مع Android 15 (SDK 35)
         enableEdgeToEdge()
 
         MobileAds.initialize(this) {}
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // تطبيق وضع ملء الشاشة (Immersive Mode) بالأسلوب الحديث والمتوافق مع SDK 35
         hideSystemUI()
 
         CaseRepository.init(this)
@@ -49,7 +52,6 @@ class MainActivity : ComponentActivity() {
                 val viewModel: GameViewModel = viewModel()
                 val navController = rememberNavController()
 
-                // نمرر التبطين لتأمين حواف الشاشة بالكامل
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     GameNavigation(
                         viewModel = viewModel,

@@ -23,6 +23,7 @@ fun GameNavigation(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.roomState.collectAsState()
+    val completedCaseTitles by viewModel.completedCaseTitles.collectAsState()
     var showSplash by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
@@ -56,14 +57,13 @@ fun GameNavigation(
             composable("cases_library") {
                 CasesLibraryScreen(
                     repository = CaseRepository,
+                    completedCaseTitles = completedCaseTitles,
                     onPlayCase = { selectedCase ->
                         navController.popBackStack("game_flow", inclusive = false)
                         viewModel.selectCustomCase(selectedCase)
                     },
                     onCreateNewCase = { navController.navigate("create_case") },
-                    onEditCase = { selectedCase ->
-                        // Edit logic hook
-                    }
+                    onEditCase = { selectedCase -> }
                 )
             }
 

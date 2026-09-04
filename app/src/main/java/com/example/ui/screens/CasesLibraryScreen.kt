@@ -6,12 +6,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,11 +37,14 @@ import kotlinx.coroutines.withContext
 @Composable
 fun CasesLibraryScreen(
     repository: CaseRepository,
+    completedCaseTitles: Set<String> = emptySet(),
     onPlayCase: (UserCase) -> Unit,
     onCreateNewCase: () -> Unit,
     onEditCase: (UserCase) -> Unit
 ) {
-    var casesList by remember { mutableStateOf(listOf<UserCase>()) }
+    var defaultCasesList by remember { mutableStateOf(listOf<UserCase>()) }
+    var customCasesList by remember { mutableStateOf(listOf<UserCase>()) }
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     var caseToExport by remember { mutableStateOf<UserCase?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -52,7 +57,7 @@ fun CasesLibraryScreen(
             scope.launch {
                 val success = repository.importCases(context, it)
                 if (success) {
-                    casesList = repository.loadAllCustomCases()
+                    customCasesList = repository.loadAllCustomCases()
                     Toast.makeText(context, "تم استيراد القضية بنجاح! 🎉", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(context, "فشل استيراد الملف، تأكد من صحة التنسيق!", Toast.LENGTH_SHORT).show()
@@ -94,7 +99,8 @@ fun CasesLibraryScreen(
     }
 
     LaunchedEffect(Unit) {
-        casesList = repository.loadAllCustomCases()
+        defaultCasesList = repository.getDefaultCases()
+        customCasesList = repository.loadAllCustomCases()
     }
 
     Scaffold(
@@ -140,58 +146,148 @@ fun CasesLibraryScreen(
                 }
             }
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            TabRow(
+                selectedTabIndex = selectedTabIndex,
+                containerColor = Color(0xFF35120D),
+                contentColor = GoldShine
             ) {
-                items(casesList, key = { it.id }) { userCase ->
-                    ParchmentCard(
-                        seed = userCase.title.hashCode().toLong(),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp)
-                                .clickable { onPlayCase(userCase) },
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                Tab(
+                    selected = selectedTabIndex == 0,
+                    onClick = { selectedTabIndex = 0 },
+                    text = {
+                        Text(
+                            text = "قضايا اللعبة (${defaultCasesList.size})",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = if (selectedTabIndex == 0) GoldShine else Color(0xAAFFF8DC)
+                        )
+                    }
+                )
+                Tab(
+                    selected = selectedTabIndex == 1,
+                    onClick = { selectedTabIndex = 1 },
+                    text = {
+                        Text(
+                            text = "القضايا المضافة (${customCasesList.size})",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = if (selectedTabIndex == 1) GoldShine else Color(0xAAFFF8DC)
+                        )
+                    }
+                )
+            }
+
+            val currentList = if (selectedTabIndex == 0) defaultCasesList else customCasesList
+
+            if (currentList.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (selectedTabIndex == 0) "لا توجد قضايا أساسية" else "لا توجد قضايا مضافة بعد",
+                        color = PapyrusTextSecondary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    itemsIndexed(currentList, key = { _, item -> item.id.ifBlank { item.title } }) { index, userCase ->
+                        val isPlayed = completedCaseTitles.contains(userCase.title)
+
+                        ParchmentCard(
+                            seed = userCase.title.hashCode().toLong(),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            // أزرار التحكم (مسح + تصدير/حفظ)
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp)
+                                    .clickable { onPlayCase(userCase) },
+                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(onClick = {
-                                    scope.launch {
-                                        repository.deleteCase(userCase.id)
-                                        casesList = repository.loadAllCustomCases()
+                                // أزرار التحكم (مسح للقضايا المضافة + تصدير/حفظ)
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (selectedTabIndex == 1) {
+                                        IconButton(onClick = {
+                                            scope.launch {
+                                                repository.deleteCase(userCase.id)
+                                                customCasesList = repository.loadAllCustomCases()
+                                            }
+                                        }) {
+                                            Icon(Icons.Default.Delete, contentDescription = "مسح", tint = RedAccent)
+                                        }
                                     }
-                                }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "مسح", tint = RedAccent)
+
+                                    // زر الحفظ كـ JSON
+                                    IconButton(onClick = {
+                                        caseToExport = userCase
+                                        val safeFileName = "case_${userCase.title.replace(" ", "_")}.json"
+                                        exportJsonLauncher.launch(safeFileName)
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Share,
+                                            contentDescription = "حفظ كـ JSON",
+                                            tint = Color(0xFF4A1008)
+                                        )
+                                    }
                                 }
 
-                                // زر الحفظ كـ JSON
-                                IconButton(onClick = {
-                                    caseToExport = userCase
-                                    val safeFileName = "case_${userCase.title.replace(" ", "_")}.json"
-                                    exportJsonLauncher.launch(safeFileName)
-                                }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Share,
-                                        contentDescription = "حفظ كـ JSON",
-                                        tint = Color(0xFF4A1008)
-                                    )
-                                }
-                            }
+                                Column(
+                                    modifier = Modifier.weight(1f).padding(start = 8.dp),
+                                    horizontalAlignment = Alignment.End
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        // علامة توضح هل لعبت القضية أم لا
+                                        Surface(
+                                            color = if (isPlayed) Color(0xFF2E7D32) else Color(0xFF8D6E63),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isPlayed) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                                Text(
+                                                    text = if (isPlayed) "تم لعبها" else "جديدة",
+                                                    color = Color.White,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
 
-                            Column(
-                                modifier = Modifier.weight(1f).padding(start = 8.dp),
-                                horizontalAlignment = Alignment.End
-                            ) {
-                                Text(text = userCase.title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4A1008))
-                                Text(text = "المكان: ${userCase.location} | الوقت: ${userCase.time}", fontSize = 13.sp, color = PapyrusTextSecondary)
-                                Text(text = "المشتبه بهم: ${userCase.characters.size} لاعبين", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = RedAccent)
+                                        // ترقيم القضية
+                                        Text(
+                                            text = "قضية #${index + 1}",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = RedAccent
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(text = userCase.title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4A1008))
+                                    Text(text = "المكان: ${userCase.location} | الوقت: ${userCase.time}", fontSize = 13.sp, color = PapyrusTextSecondary)
+                                    Text(text = "المشتبه بهم: ${userCase.characters.size} لاعبين", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = RedAccent)
+                                }
                             }
                         }
                     }

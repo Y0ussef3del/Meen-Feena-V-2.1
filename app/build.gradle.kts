@@ -5,23 +5,22 @@ import java.nio.file.StandardCopyOption
 import java.net.URI
 
 plugins {
-  alias(libs.plugins.android.application)
-  alias(libs.plugins.kotlin.compose)
-  alias(libs.plugins.google.devtools.ksp)
-  alias(libs.plugins.roborazzi)
-  alias(libs.plugins.secrets)
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.devtools.ksp)
+    alias(libs.plugins.roborazzi)
+    alias(libs.plugins.secrets)
     kotlin("plugin.serialization") version "1.9.0"
+    id("com.google.gms.google-services")
 }
 
 android {
     namespace = "com.example"
     compileSdk { version = release(36) { minorApiLevel = 1 } }
 
-    // 1️⃣ أولاً: تعريف مفاتيح التوقيع (Signing Configurations)
     signingConfigs {
         create("release") {
-            // قم بتغيير هذه القيم إلى مسار وكلمات مرور ملف الـ Keystore الخاص بك
-            storeFile = file("my-release-key.jks") // مسار ملف الكيستور في مجلد المشروع
+            storeFile = file("my-release-key.jks")
             storePassword = "012253"
             keyAlias = "my-key-alias"
             keyPassword = "012253"
@@ -32,19 +31,16 @@ android {
         applicationId = "com.youssef.meenfeena"
         minSdk = 24
         targetSdk = 36
-        versionCode = 4
-        versionName = "2.0"
+        versionCode = 6
+        versionName = "2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // 2️⃣ ثانياً: ربط مفتاح التوقيع بنوع الإصدار النهائي (Release Build)
     buildTypes {
         release {
-            isMinifyEnabled = false // يمكنك جعلها true لتفعيل حماية الـ Proguard وتقليص الحجم
+            isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-
-            // ربط التوقيع هنا
             signingConfig = signingConfigs.getByName("release")
         }
     }
@@ -60,71 +56,61 @@ android {
     testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
-// Configure the Secrets Gradle Plugin to use .env and .env.example files
-// to match the convention used in Web projects.
 secrets {
-  propertiesFileName = ".env"
-  defaultPropertiesFileName = ".env.example"
+    propertiesFileName = ".env"
+    defaultPropertiesFileName = ".env.example"
 }
 
-// Some unused dependencies are commented out below instead of being removed.
-// This makes it easy to add them back in the future if needed.
 dependencies {
-  implementation(platform(libs.androidx.compose.bom))
-  implementation(platform(libs.firebase.bom))
-  // implementation(libs.accompanist.permissions)
-  implementation(libs.androidx.activity.compose)
-  // implementation(libs.androidx.camera.camera2)
-  // implementation(libs.androidx.camera.core)
-  // implementation(libs.androidx.camera.lifecycle)
-  // implementation(libs.androidx.camera.view)
-  implementation(libs.androidx.compose.material.icons.core)
-  implementation(libs.androidx.compose.material.icons.extended)
-  implementation(libs.androidx.compose.material3)
-  implementation(libs.androidx.compose.ui)
-  implementation(libs.androidx.compose.ui.graphics)
-  implementation(libs.androidx.compose.ui.tooling.preview)
-  implementation(libs.androidx.core.ktx)
-  // implementation(libs.androidx.datastore.preferences)
-  implementation(libs.androidx.lifecycle.runtime.compose)
-  implementation(libs.androidx.lifecycle.runtime.ktx)
-  implementation(libs.androidx.lifecycle.viewmodel.compose)
-  implementation(libs.androidx.navigation.compose)
-  implementation(libs.androidx.room.ktx)
-  implementation(libs.androidx.room.runtime)
-  // implementation(libs.coil.compose)
-  implementation(libs.converter.moshi)
-  // implementation(libs.firebase.ai)
-  implementation(libs.kotlinx.coroutines.android)
-  implementation(libs.kotlinx.coroutines.core)
-  implementation(libs.logging.interceptor)
-  implementation(libs.moshi.kotlin)
-  implementation(libs.okhttp)
-  // implementation(libs.play.services.location)
-  implementation(libs.retrofit)
-  testImplementation(libs.androidx.compose.ui.test.junit4)
-  testImplementation(libs.androidx.core)
-  testImplementation(libs.androidx.junit)
-  testImplementation(libs.junit)
-  testImplementation(libs.kotlinx.coroutines.test)
-  testImplementation(libs.robolectric)
-  testImplementation(libs.roborazzi)
-  testImplementation(libs.roborazzi.compose)
-  testImplementation(libs.roborazzi.junit.rule)
-  androidTestImplementation(platform(libs.androidx.compose.bom))
-  androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-  androidTestImplementation(libs.androidx.espresso.core)
-  androidTestImplementation(libs.androidx.junit)
-  androidTestImplementation(libs.androidx.runner)
-  debugImplementation(libs.androidx.compose.ui.test.manifest)
-  debugImplementation(libs.androidx.compose.ui.tooling)
-  "ksp"(libs.androidx.room.compiler)
-  "ksp"(libs.moshi.kotlin.codegen)
-  implementation("com.google.android.gms:play-services-ads:23.0.0")
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.compose.material.icons.core)
+    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.converter.moshi)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.logging.interceptor)
+    implementation(libs.moshi.kotlin)
+    implementation(libs.okhttp)
+    implementation(libs.retrofit)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.core)
+    testImplementation(libs.androidx.junit)
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.runner)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    debugImplementation(libs.androidx.compose.ui.tooling)
+    "ksp"(libs.androidx.room.compiler)
+    "ksp"(libs.moshi.kotlin.codegen)
+    implementation("com.google.android.gms:play-services-ads:23.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    implementation("com.google.firebase:firebase-database-ktx:20.3.1")
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    implementation("com.google.firebase:firebase-database-ktx")
+    implementation("io.getstream:stream-webrtc-android:1.1.1")
 }
 
-// Automatically provision molhim.ttf and handjet.ttf from remote repositories or standard system font assets for 100% offline robustness
 abstract class ProvisionMolhimFontTask : DefaultTask() {
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
@@ -142,17 +128,12 @@ abstract class ProvisionMolhimFontTask : DefaultTask() {
                 "/system/fonts/Roboto-Regular.ttf",
                 "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
             )
-            var copied = false
             for (path in systemFonts) {
                 val f = File(path)
                 if (f.exists()) {
                     f.copyTo(destFile, true)
-                    copied = true
                     break
                 }
-            }
-            if (!copied) {
-                destFile.writeBytes(ByteArray(512))
             }
         }
 
@@ -160,7 +141,6 @@ abstract class ProvisionMolhimFontTask : DefaultTask() {
         if (!handjetFile.exists()) {
             var downloaded = false
             try {
-                // الآن نستخدم URI و URL مباشرة بعد إضافتهما في الـ import فوق
                 val uri = URI("https://raw.githubusercontent.com/google/fonts/main/ofl/handjet/Handjet%5BELGR%2CELSH%2Cwght%5D.ttf")
                 val url: URL = uri.toURL()
 
@@ -170,11 +150,8 @@ abstract class ProvisionMolhimFontTask : DefaultTask() {
                 downloaded = true
             } catch (e: Exception) {
                 println("Failed to download Handjet font from github: ${e.message}")
-            }catch (e: Exception) {
-                println("Failed to download Handjet font from github: ${e.message}")
-            } catch (e: Exception) {
-                println("Failed to download Handjet font from github: ${e.message}")
             }
+
             if (!downloaded) {
                 if (destFile.exists()) {
                     destFile.copyTo(handjetFile, true)
@@ -184,17 +161,12 @@ abstract class ProvisionMolhimFontTask : DefaultTask() {
                         "/system/fonts/NotoSansArabic-Regular.ttf",
                         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
                     )
-                    var copied = false
                     for (path in systemFonts) {
                         val f = File(path)
                         if (f.exists()) {
                             f.copyTo(handjetFile, true)
-                            copied = true
                             break
                         }
-                    }
-                    if (!copied) {
-                        handjetFile.writeBytes(ByteArray(512))
                     }
                 }
             }

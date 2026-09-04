@@ -30,6 +30,8 @@ import com.example.ui.theme.*
 fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
     val context = LocalContext.current
     val isPassAndPlay = state.mode == "PASS_AND_PLAY"
+    val isHost = state.mode != "ONLINE" || state.hostId == viewModel.myPlayerId.value
+
     val activePassPlayer = if (isPassAndPlay) {
         state.players.getOrNull(state.activePassPlayerIndex)
     } else {
@@ -105,31 +107,49 @@ fun RoleRevealScreen(viewModel: GameViewModel, state: RoomState) {
                 }
             }
             Spacer(modifier = Modifier.height(10.dp))
-            Button(
-                onClick = {
-                    MysteryAudioPlayer.playClick(context)
-                    viewModel.confirmSecretsRevealed()
-                    revealed = false
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Text(
-                    text = if (isPassAndPlay && state.activePassPlayerIndex < state.players.size - 1)
-                        "خبي ملفك وهات اللي بعده"
-                    else
-                        "يلا على تفاصيل القضية",
-                    color = GoldShine,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    lineHeight = 20.sp
-                )
+            if (isHost) {
+                Button(
+                    onClick = {
+                        MysteryAudioPlayer.playClick(context)
+                        viewModel.confirmSecretsRevealed()
+                        if (isPassAndPlay) {
+                            revealed = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = if (isPassAndPlay && state.activePassPlayerIndex < state.players.size - 1)
+                            "خبي ملفك وهات اللي بعده"
+                        else
+                            "يلا على تفاصيل القضية",
+                        color = GoldShine,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        lineHeight = 20.sp
+                    )
+                }
+            } else {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0x1F2C1E14)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "في انتظار المضيف لبدء اللعبة...",
+                        color = GoldShine,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(14.dp)
+                    )
+                }
             }
         }
     }

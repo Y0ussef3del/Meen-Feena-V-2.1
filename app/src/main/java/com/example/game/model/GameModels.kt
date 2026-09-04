@@ -251,7 +251,7 @@ data class RoomState(
     val tiedVotePlayers: List<String> = emptyList(),
     val lastEliminatedResult: String = "",
     val encryptedRoles: Map<String, String> = emptyMap(),
-    val heartsCount: Int = 1,
+    val heartsCount: Int = 3,
     val canPlay: Boolean = true
 ) {
     fun toSharedJsonString(): String {

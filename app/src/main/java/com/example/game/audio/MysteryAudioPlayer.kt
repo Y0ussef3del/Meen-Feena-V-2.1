@@ -21,6 +21,7 @@ object MysteryAudioPlayer {
     private var musicVolume = 0.5f
 
     private val resourceCountCache = ConcurrentHashMap<String, Int>()
+    private val unusedAudioPools = ConcurrentHashMap<String, MutableList<Int>>()
 
     fun shutdown() {
         scope.coroutineContext.cancelChildren()
@@ -265,23 +266,34 @@ object MysteryAudioPlayer {
         }
     }
 
+    private fun getNextAudioIndex(context: Context, prefix: String): Int {
+        val totalCount = countAvailableResources(context, prefix)
+        if (totalCount <= 0) return 1
+
+        synchronized(unusedAudioPools) {
+            val pool = unusedAudioPools.getOrPut(prefix) { mutableListOf() }
+            if (pool.isEmpty()) {
+                pool.addAll(1..totalCount)
+            }
+            val randomIndex = Random.nextInt(pool.size)
+            return pool.removeAt(randomIndex)
+        }
+    }
+
     fun playPlayerEliminatedInnocent(context: Context) {
-        val availableCount = countAvailableResources(context, "innocent")
-        val randomIndex = if (availableCount > 0) Random.nextInt(1, availableCount + 1) else 1
-        playRawResource(context, "innocent_$randomIndex")
+        val index = getNextAudioIndex(context, "innocent")
+        playRawResource(context, "innocent_$index")
     }
 
     fun playPlayerEliminatedCriminal(context: Context) {
-        val availableCount = countAvailableResources(context, "criminal")
-        val randomIndex = if (availableCount > 0) Random.nextInt(1, availableCount + 1) else 1
-        playRawResource(context, "criminal_$randomIndex")
+        val index = getNextAudioIndex(context, "criminal")
+        playRawResource(context, "criminal_$index")
     }
 
     fun playGameOverSound(context: Context, isWin: Boolean) {
         val prefix = if (isWin) "game_win" else "game_lose"
-        val availableCount = countAvailableResources(context, prefix)
-        val randomIndex = if (availableCount > 0) Random.nextInt(1, availableCount + 1) else 1
-        playRawResource(context, "${prefix}_$randomIndex")
+        val index = getNextAudioIndex(context, prefix)
+        playRawResource(context, "${prefix}_$index")
     }
 
     @SuppressLint("DiscouragedApi")

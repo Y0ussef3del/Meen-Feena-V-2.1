@@ -2,362 +2,417 @@ package com.example.game.network
 
 import android.util.Log
 import com.example.game.model.RoomState
-import kotlinx.coroutines.*
+import com.google.firebase.database.ChildEventListener
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.io.PrintWriter
-import java.net.*
-import java.util.*
+import java.util.UUID
 
-object LanManager {
-    private const val TAG = "LanManager"
-    private const val TCP_PORT = 8888
-    private const val UDP_PORT = 8889
-
+object OnlineManager {
+    private const val TAG = "OnlineManager"
     private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val broadcastDispatcher = Dispatchers.IO.limitedParallelism(1)
 
-    @Volatile
-    private var serverSocket: ServerSocket? = null
-    @Volatile
-    private var udpBroadcastSocket: DatagramSocket? = null
-    @Volatile
-    private var udpDiscoverySocket: DatagramSocket? = null
+    private val db: FirebaseDatabase?
+        get() = try {
+            FirebaseDatabase.getInstance(
+                "https://meen-feena-default-rtdb.europe-west1.firebasedatabase.app"
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize FirebaseDatabase", e)
+            null
+        }
 
-    private var tcpServerJob: Job? = null
-    private var udpBroadcastJob: Job? = null
-    private var udpDiscoveryJob: Job? = null
+    private var roomRef: DatabaseReference? = null
+    private var stateListener: ValueEventListener? = null
+    private var commandsListener: ChildEventListener? = null
 
-    @Volatile
-    private var clientSocket: Socket? = null
-    private var clientReadJob: Job? = null
+    private var rtcSignalsRef: DatabaseReference? = null
+    private var rtcSignalsListener: ChildEventListener? = null
 
-    private val clientConnections = Collections.synchronizedList(mutableListOf<ClientConnection>())
-
-    val discoveredHosts = MutableStateFlow<Map<String, String>>(emptyMap())
-    val incomingCommands = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 64)
-
+    val incomingCommands = MutableSharedFlow<Pair<String, String>>(
+        extraBufferCapacity = 1024
+    )
     val isClientConnected = MutableStateFlow(false)
     val clientConnectionError = MutableStateFlow<String?>(null)
 
-    val localDeviceId: String = UUID.randomUUID().toString().substring(0, 8)
-
-    fun getLocalIpAddress(): String {
-        try {
-            val interfaces = NetworkInterface.getNetworkInterfaces()
-            while (interfaces.hasMoreElements()) {
-                val element = interfaces.nextElement()
-                val addresses = element.inetAddresses
-                while (addresses.hasMoreElements()) {
-                    val address = addresses.nextElement()
-                    if (!address.isLoopbackAddress && address is Inet4Address) {
-                        return address.hostAddress ?: "127.0.0.1"
-                    }
-                }
-            }
-        } catch (ex: Exception) {
-            Log.e(TAG, "Error getting IP", ex)
-        }
-        return "127.0.0.1"
+    val localDeviceId: String by lazy {
+        UUID.randomUUID().toString().substring(0, 8)
     }
+
+    private var currentRoomCode: String? = null
 
     fun startHost(hostName: String, roomCode: String) {
-        stopAll()
-        Log.d(TAG, "Starting Host at Port $TCP_PORT...")
+        try {
+            stopAll()
 
-        tcpServerJob = managerScope.launch {
-            try {
-                serverSocket = ServerSocket(TCP_PORT).apply {
-                    reuseAddress = true
-                }
-                while (isActive) {
-                    val socket = serverSocket?.accept() ?: break
-                    Log.d(TAG, "Client connected: ${socket.inetAddress.hostAddress}")
-                    val connection = ClientConnection(socket)
-                    clientConnections.add(connection)
-                    connection.startReading { clientIp, command ->
-                        incomingCommands.tryEmit(Pair(clientIp, command))
-                    }
-                }
-            } catch (e: Throwable) {
-                if (e !is SocketException) {
-                    Log.e(TAG, "TCP Server failed", e)
-                }
-            } finally {
-                try { serverSocket?.close() } catch (_: Throwable) {}
-                serverSocket = null
+            val database = db ?: run {
+                clientConnectionError.value = "لم يتم تهيئة FirebaseDatabase"
+                return
             }
-        }
 
-        udpBroadcastJob = managerScope.launch {
-            try {
-                val broadcastSocket = DatagramSocket().apply {
-                    broadcast = true
-                    reuseAddress = true
+            currentRoomCode = roomCode
+            val ref = database.getReference("rooms").child(roomCode)
+            roomRef = ref
+
+            ref.onDisconnect().removeValue()
+
+            val cmdRef = ref.child("commands")
+            commandsListener = object : ChildEventListener {
+                override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
+                    processCommandSnapshot(snapshot)
                 }
-                udpBroadcastSocket = broadcastSocket
-                val broadcastMsg = "WHO_AMONG_US_HOST|$hostName|${getLocalIpAddress()}|$roomCode"
-                val packetData = broadcastMsg.toByteArray()
 
-                while (isActive) {
-                    try {
-                        val address = InetAddress.getByName("255.255.255.255")
-                        val packet = DatagramPacket(packetData, packetData.size, address, UDP_PORT)
-                        broadcastSocket.send(packet)
-                    } catch (e: Throwable) {
-                        try {
-                            val subnetAddr = getBroadcastAddress()
-                            if (subnetAddr != null) {
-                                val packet = DatagramPacket(packetData, packetData.size, subnetAddr, UDP_PORT)
-                                broadcastSocket.send(packet)
-                            }
-                        } catch (inner: Throwable) {
-                            Log.e(TAG, "UDP Broadcast fallback failed", inner)
-                        }
-                    }
-                    delay(2000)
+                override fun onChildChanged(snapshot: DataSnapshot, previousChildName: String?) = Unit
+                override fun onChildRemoved(snapshot: DataSnapshot) = Unit
+                override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) = Unit
+
+                override fun onCancelled(error: DatabaseError) {
+                    clientConnectionError.value = "خطأ المضيف: ${error.message}"
+                    Log.e(TAG, "Host command listener cancelled", error.toException())
                 }
-            } catch (outer: Throwable) {
-                Log.e(TAG, "UDP Socket creation failed", outer)
-            } finally {
-                try { udpBroadcastSocket?.close() } catch (_: Throwable) {}
-                udpBroadcastSocket = null
             }
-        }
-    }
 
-    private fun getBroadcastAddress(): InetAddress? {
-        val interfaces = NetworkInterface.getNetworkInterfaces()
-        while (interfaces.hasMoreElements()) {
-            val networkInterface = interfaces.nextElement()
-            if (networkInterface.isLoopback || !networkInterface.isUp) continue
-            for (interfaceAddress in networkInterface.interfaceAddresses) {
-                val broadcast = interfaceAddress.broadcast
-                if (broadcast != null) return broadcast
+            cmdRef.addChildEventListener(commandsListener!!)
+
+            prepareRtcInbox(
+                database = database,
+                roomCode = roomCode,
+                deviceId = localDeviceId
+            ) {
+                isClientConnected.value = true
+                Log.d(TAG, "Host started successfully room=$roomCode")
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting host", e)
+            clientConnectionError.value = e.localizedMessage
+            isClientConnected.value = false
         }
-        return null
     }
 
     fun broadcastStateToClients(state: RoomState) {
-        val stateStr = state.toSharedJsonString()
-        val envelope = JSONObject().apply {
-            put("type", "STATE_UPDATE")
-            put("data", stateStr)
-        }.toString()
+        val ref = roomRef ?: return
 
-        managerScope.launch {
-            val snapshot = synchronized(clientConnections) { clientConnections.toList() }
-            val deadConnections = mutableListOf<ClientConnection>()
-
-            for (conn in snapshot) {
-                if (!conn.write(envelope)) {
-                    Log.d(TAG, "Removing dead connection: ${conn.ip}")
-                    conn.close()
-                    deadConnections.add(conn)
-                }
-            }
-
-            if (deadConnections.isNotEmpty()) {
-                clientConnections.removeAll(deadConnections)
+        managerScope.launch(broadcastDispatcher) {
+            try {
+                val stateStr = state.toSharedJsonString()
+                ref.child("state").setValue(stateStr)
+                    .addOnFailureListener {
+                        clientConnectionError.value = "فشل نشر حالة الغرفة: ${it.message}"
+                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error broadcasting state", e)
             }
         }
     }
 
-    fun stopHost() {
-        Log.d(TAG, "Stopping host server...")
-        stopAll()
-    }
+    fun connectToHost(roomCode: String, playerName: String, deviceId: String = localDeviceId) {
+        try {
+            isClientConnected.value = false
+            clientConnectionError.value = null
+            stopAll()
 
-    fun startDiscovery() {
-        discoveredHosts.value = emptyMap()
-        stopDiscovery()
+            val database = db ?: run {
+                clientConnectionError.value = "فشل تهيئة قاعدة البيانات"
+                return
+            }
 
-        udpDiscoveryJob = managerScope.launch {
-            var ds: DatagramSocket? = null
-            try {
-                ds = DatagramSocket(UDP_PORT).apply {
-                    reuseAddress = true
-                }
-                udpDiscoverySocket = ds
-                val buffer = ByteArray(1024)
-                while (isActive) {
-                    val packet = DatagramPacket(buffer, buffer.size)
-                    ds.receive(packet)
-                    val rxStr = String(packet.data, 0, packet.length).trim()
-                    if (rxStr.startsWith("WHO_AMONG_US_HOST")) {
-                        val parts = rxStr.split("|")
-                        val myIp = getLocalIpAddress()
-                        if (parts.size >= 4) {
-                            val name = parts[1]
-                            val ip = parts[2]
-                            val rCode = parts[3]
-                            if (ip != myIp) {
-                                val current = discoveredHosts.value.toMutableMap()
-                                current[ip] = "$name|$rCode"
-                                discoveredHosts.value = current
+            currentRoomCode = roomCode
+            val ref = database.getReference("rooms").child(roomCode)
+            roomRef = ref
+
+            var hasJoined = false
+
+            stateListener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    try {
+                        if (!snapshot.exists()) {
+                            if (!hasJoined) {
+                                clientConnectionError.value = "رمز الغرفة غير صحيح أو أن الغرفة أُغلقت"
+                                isClientConnected.value = false
+                            } else {
+                                incomingCommands.tryEmit(
+                                    Pair(
+                                        "HOST",
+                                        JSONObject().apply {
+                                            put("type", "HOST_DISCONNECTED")
+                                        }.toString()
+                                    )
+                                )
                             }
-                        } else if (parts.size == 3) {
-                            val name = parts[1]
-                            val ip = parts[2]
-                            if (ip != myIp) {
-                                val current = discoveredHosts.value.toMutableMap()
-                                current[ip] = "$name|99999"
-                                discoveredHosts.value = current
+                            return
+                        }
+
+                        if (!hasJoined) {
+                            hasJoined = true
+
+                            prepareRtcInbox(
+                                database = database,
+                                roomCode = roomCode,
+                                deviceId = deviceId
+                            ) {
+                                isClientConnected.value = true
+                                Log.d(TAG, "Connected to room successfully room=$roomCode")
+
+                                ref.child("commands")
+                                    .child("leave_$deviceId")
+                                    .onDisconnect()
+                                    .setValue(
+                                        JSONObject().apply {
+                                            put("type", "CLIENT_LEAVE")
+                                            put("deviceId", deviceId)
+                                        }.toString()
+                                    )
+
+                                val joinCommand = JSONObject().apply {
+                                    put("type", "JOIN")
+                                    put("playerName", playerName)
+                                    put("deviceId", deviceId)
+                                }.toString()
+
+                                sendCommandToHost(joinCommand)
+                            }
+                        } else {
+                            val stateJsonStr = snapshot.getValue(String::class.java)
+                            if (!stateJsonStr.isNullOrEmpty()) {
+                                incomingCommands.tryEmit(
+                                    Pair(
+                                        "HOST",
+                                        JSONObject().apply {
+                                            put("type", "STATE_UPDATE")
+                                            put("data", stateJsonStr)
+                                        }.toString()
+                                    )
+                                )
                             }
                         }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in state listener", e)
+                        clientConnectionError.value = "حدث خطأ غير متوقع: ${e.localizedMessage}"
+                        isClientConnected.value = false
                     }
                 }
-            } catch (e: Exception) {
-                if (e !is SocketException) {
-                    Log.e(TAG, "UDP Discovery error", e)
+
+                override fun onCancelled(error: DatabaseError) {
+                    clientConnectionError.value = "فشل الاتصال: ${error.message}"
+                    isClientConnected.value = false
+                    Log.e(TAG, "State listener cancelled", error.toException())
                 }
-            } finally {
-                try { ds?.close() } catch (_: Exception) {}
-                udpDiscoverySocket = null
             }
+
+            ref.child("state").addValueEventListener(stateListener!!)
+        } catch (e: Exception) {
+            clientConnectionError.value = "خطأ في الاتصال: ${e.localizedMessage}"
+            isClientConnected.value = false
+            Log.e(TAG, "connectToHost failed", e)
         }
     }
 
-    fun stopDiscovery() {
-        udpDiscoveryJob?.cancel()
-        udpDiscoveryJob = null
-        try { udpDiscoverySocket?.close() } catch (_: Exception) {}
-        udpDiscoverySocket = null
+    private fun prepareRtcInbox(
+        database: FirebaseDatabase,
+        roomCode: String,
+        deviceId: String,
+        afterReady: () -> Unit
+    ) {
+        val deviceRef = database
+            .getReference("rooms")
+            .child(roomCode)
+            .child("rtc_signals")
+            .child(deviceId)
+
+        currentRoomCode = roomCode
+        deviceRef.onDisconnect().removeValue()
+
+        deviceRef.removeValue()
+            .addOnSuccessListener {
+                listenToRtcSignals(roomCode, deviceId)
+                afterReady()
+            }
+            .addOnFailureListener { error ->
+                Log.w(TAG, "Failed to clear RTC inbox device=$deviceId", error)
+                listenToRtcSignals(roomCode, deviceId)
+                afterReady()
+            }
     }
 
-    fun connectToHost(hostIp: String, playerName: String, deviceId: String) {
-        isClientConnected.value = false
-        clientConnectionError.value = null
+    private fun listenToRtcSignals(roomCode: String, deviceId: String) {
+        val database = db ?: return
+        rtcSignalsListener?.let { rtcSignalsRef?.removeEventListener(it) }
 
-        disconnectFromHost()
+        val ref = database
+            .getReference("rooms")
+            .child(roomCode)
+            .child("rtc_signals")
+            .child(deviceId)
 
-        clientReadJob = managerScope.launch {
-            var socket: Socket? = null
+        rtcSignalsRef = ref
+
+        rtcSignalsListener = object : ChildEventListener {
+            override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
+                processRtcSignalSnapshot(snapshot)
+            }
+
+            override fun onChildChanged(snapshot: DataSnapshot, previousChildName: String?) = Unit
+            override fun onChildRemoved(snapshot: DataSnapshot) = Unit
+            override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) = Unit
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e(TAG, "RTC signal listener cancelled", error.toException())
+            }
+        }
+
+        ref.addChildEventListener(rtcSignalsListener!!)
+        Log.d(TAG, "RTC signaling listener ready room=$roomCode device=$deviceId")
+    }
+
+    fun sendRtcSignal(targetId: String, jsonString: String) {
+        if (targetId.isBlank() || jsonString.isBlank()) return
+
+        val database = db ?: return
+        val code = currentRoomCode ?: return
+
+        managerScope.launch(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Connecting to Host: $hostIp...")
-                socket = Socket().apply {
-                    connect(InetSocketAddress(hostIp, TCP_PORT), 4000)
-                }
-                clientSocket = socket
-                isClientConnected.value = true
+                val signalRef = database
+                    .getReference("rooms")
+                    .child(code)
+                    .child("rtc_signals")
+                    .child(targetId)
 
-                val joinCommand = JSONObject().apply {
-                    put("type", "JOIN")
-                    put("playerName", playerName)
-                    put("deviceId", deviceId)
-                }.toString()
-
-                val writer = PrintWriter(socket.getOutputStream(), true)
-                writer.println(joinCommand)
-
-                val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
-                while (isActive) {
-                    val line = reader.readLine() ?: break
-                    incomingCommands.emit(Pair("HOST", line))
-                }
+                val key = signalRef.push().key ?: UUID.randomUUID().toString()
+                signalRef.child(key).setValue(jsonString)
+                    .addOnSuccessListener {
+                        Log.d(TAG, "RTC signal sent target=$targetId")
+                    }
+                    .addOnFailureListener { error ->
+                        Log.e(TAG, "Failed to send RTC signal target=$targetId", error)
+                    }
             } catch (e: Exception) {
-                Log.e(TAG, "Client Connection error", e)
-                clientConnectionError.value = e.localizedMessage ?: "فشل الاتصال بالغرفة المحلية"
-                isClientConnected.value = false
-            } finally {
-                try { socket?.close() } catch (_: Exception) {}
-                clientSocket = null
+                Log.e(TAG, "Error sending RTC signal target=$targetId", e)
             }
         }
     }
 
     fun sendCommandToHost(jsonString: String) {
-        managerScope.launch {
-            val socket = clientSocket
-            if (socket != null && isClientConnected.value) {
-                try {
-                    val writer = PrintWriter(socket.getOutputStream(), true)
-                    writer.println(jsonString)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to send command to host", e)
-                }
+        val ref = roomRef ?: return
+        if (jsonString.isBlank()) return
+
+        managerScope.launch(Dispatchers.IO) {
+            try {
+                val cmdKey = ref.child("commands").push().key ?: UUID.randomUUID().toString()
+                ref.child("commands").child(cmdKey).setValue(jsonString)
+                    .addOnFailureListener { error ->
+                        Log.e(TAG, "Failed to send command to host", error)
+                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending command", e)
             }
         }
     }
 
     fun disconnectFromHost() {
-        Log.d(TAG, "Disconnecting from host...")
-        clientReadJob?.cancel()
-        clientReadJob = null
-        try { clientSocket?.close() } catch (_: Exception) {}
-        clientSocket = null
-        isClientConnected.value = false
+        roomRef?.let {
+            sendCommandToHost(
+                JSONObject().apply {
+                    put("type", "CLIENT_LEAVE")
+                    put("deviceId", localDeviceId)
+                }.toString()
+            )
+        }
+        stopAll()
+    }
+
+    fun stopHost() {
+        try {
+            val database = db
+            val code = currentRoomCode
+            if (database != null && code != null) {
+                val ref = database.getReference("rooms").child(code)
+                ref.onDisconnect().cancel()
+                ref.removeValue()
+                    .addOnFailureListener { error ->
+                        Log.e(TAG, "Failed to remove room", error)
+                    }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping host", e)
+        }
+        stopAll()
+    }
+
+    private fun processCommandSnapshot(snapshot: DataSnapshot) {
+        try {
+            val command = snapshot.getValue(String::class.java) ?: return
+            if (command.isBlank()) return
+
+            val jsonObj = JSONObject(command)
+            val senderId = jsonObj.optString("deviceId", snapshot.key ?: "")
+
+            if (incomingCommands.tryEmit(Pair(senderId, command))) {
+                snapshot.ref.removeValue().addOnFailureListener { error ->
+                    Log.w(TAG, "Failed to remove processed command", error)
+                }
+            } else {
+                Log.w(TAG, "Command buffer full; keeping command key=${snapshot.key}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing command snapshot", e)
+        }
+    }
+
+    private fun processRtcSignalSnapshot(snapshot: DataSnapshot) {
+        try {
+            val signal = snapshot.getValue(String::class.java) ?: return
+            if (signal.isBlank()) return
+
+            val jsonObj = JSONObject(signal)
+            val senderId = jsonObj.optString("senderId", "")
+            val targetId = jsonObj.optString("targetId", "")
+
+            if (targetId.isNotBlank() && targetId != localDeviceId) {
+                snapshot.ref.removeValue()
+                return
+            }
+
+            if (incomingCommands.tryEmit(Pair(senderId, signal))) {
+                snapshot.ref.removeValue().addOnFailureListener { error ->
+                    Log.w(TAG, "Failed to remove processed RTC signal", error)
+                }
+            } else {
+                Log.w(TAG, "RTC signal buffer full; keeping signal key=${snapshot.key}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing RTC signal", e)
+        }
     }
 
     private fun stopAll() {
-        tcpServerJob?.cancel()
-        udpBroadcastJob?.cancel()
-        udpDiscoveryJob?.cancel()
-        clientReadJob?.cancel()
-
-        tcpServerJob = null
-        udpBroadcastJob = null
-        udpDiscoveryJob = null
-        clientReadJob = null
-
-        try { serverSocket?.close() } catch (_: Exception) {}
-        serverSocket = null
-
-        try { udpBroadcastSocket?.close() } catch (_: Exception) {}
-        udpBroadcastSocket = null
-
-        try { udpDiscoverySocket?.close() } catch (_: Exception) {}
-        udpDiscoverySocket = null
-
-        synchronized(clientConnections) {
-            clientConnections.forEach { it.close() }
-            clientConnections.clear()
-        }
-
-        try { clientSocket?.close() } catch (_: Exception) {}
-        clientSocket = null
-        isClientConnected.value = false
-    }
-
-    private class ClientConnection(val socket: Socket) {
-        val ip: String = socket.inetAddress?.hostAddress ?: ""
-        private var writer: PrintWriter? = null
-        private var reader: BufferedReader? = null
-        private var bgJob: Job? = null
-
-        fun startReading(onCommandReceived: (String, String) -> Unit) {
-            bgJob = managerScope.launch {
-                try {
-                    writer = PrintWriter(socket.getOutputStream(), true)
-                    reader = BufferedReader(InputStreamReader(socket.getInputStream()))
-                    while (isActive) {
-                        val line = reader?.readLine() ?: break
-                        onCommandReceived(ip, line)
-                    }
-                } catch (e: Exception) {
-                    Log.d(TAG, "Connection lost for $ip")
-                } finally {
-                    close()
-                }
+        try {
+            val ref = roomRef
+            if (ref != null) {
+                stateListener?.let { ref.child("state").removeEventListener(it) }
+                commandsListener?.let { ref.child("commands").removeEventListener(it) }
             }
-        }
-
-        fun write(msg: String): Boolean {
-            return try {
-                val pr = writer ?: PrintWriter(socket.getOutputStream(), true).also { writer = it }
-                pr.println(msg)
-                !pr.checkError()
-            } catch (e: Exception) {
-                false
-            }
-        }
-
-        fun close() {
-            bgJob?.cancel()
-            try { socket.close() } catch (_: Exception) {}
+            rtcSignalsListener?.let { rtcSignalsRef?.removeEventListener(it) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing Firebase listeners", e)
+        } finally {
+            stateListener = null
+            commandsListener = null
+            rtcSignalsListener = null
+            rtcSignalsRef = null
+            roomRef = null
+            currentRoomCode = null
+            isClientConnected.value = false
         }
     }
 }

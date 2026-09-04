@@ -1,20 +1,28 @@
 package com.example.game.viewmodel
 
+import android.Manifest
 import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.game.audio.MysteryAudioPlayer
 import com.example.game.data.CaseRepository
 import com.example.game.model.*
-import com.example.game.network.LanManager
+import com.example.game.network.OnlineManager
+import com.example.game.network.WebRtcManager
+import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import kotlinx.coroutines.Job
@@ -28,7 +36,6 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.random.Random
 
 class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val TAG = "GameViewModel"
@@ -36,46 +43,172 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _roomState = MutableStateFlow(RoomState())
     val roomState: StateFlow<RoomState> = _roomState.asStateFlow()
 
-    val myPlayerId = MutableStateFlow("")
+    val myPlayerId = MutableStateFlow(OnlineManager.localDeviceId)
     val myPlayerName = MutableStateFlow("مكافح الجريمة")
 
-    private val completedCaseTitles = Collections.synchronizedSet(mutableSetOf<String>())
+    private val _completedCaseTitles = MutableStateFlow<Set<String>>(emptySet())
+    val completedCaseTitles: StateFlow<Set<String>> = _completedCaseTitles.asStateFlow()
+
     val newLobbyPlayerName = MutableStateFlow("")
     private var timerJob: Job? = null
 
     private var rewardedAd: RewardedAd? = null
+    private var isAdLoading = false
+
+    private var interstitialAd: InterstitialAd? = null
+    private var isInterstitialLoading = false
+
     private val sharedPreferences: SharedPreferences = application.getSharedPreferences("GamePrefs", Context.MODE_PRIVATE)
 
+    private val webRtcManager = WebRtcManager(application)
+    val voiceChatStatus: StateFlow<String> = webRtcManager.voiceStatus
+    val isMicMuted = MutableStateFlow(false)
+    val mutedPlayersState = MutableStateFlow<Set<String>>(emptySet())
+    private var isVoiceChatActive = false
+
     companion object {
-        const val MAX_HEARTS = 1 // الحد الأقصى اليومي للقلوب المجانية
+        const val MAX_HEARTS = 3
     }
 
     init {
-        CaseRepository.init(application)
-        setupLanListeners()
+        try {
+            CaseRepository.init(application)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing CaseRepository", e)
+        }
+        val savedCompleted = sharedPreferences.getStringSet("completed_case_titles", emptySet()) ?: emptySet()
+        _completedCaseTitles.value = savedCompleted
+
+        webRtcManager.setMyPlayerId(myPlayerId.value)
+        setupWebRtcCallbacks()
+        setupOnlineListeners()
         checkAndResetDailyHearts()
         loadRewardedAdInternal()
+        loadInterstitialAdInternal()
+
+        viewModelScope.launch {
+            OnlineManager.clientConnectionError.collect { error ->
+                if (!error.isNullOrEmpty()) {
+                    _roomState.update { current ->
+                        if (current.mode == "ONLINE" && current.hostId != myPlayerId.value) {
+                            RoomState(settings = current.settings)
+                        } else current
+                    }
+                }
+            }
+        }
 
         viewModelScope.launch {
             var lastVolume: Float? = null
             roomState.collect { state ->
                 if (lastVolume != state.settings.volume) {
                     lastVolume = state.settings.volume
-                    MysteryAudioPlayer.setVolume(state.settings.volume)
+                    try {
+                        MysteryAudioPlayer.setVolume(state.settings.volume)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error setting volume", e)
+                    }
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            roomState.collect { state ->
+                if (state.mode == "ONLINE" && state.phase == GamePhase.DISCUSSION) {
+                    startVoiceChatIfPermitted()
+                } else {
+                    if (isVoiceChatActive) {
+                        isVoiceChatActive = false
+                        try {
+                            webRtcManager.stopVoiceChat()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Prevented crash during phase change", e)
+                        }
+                    }
                 }
             }
         }
     }
 
+    private fun setupWebRtcCallbacks() {
+        webRtcManager.onIceCandidateGenerated = { targetId, candidate ->
+            val json = JSONObject().apply {
+                put("type", "WEBRTC_ICE")
+                put("senderId", myPlayerId.value)
+                put("targetId", targetId)
+                put("sdpMid", candidate.sdpMid ?: "")
+                put("sdpMLineIndex", candidate.sdpMLineIndex)
+                put("candidate", candidate.sdp)
+            }.toString()
+            OnlineManager.sendRtcSignal(targetId, json)
+        }
+
+        webRtcManager.onSdpGenerated = { targetId, sdp ->
+            val typeStr = if (sdp.type == org.webrtc.SessionDescription.Type.OFFER) "WEBRTC_OFFER" else "WEBRTC_ANSWER"
+            val json = JSONObject().apply {
+                put("type", typeStr)
+                put("senderId", myPlayerId.value)
+                put("targetId", targetId)
+                put("sdp", sdp.description)
+            }.toString()
+            OnlineManager.sendRtcSignal(targetId, json)
+        }
+    }
+
+    fun startVoiceChatIfPermitted() {
+        val state = _roomState.value
+        if (state.mode == "ONLINE" && state.phase == GamePhase.DISCUSSION) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                getApplication(),
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasPermission) {
+                webRtcManager.setMyPlayerId(myPlayerId.value)
+                val remoteIds = state.players.map { it.id }
+
+                if (!isVoiceChatActive) {
+                    isVoiceChatActive = true
+                    webRtcManager.startVoiceChat(state.roomId, myPlayerId.value, remoteIds)
+                } else {
+                    webRtcManager.syncVoiceConnections(remoteIds)
+                }
+            }
+        }
+    }
+
+    fun toggleSelfMic() {
+        val muted = webRtcManager.toggleSelfMic()
+        isMicMuted.value = muted
+    }
+
+    fun toggleMutePlayer(playerId: String) {
+        webRtcManager.toggleMutePlayer(playerId)
+        val mutedSet = mutedPlayersState.value.toMutableSet()
+        if (webRtcManager.isPlayerMuted(playerId)) {
+            mutedSet.add(playerId)
+        } else {
+            mutedSet.remove(playerId)
+        }
+        mutedPlayersState.value = mutedSet
+    }
+
+    fun isPlayerMuted(playerId: String): Boolean {
+        return webRtcManager.isPlayerMuted(playerId)
+    }
+
     fun isNetworkAvailable(context: Context): Boolean {
-        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = connectivityManager.activeNetwork ?: return false
-        val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return when {
-            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
-            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
-            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
-            else -> false
+        return try {
+            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = connectivityManager.activeNetwork ?: return false
+            val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
+            when {
+                activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+                activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+                activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
+                else -> false
+            }
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -93,12 +226,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val lastPlayDate = sharedPreferences.getString("last_play_date", "")
 
-        if (lastPlayDate.isNullOrEmpty()) {
-            sharedPreferences.edit()
-                .putString("last_play_date", todayStr)
-                .putInt("hearts_count", MAX_HEARTS)
-                .apply()
-        } else if (todayStr != lastPlayDate) {
+        if (lastPlayDate.isNullOrEmpty() || todayStr != lastPlayDate) {
             sharedPreferences.edit()
                 .putString("last_play_date", todayStr)
                 .putInt("hearts_count", MAX_HEARTS)
@@ -123,40 +251,104 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadRewardedAdInternal() {
-        if (!isNetworkAvailable(getApplication())) {
-            rewardedAd = null
+        if (rewardedAd != null || isAdLoading || !isNetworkAvailable(getApplication())) {
             return
         }
+        isAdLoading = true
         val adRequest = AdRequest.Builder().build()
         RewardedAd.load(getApplication(), "ca-app-pub-6722529223110069/2125092694", adRequest,
             object : RewardedAdLoadCallback() {
                 override fun onAdLoaded(ad: RewardedAd) {
                     rewardedAd = ad
-                    Log.d(TAG, "Rewarded ad loaded successfully.")
+                    isAdLoading = false
                 }
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     rewardedAd = null
-                    Log.e(TAG, "Failed to load rewarded ad: ${error.message}")
+                    isAdLoading = false
                 }
             })
     }
 
     fun showAdToEarnHeart(activity: Activity, onFinished: (Boolean) -> Unit) {
-        if (!isNetworkAvailable(activity)) {
+        if (activity.isFinishing || activity.isDestroyed || !isNetworkAvailable(activity)) {
             onFinished(false)
             return
         }
 
         rewardedAd?.let { ad ->
+            ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    rewardedAd = null
+                    loadRewardedAdInternal()
+                }
+
+                override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+                    rewardedAd = null
+                    loadRewardedAdInternal()
+                    onFinished(false)
+                }
+            }
             ad.show(activity) { _ ->
-                saveLocalHeartsCount(MAX_HEARTS)
-                loadRewardedAdInternal()
+                val currentHearts = getLocalHeartsCount()
+                saveLocalHeartsCount(currentHearts + 1)
                 onFinished(true)
             }
         } ?: run {
-            saveLocalHeartsCount(MAX_HEARTS)
+            val currentHearts = getLocalHeartsCount()
+            saveLocalHeartsCount(currentHearts + 1)
             loadRewardedAdInternal()
             onFinished(true)
+        }
+    }
+
+    fun loadInterstitialAdInternal() {
+        if (interstitialAd != null || isInterstitialLoading || !isNetworkAvailable(getApplication())) {
+            return
+        }
+        isInterstitialLoading = true
+        val adRequest = AdRequest.Builder().build()
+        InterstitialAd.load(
+            getApplication(),
+            "ca-app-pub-6722529223110069/3139787314",
+            adRequest,
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    interstitialAd = ad
+                    isInterstitialLoading = false
+                }
+
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    interstitialAd = null
+                    isInterstitialLoading = false
+                }
+            }
+        )
+    }
+
+    fun showInterstitialAd(activity: Activity, onAdDismissed: () -> Unit) {
+        if (activity.isFinishing || activity.isDestroyed || !isNetworkAvailable(activity)) {
+            onAdDismissed()
+            return
+        }
+
+        interstitialAd?.let { ad ->
+            ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    interstitialAd = null
+                    loadInterstitialAdInternal()
+                    onAdDismissed()
+                }
+
+                override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+                    interstitialAd = null
+                    loadInterstitialAdInternal()
+                    onAdDismissed()
+                }
+            }
+            ad.show(activity)
+        } ?: run {
+            loadInterstitialAdInternal()
+            onAdDismissed()
         }
     }
 
@@ -174,38 +366,38 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun playButtonClick() { MysteryAudioPlayer.playSelection() }
-    fun playSelection() { MysteryAudioPlayer.playSelection() }
-    fun playSuccess() { MysteryAudioPlayer.playSuccess() }
-    fun playError() { MysteryAudioPlayer.playError() }
-    fun playWarning() { MysteryAudioPlayer.playWarning() }
-    fun playVoteSound() { MysteryAudioPlayer.playVote() }
-    fun playTransitionSound() { MysteryAudioPlayer.playTransition() }
-    fun playRevealSound() { MysteryAudioPlayer.playReveal() }
+    fun playButtonClick() { safePlaySound { MysteryAudioPlayer.playSelection() } }
+    fun playSelection() { safePlaySound { MysteryAudioPlayer.playSelection() } }
+    fun playSuccess() { safePlaySound { MysteryAudioPlayer.playSuccess() } }
+    fun playError() { safePlaySound { MysteryAudioPlayer.playError() } }
+    fun playWarning() { safePlaySound { MysteryAudioPlayer.playWarning() } }
+    fun playVoteSound() { safePlaySound { MysteryAudioPlayer.playVote() } }
+    fun playTransitionSound() { safePlaySound { MysteryAudioPlayer.playTransition() } }
+    fun playRevealSound() { safePlaySound { MysteryAudioPlayer.playReveal() } }
 
-    private fun setupLanListeners() {
+    private inline fun safePlaySound(action: () -> Unit) {
+        try {
+            action()
+        } catch (e: Exception) {}
+    }
+
+    private fun setupOnlineListeners() {
         viewModelScope.launch {
-            LanManager.discoveredHosts.collect { hosts ->
-                Log.d(TAG, "Discovered LAN Hosts updated: $hosts")
-            }
-        }
-        viewModelScope.launch {
-            LanManager.incomingCommands.collect { (sourceId, msg) ->
-                handleIncomingLanMessage(sourceId, msg)
+            OnlineManager.incomingCommands.collect { (sourceId, msg) ->
+                handleIncomingOnlineMessage(sourceId, msg)
             }
         }
     }
 
-    private fun handleIncomingLanMessage(source: String, msg: String) {
+    private fun handleIncomingOnlineMessage(source: String, msg: String) {
         try {
             val json = JSONObject(msg)
             val type = json.optString("type")
-            Log.d(TAG, "Incoming TCP command [$type] from $source")
             when (type) {
                 "JOIN" -> {
                     val pName = json.optString("playerName", "لاعب")
                     val deviceId = json.optString("deviceId", UUID.randomUUID().toString())
-                    addLanClientPlayer(deviceId, pName)
+                    addOnlineClientPlayer(deviceId, pName)
                 }
                 "REVEAL_SECRET" -> {
                     val playerId = json.optString("playerId", "")
@@ -214,16 +406,19 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 "VOTE" -> {
                     val voterId = json.optString("voterId", "")
                     val targetId = json.optString("targetId", "")
-                    if (voterId.isNotEmpty()) castVote(voterId, targetId)
+                    if (voterId.isNotEmpty() && targetId.isNotEmpty()) castVote(voterId, targetId)
                 }
                 "JURY_VOTE" -> {
                     val voterId = json.optString("voterId", "")
                     val targetId = json.optString("targetId", "")
-                    if (voterId.isNotEmpty()) castJuryVote(voterId, targetId)
+                    if (voterId.isNotEmpty() && targetId.isNotEmpty()) castJuryVote(voterId, targetId)
                 }
                 "CLIENT_LEAVE" -> {
                     val deviceId = json.optString("deviceId", "")
-                    if (deviceId.isNotEmpty()) removePlayerFromLobby(deviceId)
+                    if (deviceId.isNotEmpty()) {
+                        webRtcManager.closePeerConnection(deviceId)
+                        removePlayerFromLobby(deviceId)
+                    }
                 }
                 "STATE_UPDATE" -> {
                     val stateJsonStr = json.optString("data", "")
@@ -233,13 +428,36 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 "HOST_DISCONNECTED" -> {
-                    LanManager.disconnectFromHost()
+                    OnlineManager.disconnectFromHost()
                     resetToMainMenu()
                 }
+                "WEBRTC_OFFER" -> {
+                    val senderId = json.optString("senderId", source)
+                    val sdp = json.optString("sdp", "")
+                    if (sdp.isNotEmpty()) {
+                        webRtcManager.setMyPlayerId(myPlayerId.value)
+                        webRtcManager.handleOffer(senderId, sdp)
+                    }
+                }
+                "WEBRTC_ANSWER" -> {
+                    val senderId = json.optString("senderId", source)
+                    val sdp = json.optString("sdp", "")
+                    if (sdp.isNotEmpty()) {
+                        webRtcManager.setMyPlayerId(myPlayerId.value)
+                        webRtcManager.handleAnswer(senderId, sdp)
+                    }
+                }
+                "WEBRTC_ICE" -> {
+                    val senderId = json.optString("senderId", source)
+                    val sdpMid = json.optString("sdpMid", "")
+                    val sdpMLineIndex = json.optInt("sdpMLineIndex", 0)
+                    val candidate = json.optString("candidate", "")
+                    if (candidate.isNotEmpty()) {
+                        webRtcManager.handleCandidate(senderId, sdpMid, sdpMLineIndex, candidate)
+                    }
+                }
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing LAN packet", e)
-        }
+        } catch (e: Exception) {}
     }
 
     fun setupPassAndPlayGame() {
@@ -277,24 +495,29 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _roomState.update { current ->
             val updatedPlayers = current.players.filter { it.id != id }
             val updatedState = current.copy(players = updatedPlayers)
-            if (updatedState.mode == "LAN") {
-                LanManager.broadcastStateToClients(updatedState)
+            if (updatedState.mode == "ONLINE") {
+                OnlineManager.broadcastStateToClients(updatedState)
             }
             updatedState
         }
     }
 
     fun startLanHost(hostPlayerName: String) {
+        startOnlineHost(hostPlayerName)
+    }
+
+    fun startOnlineHost(hostPlayerName: String) {
         stopTimer()
         playSuccess()
-        val deviceId = LanManager.localDeviceId
+        val deviceId = OnlineManager.localDeviceId
         myPlayerId.value = deviceId
         myPlayerName.value = hostPlayerName
+        webRtcManager.setMyPlayerId(deviceId)
         val currentSettings = _roomState.value.settings
-        val roomCode = (Random.nextInt(90000) + 10000).toString()
+        val roomCode = (kotlin.random.Random.nextInt(90000) + 10000).toString()
         val newState = RoomState(
             roomId = roomCode,
-            mode = "LAN",
+            mode = "ONLINE",
             hostId = deviceId,
             phase = GamePhase.LOBBY,
             players = listOf(Player(deviceId, hostPlayerName, avatarId = 1)),
@@ -302,36 +525,33 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             heartsCount = getLocalHeartsCount()
         )
         _roomState.value = newState
-        LanManager.startHost(hostPlayerName, roomCode)
-    }
-
-    fun joinLanHost(hostIp: String, playerName: String) {
-        stopTimer()
-        playSelection()
-        val deviceId = LanManager.localDeviceId
-        myPlayerId.value = deviceId
-        myPlayerName.value = playerName
-        val currentSettings = _roomState.value.settings
-        _roomState.value = RoomState(mode = "LAN", phase = GamePhase.LOBBY, settings = currentSettings)
-        LanManager.connectToHost(hostIp, playerName, deviceId)
+        OnlineManager.startHost(hostPlayerName, roomCode)
+        OnlineManager.broadcastStateToClients(newState)
     }
 
     fun joinLanHostByCode(roomCode: String, playerName: String): Boolean {
-        val cleanCode = roomCode.trim()
-        val hosts = LanManager.discoveredHosts.value
-        val hostEntry = hosts.entries.find { entry ->
-            val parts = entry.value.split("|")
-            val rCode = parts.getOrNull(1)
-            rCode != null && rCode.equals(cleanCode, ignoreCase = true)
-        }
-        if (hostEntry != null) {
-            joinLanHost(hostEntry.key, playerName)
-            return true
-        }
-        return false
+        if (roomCode.length != 5) return false
+        joinOnlineRoom(roomCode, playerName)
+        return true
     }
 
-    private fun addLanClientPlayer(deviceId: String, name: String) {
+    fun joinLanHost(ip: String, playerName: String) {
+        joinOnlineRoom(ip, playerName)
+    }
+
+    fun joinOnlineRoom(roomCode: String, playerName: String) {
+        stopTimer()
+        playSelection()
+        val deviceId = OnlineManager.localDeviceId
+        myPlayerId.value = deviceId
+        myPlayerName.value = playerName
+        webRtcManager.setMyPlayerId(deviceId)
+        val currentSettings = _roomState.value.settings
+        _roomState.value = RoomState(roomId = roomCode, mode = "ONLINE", phase = GamePhase.LOBBY, settings = currentSettings)
+        OnlineManager.connectToHost(roomCode, playerName, deviceId)
+    }
+
+    private fun addOnlineClientPlayer(deviceId: String, name: String) {
         _roomState.update { current ->
             val currentPlayers = current.players.toMutableList()
             val existingIndex = currentPlayers.indexOfFirst { it.id == deviceId }
@@ -342,7 +562,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 currentPlayers.add(Player(deviceId, name, avatarId = (currentPlayers.size % 6) + 1))
             }
             val updatedState = current.copy(players = currentPlayers)
-            LanManager.broadcastStateToClients(updatedState)
+            OnlineManager.broadcastStateToClients(updatedState)
             updatedState
         }
     }
@@ -372,11 +592,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         playTransitionSound()
 
         val selectedCase = state.currentCase
-            ?: CaseRepository.getUniqueCase(completedCaseTitles, playersCount)
+            ?: CaseRepository.getUniqueCase(_completedCaseTitles.value, playersCount)
 
         var updatedPlayers = state.players
         selectedCase?.let { case ->
-            completedCaseTitles.add(case.title)
+            val newCompletedSet = _completedCaseTitles.value + case.title
+            _completedCaseTitles.value = newCompletedSet
+            sharedPreferences.edit().putStringSet("completed_case_titles", newCompletedSet).apply()
+
             val shuffledCharacters = case.characters.shuffled()
             updatedPlayers = state.players.mapIndexed { index, player ->
                 val assignedCharacter = shuffledCharacters.getOrNull(index)
@@ -389,7 +612,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
         } ?: run {
-            Log.e(TAG, "No suitable case found.")
             return
         }
 
@@ -405,8 +627,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 juryVotes = emptyMap(),
                 winnerSide = ""
             )
-            if (newState.mode == "LAN") {
-                LanManager.broadcastStateToClients(newState)
+            if (newState.mode == "ONLINE") {
+                OnlineManager.broadcastStateToClients(newState)
             }
             newState
         }
@@ -428,28 +650,32 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 transitionToPhase(GamePhase.CASE_INTRO)
             }
         } else {
-            val cmd = JSONObject().apply {
-                put("type", "REVEAL_SECRET")
-                put("playerId", myPlayerId.value)
-            }.toString()
-            LanManager.sendCommandToHost(cmd)
+            if (state.hostId == myPlayerId.value) {
+                transitionToPhase(GamePhase.CASE_INTRO)
+            }
         }
     }
 
-    private fun handlePlayerRevealedRole(playerId: String) { }
+    private fun handlePlayerRevealedRole(playerId: String) {}
 
     fun skipRoleRevealToCaseIntro() {
+        val state = _roomState.value
+        if (state.mode == "ONLINE" && state.hostId != myPlayerId.value) return
         playTransitionSound()
         transitionToPhase(GamePhase.CASE_INTRO)
     }
 
     fun startCaseInvestigationIntro() {
+        val state = _roomState.value
+        if (state.mode == "ONLINE" && state.hostId != myPlayerId.value) return
         playTransitionSound()
         _roomState.update { it.copy(currentEvidenceIndex = 0) }
         transitionToPhase(GamePhase.EVIDENCE_ROUND)
     }
 
     fun advanceFromEvidenceToDiscussion() {
+        val state = _roomState.value
+        if (state.mode == "ONLINE" && state.hostId != myPlayerId.value) return
         playTransitionSound()
         transitionToPhase(GamePhase.DISCUSSION)
         startTimer(_roomState.value.settings.discussionTimeMinutes * 60) {
@@ -458,29 +684,38 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun advanceFromDiscussionToVoting() {
+        val state = _roomState.value
+        if (state.mode == "ONLINE" && state.hostId != myPlayerId.value) return
         stopTimer()
         playTransitionSound()
-        val state = _roomState.value
         val aliveCount = state.players.count { it.isAlive }
 
         if (aliveCount == 2) {
-            _roomState.update {
-                it.copy(
+            _roomState.update { current ->
+                val newState = current.copy(
                     juryVotes = emptyMap(),
                     phase = GamePhase.JURY_ROUND
                 )
+                if (newState.mode == "ONLINE") {
+                    OnlineManager.broadcastStateToClients(newState)
+                }
+                newState
             }
             startTimer(state.settings.votingTimeMinutes * 60) {
                 resolveJuryVotingTally()
             }
         } else {
             val firstAliveIndex = state.players.indexOfFirst { it.isAlive }
-            _roomState.update {
-                it.copy(
+            _roomState.update { current ->
+                val newState = current.copy(
                     votes = emptyMap(),
                     activePassPlayerIndex = if (firstAliveIndex != -1) firstAliveIndex else 0,
                     phase = GamePhase.VOTING
                 )
+                if (newState.mode == "ONLINE") {
+                    OnlineManager.broadcastStateToClients(newState)
+                }
+                newState
             }
             startTimer(state.settings.votingTimeMinutes * 60) {
                 resolveVotingTally()
@@ -515,23 +750,35 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     put("voterId", voterId)
                     put("targetId", targetId)
                 }.toString()
-                LanManager.sendCommandToHost(cmd)
+                OnlineManager.sendCommandToHost(cmd)
             }
         }
     }
 
     private fun castVote(voterId: String, targetId: String) {
-        _roomState.update { state ->
-            val newVotes = state.votes.toMutableMap()
+        val state = _roomState.value
+        if (state.mode == "ONLINE" && state.hostId != myPlayerId.value) return
+
+        var shouldResolveTally = false
+        _roomState.update { current ->
+            val voter = current.players.find { it.id == voterId }
+            if (voter == null || !voter.isAlive) return@update current
+
+            val newVotes = current.votes.toMutableMap()
             newVotes[voterId] = targetId
-            val updatedState = state.copy(votes = newVotes)
+            val updatedState = current.copy(votes = newVotes)
             val alivePlayersCount = updatedState.players.count { it.isAlive }
+
             if (newVotes.size >= alivePlayersCount) {
-                resolveVotingTally()
+                shouldResolveTally = true
             } else {
-                LanManager.broadcastStateToClients(updatedState)
+                OnlineManager.broadcastStateToClients(updatedState)
             }
             updatedState
+        }
+
+        if (shouldResolveTally) {
+            resolveVotingTally()
         }
     }
 
@@ -558,23 +805,35 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     put("voterId", voterId)
                     put("targetId", targetId)
                 }.toString()
-                LanManager.sendCommandToHost(cmd)
+                OnlineManager.sendCommandToHost(cmd)
             }
         }
     }
 
     private fun castJuryVote(voterId: String, targetId: String) {
-        _roomState.update { state ->
-            val newJVotes = state.juryVotes.toMutableMap()
+        val state = _roomState.value
+        if (state.mode == "ONLINE" && state.hostId != myPlayerId.value) return
+
+        var shouldResolveTally = false
+        _roomState.update { current ->
+            val voter = current.players.find { it.id == voterId }
+            if (voter == null || voter.isAlive) return@update current
+
+            val newJVotes = current.juryVotes.toMutableMap()
             newJVotes[voterId] = targetId
-            val updatedState = state.copy(juryVotes = newJVotes)
+            val updatedState = current.copy(juryVotes = newJVotes)
             val jurySize = updatedState.players.count { !it.isAlive }
+
             if (newJVotes.size >= jurySize) {
-                resolveJuryVotingTally()
+                shouldResolveTally = true
             } else {
-                LanManager.broadcastStateToClients(updatedState)
+                OnlineManager.broadcastStateToClients(updatedState)
             }
             updatedState
+        }
+
+        if (shouldResolveTally) {
+            resolveJuryVotingTally()
         }
     }
 
@@ -627,26 +886,30 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            if (newState.mode == "LAN") {
-                LanManager.broadcastStateToClients(newState)
+            if (newState.mode == "ONLINE") {
+                OnlineManager.broadcastStateToClients(newState)
             }
             newState
         }
     }
 
     fun confirmVoteResultAndProceed() {
-        playTransitionSound()
         val state = _roomState.value
+        if (state.mode == "ONLINE" && state.hostId != myPlayerId.value) return
+        playTransitionSound()
         if (state.tiedVotePlayers.isNotEmpty()) {
             _roomState.update { current ->
                 val updatedState = current.copy(
                     phase = GamePhase.VOTING,
                     votes = emptyMap()
                 )
-                if (updatedState.mode == "LAN") {
-                    LanManager.broadcastStateToClients(updatedState)
+                if (updatedState.mode == "ONLINE") {
+                    OnlineManager.broadcastStateToClients(updatedState)
                 }
                 updatedState
+            }
+            startTimer(state.settings.votingTimeMinutes * 60) {
+                resolveVotingTally()
             }
         } else {
             val lastEliminated = state.players.find { !it.isAlive && state.lastEliminatedResult.contains(it.name) }
@@ -676,8 +939,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 current.copy(phase = GamePhase.ENDGAME, winnerSide = "MAFIA")
             }
 
-            if (newState.mode == "LAN") {
-                LanManager.broadcastStateToClients(newState)
+            if (newState.mode == "ONLINE") {
+                OnlineManager.broadcastStateToClients(newState)
             }
             newState
         }
@@ -688,7 +951,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val alivePlayers = state.players.filter { it.isAlive }
             val mafiaAlive = alivePlayers.count { it.isMafia }
             val innocentAlive = alivePlayers.size - mafiaAlive
-            Log.d(TAG, "Tally outcomes: Total alive = ${alivePlayers.size}, Mafia alive = $mafiaAlive, Innocents alive = $innocentAlive")
 
             val newState = when {
                 mafiaAlive == 0 -> {
@@ -716,8 +978,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            if (newState.mode == "LAN") {
-                LanManager.broadcastStateToClients(newState)
+            if (newState.mode == "ONLINE") {
+                OnlineManager.broadcastStateToClients(newState)
             }
             newState
         }
@@ -727,20 +989,25 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         stopTimer()
         _roomState.update { it.copy(timerTotalSeconds = seconds, timerSecondsLeft = seconds) }
 
-        timerJob = viewModelScope.launch {
-            var remaining = seconds
-            while (remaining > 0 && isActive) {
-                delay(1000)
-                remaining--
-                val newRemaining = remaining
-                _roomState.update { current ->
-                    current.copy(timerSecondsLeft = newRemaining)
+        val isOnline = _roomState.value.mode == "ONLINE"
+        val isHost = _roomState.value.hostId == myPlayerId.value
+
+        if (!isOnline || isHost) {
+            timerJob = viewModelScope.launch {
+                var remaining = seconds
+                while (remaining > 0 && isActive) {
+                    delay(1000)
+                    remaining--
+                    val newRemaining = remaining
+                    _roomState.update { current ->
+                        current.copy(timerSecondsLeft = newRemaining)
+                    }
+                    if (isOnline && (remaining % 5 == 0 || remaining <= 10)) {
+                        OnlineManager.broadcastStateToClients(_roomState.value)
+                    }
                 }
-                if (_roomState.value.mode == "LAN" && (remaining % 5 == 0 || remaining <= 10)) {
-                    LanManager.broadcastStateToClients(_roomState.value)
-                }
+                if (isActive) onComplete()
             }
-            if (isActive) onComplete()
         }
     }
 
@@ -752,8 +1019,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private fun transitionToPhase(newPhase: GamePhase) {
         _roomState.update { current ->
             val updatedState = current.copy(phase = newPhase)
-            if (updatedState.mode == "LAN") {
-                LanManager.broadcastStateToClients(updatedState)
+            if (updatedState.mode == "ONLINE") {
+                OnlineManager.broadcastStateToClients(updatedState)
             }
             updatedState
         }
@@ -768,8 +1035,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         )
         _roomState.update { current ->
             val updatedState = current.copy(settings = updatedSettings)
-            if (updatedState.mode == "LAN") {
-                LanManager.broadcastStateToClients(updatedState)
+            if (updatedState.mode == "ONLINE") {
+                OnlineManager.broadcastStateToClients(updatedState)
             }
             updatedState
         }
@@ -791,20 +1058,26 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resetToMainMenu() {
         stopTimer()
-        LanManager.stopDiscovery()
-        LanManager.stopHost()
+        isVoiceChatActive = false
+        try { webRtcManager.stopVoiceChat() } catch(e: Exception){}
+        OnlineManager.stopHost()
+        OnlineManager.disconnectFromHost()
         val currentSettings = _roomState.value.settings
         _roomState.value = RoomState(settings = currentSettings)
+        loadRewardedAdInternal()
+        loadInterstitialAdInternal()
     }
 
     override fun onCleared() {
         super.onCleared()
         stopTimer()
-        LanManager.stopHost()
-        LanManager.stopDiscovery()
+        isVoiceChatActive = false
+        webRtcManager.release()
+        OnlineManager.stopHost()
+        OnlineManager.disconnectFromHost()
     }
 
-    fun selectCustomCase(customCase: Case) {
+    fun selectCustomCase(customCase: Case?) {
         _roomState.update { currentState ->
             currentState.copy(
                 currentCase = customCase

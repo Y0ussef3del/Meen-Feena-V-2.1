@@ -1,7 +1,6 @@
 package com.example.ui.screens
 
 import android.app.Activity
-import android.content.Context
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -39,30 +38,31 @@ import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
 import com.example.R
-import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.LoadAdError
-import com.google.android.gms.ads.interstitial.InterstitialAd
-import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
-import com.google.android.gms.ads.FullScreenContentCallback
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 
-private fun loadMainMenuInterstitialAd(context: Context, onAdLoaded: (InterstitialAd?) -> Unit) {
-    val adRequest = AdRequest.Builder().build()
-    InterstitialAd.load(
-        context,
-        "ca-app-pub-6722529223110069/3139787314",
-        adRequest,
-        object : InterstitialAdLoadCallback() {
-            override fun onAdFailedToLoad(adError: LoadAdError) {
-                onAdLoaded(null)
-            }
+private object PunishmentPoolManager {
+    private val remainingIndices = mutableListOf<Int>()
 
-            override fun onAdLoaded(interstitialAd: InterstitialAd) {
-                onAdLoaded(interstitialAd)
-            }
+    fun getNextPunishment(
+        loserId: String,
+        punishmentsList: List<Pair<String, String>>
+    ): Pair<String, String> {
+        if (punishmentsList.isEmpty()) {
+            return Pair("حكم الفرفشة", "يقوم الخاسر بعمل شاي بالنعناع للفائزين ")
         }
-    )
+
+        synchronized(this) {
+            if (remainingIndices.isEmpty()) {
+                remainingIndices.addAll(punishmentsList.indices)
+            }
+
+            val randomIndex = kotlin.random.Random.nextInt(remainingIndices.size)
+            val selectedIndex = remainingIndices.removeAt(randomIndex)
+            return punishmentsList[selectedIndex]
+        }
+    }
 }
 
 @Composable
@@ -71,12 +71,22 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
     val isInnocentsWinner = state.winnerSide == "INNOCENTS"
     val context = LocalContext.current
 
-    var mInterstitialAd by remember { mutableStateOf<InterstitialAd?>(null) }
     var showNoInternetDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        loadMainMenuInterstitialAd(context) { ad ->
-            mInterstitialAd = ad
+    // قراءة أحكام الخاسرين من ملف res/raw/punishments.json
+    val punishmentsList = remember {
+        try {
+            val inputStream = context.resources.openRawResource(R.raw.punishments)
+            val jsonString = inputStream.bufferedReader().use { it.readText() }
+            val jsonArray = JSONArray(jsonString)
+            (0 until jsonArray.length()).map { i ->
+                val obj = jsonArray.getJSONObject(i)
+                val type = if (obj.has("type")) obj.getString("type") else if (obj.has("tybe")) obj.getString("tybe") else "حكم"
+                val description = obj.optString("description", "")
+                Pair(type, description)
+            }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 
@@ -194,10 +204,72 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
-                        items(items = state.players, key = { it.id }) { p ->
+                        items(items = state.players, key = { "endgame_player_${it.id}" }) { p ->
                             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(text = if (p.isMafia) "مجرم" else "بريء ", color = if (p.isMafia) RedAccent else InnocentAccent, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                 Text(text = "${p.name} (${p.character?.name ?: ""})", color = PapyrusTextSecondary, fontSize = 15.sp)
+                            }
+                        }
+
+                        // قسم أحكام الخاسرين في أسفل الصفحة
+                        item(key = "punishments_header_section") {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            HorizontalDivider(color = Color(0x3B2C1E14))
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "دلوقتي وقت الحكم يحلو :",
+                                color = RedAccent,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                modifier = Modifier.fillMaxWidth().testTag("punishments_header")
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        val losers = state.players.filter { if (isInnocentsWinner) it.isMafia else !it.isMafia }
+
+                        items(items = losers, key = { "endgame_loser_${it.id}" }) { loser ->
+                            val punishment = remember(loser.id, state.currentCase, state.winnerSide) {
+                                PunishmentPoolManager.getNextPunishment(loser.id, punishmentsList)
+                            }
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0x1F9B2226)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "${loser.name} (${loser.character?.name ?: ""})",
+                                            color = RedAccent,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                        Text(
+                                            text = punishment.first,
+                                            color = GoldYell,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier
+                                                .background(Color(0x3D000000), RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = punishment.second,
+                                        color = PapyrusText,
+                                        fontSize = 13.sp,
+                                        lineHeight = 18.sp
+                                    )
+                                }
                             }
                         }
                     }
@@ -250,18 +322,10 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
             OutlinedButton(
                 onClick = {
                     viewModel.playButtonClick()
-                    val ad = mInterstitialAd
-                    if (ad != null && context is Activity) {
-                        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
-                            override fun onAdDismissedFullScreenContent() {
-                                viewModel.resetToMainMenu()
-                            }
-
-                            override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
-                                viewModel.resetToMainMenu()
-                            }
+                    if (context is Activity) {
+                        viewModel.showInterstitialAd(context) {
+                            viewModel.resetToMainMenu()
                         }
-                        ad.show(context)
                     } else {
                         viewModel.resetToMainMenu()
                     }

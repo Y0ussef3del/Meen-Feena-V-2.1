@@ -1,10 +1,12 @@
 package com.example.ui.components
 
+import android.os.Build
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,11 +26,13 @@ import com.example.ui.theme.*
 import kotlin.random.Random
 
 /**
- * دالة إنشاء شكل الورقة ذات الحواف المتعرجة مع إعطاء أداء عالي وعالي السلاسة
+ * دالة إنشاء شكل الورقة ذات الحواف المتعرجة
+ * تقوم بتعديل دقة النقاط تلقائيًا بناءً على إصدار الأندرويد لضمان الأداء
  */
 fun createTornPaperShape(seed: Long = 42L): GenericShape {
     val rand = Random(seed)
-    val numPoints = 60
+    // تقليل النقاط للأجهزة القديمة لمنع الحمل الإضافي على محرك الرسم
+    val numPoints = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) 60 else 20
 
     val topOffsets = FloatArray(numPoints + 1) { i -> if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f) }
     val rightOffsets = FloatArray(numPoints + 1) { i -> if (i == 0 || i == numPoints) 0f else (rand.nextFloat() * 8f - 4f) }
@@ -74,7 +78,10 @@ fun ParchmentCard(
     isAnimated: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val tornShape = remember(seed) { createTornPaperShape(seed) }
+    val isAndroid10OrHigher = remember { Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q }
+    val tornShape = remember(seed, isAndroid10OrHigher) {
+        if (isAndroid10OrHigher) createTornPaperShape(seed) else RoundedCornerShape(8.dp)
+    }
     val responsiveElevation = scaledDp(elevation.value.toInt())
 
     val unfoldProgressAnim = remember { Animatable(0f) }
@@ -99,17 +106,31 @@ fun ParchmentCard(
                 val progress = unfoldProgressAnim.value
 
                 scaleY = 0.01f + (progress * 0.99f)
-                rotationX = (1f - progress) * -45f
-                alpha = (progress * 1.5f).coerceIn(0f, 1f)
 
+                // تفعيل دوران 3D فقط على أجهزة أندرويد 10 وما فوق لحماية الإصدارات القديمة من الـ Crash
+                if (isAndroid10OrHigher) {
+                    rotationX = (1f - progress) * -45f
+                }
+
+                alpha = (progress * 1.5f).coerceIn(0f, 1f)
                 transformOrigin = TransformOrigin(0.5f, 0f)
             }
-            .shadow(
-                elevation = responsiveElevation,
-                shape = tornShape,
-                clip = false,
-                ambientColor = Color.Black,
-                spotColor = Color(0xFF1E140B)
+            .then(
+                if (isAndroid10OrHigher) {
+                    Modifier.shadow(
+                        elevation = responsiveElevation,
+                        shape = tornShape,
+                        clip = false,
+                        ambientColor = Color.Black,
+                        spotColor = Color(0xFF1E140B)
+                    )
+                } else {
+                    Modifier.shadow(
+                        elevation = responsiveElevation,
+                        shape = tornShape,
+                        clip = false
+                    )
+                }
             )
             .clip(tornShape)
             .background(
@@ -152,7 +173,7 @@ fun ParchmentCard(
     ) {
         Column(
             modifier = Modifier.graphicsLayer {
-                alpha = (unfoldProgressAnim.value * 3f - 2f).coerceIn(0f, 1f)
+                alpha = if (isAndroid10OrHigher) (unfoldProgressAnim.value * 3f - 2f).coerceIn(0f, 1f) else 1f
             },
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(scaledDp(8)),
@@ -167,7 +188,10 @@ fun ParchmentHeaderBanner(
     modifier: Modifier = Modifier,
     seed: Long = 777L
 ) {
-    val tornShape = remember(seed) { createTornPaperShape(seed) }
+    val isAndroid10OrHigher = remember { Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q }
+    val tornShape = remember(seed, isAndroid10OrHigher) {
+        if (isAndroid10OrHigher) createTornPaperShape(seed) else RoundedCornerShape(8.dp)
+    }
     val bannerScale = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {

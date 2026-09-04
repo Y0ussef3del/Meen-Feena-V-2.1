@@ -1,7 +1,11 @@
 package com.example.ui.screens
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -27,14 +31,37 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.NavController
 import com.example.game.model.RoomState
 import com.example.game.model.Case as UserCase
-import com.example.game.network.LanManager
+import com.example.game.network.OnlineManager
 import com.example.game.viewmodel.GameViewModel
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
+
+@Composable
+fun HideSystemBarsOnImeDismiss() {
+    val context = LocalContext.current
+    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    val isImeVisible = imeBottom > 0.dp
+
+    LaunchedEffect(isImeVisible) {
+        if (!isImeVisible) {
+            val activity = context as? Activity
+            activity?.window?.let { window ->
+                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        }
+    }
+}
 
 @Composable
 fun MainMenuOrLobbyScreen(
@@ -42,6 +69,8 @@ fun MainMenuOrLobbyScreen(
     state: RoomState,
     navController: NavController
 ) {
+    HideSystemBarsOnImeDismiss()
+
     val context = LocalContext.current
     var showPlayerSetup by remember { mutableStateOf(false) }
     var showLanJoinLobby by remember { mutableStateOf(false) }
@@ -51,9 +80,6 @@ fun MainMenuOrLobbyScreen(
     var showNoInternetDialog by remember { mutableStateOf(false) }
 
     var selectedCustomCase by remember { mutableStateOf<UserCase?>(null) }
-
-    val discoveredHosts by LanManager.discoveredHosts.collectAsState()
-    val localIp = remember { LanManager.getLocalIpAddress() }
 
     LaunchedEffect(state.currentCase) {
         if (state.currentCase != null && state.roomId == "PASS_AND_PLAY_ROOM") {
@@ -158,7 +184,7 @@ fun MainMenuOrLobbyScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxSize()) {
-            if (state.mode == "LAN") {
+            if (state.mode == "ONLINE") {
                 val isHost = state.hostId == viewModel.myPlayerId.value
                 if (isHost) {
                     HostLobbyScreen(viewModel, state)
@@ -172,7 +198,7 @@ fun MainMenuOrLobbyScreen(
                         viewModel.resetToMainMenu()
                     }
                 } else if (showLanJoinLobby) {
-                    LanJoinLobbyScreen(viewModel, state, discoveredHosts, localIp) { showLanJoinLobby = false }
+                    LanJoinLobbyScreen(viewModel, state) { showLanJoinLobby = false }
                 } else {
                     MainMenuHomeScreen(
                         viewModel = viewModel,
@@ -260,7 +286,7 @@ fun HeartsIndicator(heartsCount: Int, modifier: Modifier = Modifier) {
 @Composable
 fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
+        modifier = Modifier.fillMaxSize().padding(20.dp).systemBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         ParchmentHeaderBanner(text = "اوضة المضيف")
@@ -303,7 +329,7 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(state.players, key = { it.id }) { player ->
+                items(state.players, key = { "host_p_${it.id}" }) { player ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -382,8 +408,19 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
 @Composable
 fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
     val myName = viewModel.myPlayerName.collectAsState().value
+    val context = LocalContext.current
+    val clientError by OnlineManager.clientConnectionError.collectAsState()
+
+    LaunchedEffect(clientError) {
+        clientError?.let { err ->
+            Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+            viewModel.resetToMainMenu()
+            OnlineManager.clientConnectionError.value = null
+        }
+    }
+
     Column(
-        modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
+        modifier = Modifier.fillMaxSize().padding(20.dp).systemBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         ParchmentHeaderBanner(text = "في انتظار التحقيق")
@@ -432,7 +469,7 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                items(state.players, key = { it.id }) { player ->
+                items(state.players, key = { "client_p_${it.id}" }) { player ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -478,7 +515,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
     val customCasePlayersCount = state.currentCase?.characters?.size
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
+        modifier = Modifier.fillMaxSize().padding(20.dp).systemBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         ParchmentHeaderBanner(text = if (customCasePlayersCount != null) "قضية مخصصة: ${state.currentCase.title}" else "إعداد اللاعبين")
@@ -548,7 +585,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(state.players, key = { it.id }) { player ->
+                items(state.players, key = { "local_setup_p_${it.id}" }) { player ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -610,23 +647,29 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
 fun LanJoinLobbyScreen(
     viewModel: GameViewModel,
     state: RoomState,
-    discoveredHosts: Map<String, String>,
-    localIp: String,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     var inputCode by remember { mutableStateOf("") }
     var playerNameInput by remember { mutableStateOf("") }
+    val clientError by OnlineManager.clientConnectionError.collectAsState()
 
-    DisposableEffect(Unit) {
-        LanManager.startDiscovery()
-        onDispose {
-            LanManager.stopDiscovery()
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        val success = viewModel.joinLanHostByCode(inputCode, playerNameInput)
+        if (!success) Toast.makeText(context, "تأكد من رمز الغرفة وقوة الاتصال.", Toast.LENGTH_LONG).show()
+    }
+
+    LaunchedEffect(clientError) {
+        clientError?.let { err ->
+            Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+            OnlineManager.clientConnectionError.value = null
         }
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(20.dp).safeDrawingPadding(),
+        modifier = Modifier.fillMaxSize().padding(20.dp).systemBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         ParchmentHeaderBanner(text = "الانضمام للاوضة")
@@ -635,9 +678,9 @@ fun LanJoinLobbyScreen(
         Spacer(modifier = Modifier.height(10.dp))
         ParchmentCard(modifier = Modifier.weight(1f), seed = 456L) {
             Text(
-                text = "جهازك متصل بالشبكة المحلية IP: $localIp",
+                text = "ادخل الرمز للانضمام للعبة عبر الإنترنت",
                 color = PapyrusTextSecondary,
-                fontSize = 12.sp
+                fontSize = 14.sp
             )
             Spacer(modifier = Modifier.height(12.dp))
             OutlinedTextField(
@@ -680,62 +723,21 @@ fun LanJoinLobbyScreen(
                 )
                 Button(
                     onClick = {
-                        if (inputCode.length == 5) {
-                            val success = viewModel.joinLanHostByCode(inputCode, playerNameInput)
-                            if (!success) Toast.makeText(context, "يبدو أن الرمز غير نشط بالشبكة حالياً. تأكد من تشغيل الاوضة من المضيف.", Toast.LENGTH_LONG).show()
+                        if (playerNameInput.isBlank()) {
+                            Toast.makeText(context, "يرجى كتابة اسمك أولاً", Toast.LENGTH_SHORT).show()
+                        } else if (inputCode.length == 5) {
+                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                                val success = viewModel.joinLanHostByCode(inputCode, playerNameInput)
+                                if (!success) Toast.makeText(context, "تأكد من رمز الغرفة وقوة الاتصال.", Toast.LENGTH_LONG).show()
+                            } else {
+                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
                         } else Toast.makeText(context, "الرمز لازم يبقي 5 أرقام", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("ربط", color = GoldShine)
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "أو اختر اوضة من كشف الشبكة:",
-                color = DarkWoodButton,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            if (discoveredHosts.isEmpty()) {
-                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = DarkWoodButton, modifier = Modifier.size(24.dp))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("يبحث عن لغز نشط على الـ WiFi...", color = PapyrusTextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center)
-                    }
-                }
-            } else {
-                val hostsList = remember(discoveredHosts) { discoveredHosts.toList() }
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(hostsList, key = { it.first }) { (ip, hostDetails) ->
-                        val parts = remember(hostDetails) { hostDetails.split("|") }
-                        val hostName = parts.getOrNull(0) ?: "اوضة مجهولة"
-                        val rCode = parts.getOrNull(1) ?: "----"
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0x0C000000), RoundedCornerShape(10.dp))
-                                .border(2.dp, GoldYell, RoundedCornerShape(10.dp))
-                                .clickable { viewModel.joinLanHost(ip, playerNameInput) }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.Wifi, "Wifi game", tint = RedAccent)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(hostName, color = PapyrusText, fontWeight = FontWeight.Bold)
-                                Text("رمز الاوضة: $rCode | IP: $ip", color = PapyrusTextSecondary, fontSize = 11.sp)
-                            }
-                            Icon(Icons.Default.ArrowForward, "Join details", tint = DarkWoodButton)
-                        }
-                    }
                 }
             }
         }
@@ -759,8 +761,82 @@ fun MainMenuHomeScreen(
     onPlayCustomCaseRequested: (UserCase) -> Unit,
     navController: NavController
 ) {
+    val context = LocalContext.current
+    var showHostNameDialog by remember { mutableStateOf(false) }
+    var hostNameInput by remember { mutableStateOf(viewModel.myPlayerName.value) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        if (hostNameInput.isNotBlank()) {
+            showHostNameDialog = false
+            viewModel.startOnlineHost(hostNameInput.trim())
+        }
+    }
+
+    if (showHostNameDialog) {
+        AlertDialog(
+            onDismissRequest = { showHostNameDialog = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (hostNameInput.isNotBlank()) {
+                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                                showHostNameDialog = false
+                                viewModel.startOnlineHost(hostNameInput.trim())
+                            } else {
+                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        }
+                    }
+                ) {
+                    Text("إنشاء الغرفة", color = RedAccent, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showHostNameDialog = false }) {
+                    Text("إلغاء", color = PapyrusTextSecondary)
+                }
+            },
+            title = {
+                Text(
+                    text = "اسم المضيف",
+                    color = Color(0xFF4A1008),
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Right,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "اختر اسمك لمضيف الغرفة:",
+                        color = PapyrusText,
+                        textAlign = TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = hostNameInput,
+                        onValueChange = { hostNameInput = it },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = PapyrusText,
+                            unfocusedTextColor = PapyrusText,
+                            focusedBorderColor = DarkWoodButton,
+                            unfocusedBorderColor = PapyrusTextSecondary.copy(alpha = 0.5f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            containerColor = PapyrusBg,
+            shape = RoundedCornerShape(12.dp)
+        )
+    }
+
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp).safeDrawingPadding(),
+        modifier = Modifier.fillMaxSize().padding(24.dp).systemBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
@@ -825,14 +901,17 @@ fun MainMenuHomeScreen(
                 ) {
                     Icon(Icons.Default.Wifi, contentDescription = "WiFi game", tint = DarkWoodButton, modifier = Modifier.size(36.dp))
                     Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp), horizontalAlignment = Alignment.End) {
-                        Text("دخول برمز الغرفة ", color = Color(0xFF4A1008), fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                        Text("دخول الي اوضة اونلاين", color = Color(0xFF4A1008), fontSize = 21.sp, fontWeight = FontWeight.Bold)
                     }
                     Icon(Icons.Default.ArrowBack, contentDescription = "Go LAN Connect", tint = DarkWoodButton)
                 }
             }
 
             Card(
-                modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(12.dp)).clickable { viewModel.startLanHost("مضيف التحقيق") },
+                modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(12.dp)).clickable {
+                    hostNameInput = viewModel.myPlayerName.value
+                    showHostNameDialog = true
+                },
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF35120D)),
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(2.dp, GoldYell)
@@ -844,7 +923,7 @@ fun MainMenuHomeScreen(
                 ) {
                     Icon(Icons.Default.AddBox, "Host Game", tint = GoldShine)
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("إنشاء ومشاركة اوضة جديدة", color = GoldShine, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text("إنشاء اوضة اونلاين", color = GoldShine, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -861,14 +940,14 @@ fun MainMenuHomeScreen(
                 ) {
                     Icon(Icons.Default.Settings, contentDescription = "Settings Icon", tint = DarkWoodButton, modifier = Modifier.size(30.dp))
                     Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp), horizontalAlignment = Alignment.End) {
-                        Text("الإعدادات وقواعد اللعب", color = Color(0xFF4A1008), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("الإعدادات", color = Color(0xFF4A1008), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     }
                     Icon(Icons.Default.ArrowBack, contentDescription = "Go settings", tint = DarkWoodButton)
                 }
             }
         }
         Text(
-            text = " القاعدة الاولي والاخيرة ... شك في الجميع",
+            text = "القاعدة الاولي  ... شك في الكل",
             color = PapyrusBgLight.copy(alpha = 0.5f),
             fontSize = 15.sp,
             textAlign = TextAlign.Center,

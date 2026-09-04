@@ -29,6 +29,7 @@ import com.example.ui.theme.*
 @Composable
 fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
     val currentCase = state.currentCase ?: return
+    val isHost = state.mode != "ONLINE" || state.hostId == viewModel.myPlayerId.value
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Column(
@@ -148,6 +149,7 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = { viewModel.startCaseInvestigationIntro() },
+                enabled = isHost,
                 colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton),
                 modifier = Modifier.fillMaxWidth().testTag("case_details_confirm_button"),
                 contentPadding = PaddingValues(15.dp)

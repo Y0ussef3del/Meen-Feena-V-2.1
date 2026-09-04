@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1093795243513",
+    "firebase_url": "https://meen-feena-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "meen-feena",
+    "storage_bucket": "meen-feena.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1093795243513:android:c1f55ba61c8defe29f0928",
+        "android_client_info": {
+          "package_name": "com.youssef.meenfeena"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAPKz15ahR9LHDUpsVEDlFNHRHypBMwzXk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

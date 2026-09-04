@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -113,11 +114,93 @@ fun SettingsDialog(
                     ) {
                         Text("⚙️ طور صناعة واستيراد القضايا", color = GoldShine, fontWeight = FontWeight.Bold)
                     }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Divider(color = Color(0x3B2C1E14))
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("قوانين اللعبة الأساسية:", color = Color(0xFF4A1008), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Text(text = "1. اللعبة تدعم من 4 لـ 6 لاعبين.\n2. لو عدد اللاعبين 4، بيكون فيه مجرم واحدة بس؛ ولو أكتر من كدة بيتم تعيين 2 مجرم تلقائياً لدعم التحدي والمنافسة.\n3. في نهاية الجولة لو اتبقى اتنين مشتبه بيهم بس عايشين، بيتلغي تصويت الاقتراع المباشر واللعيبة اللي خرجوا بترجع تلقائياً كـ (هيئة المحلفين) لحسم القرار النهائي وإدانة المجرم الحقيقية.", color = PapyrusTextSecondary, fontSize = 15.sp, lineHeight = 22.sp)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = Color(0x3B2C1E14))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // بطاقة مميزة للمطور الرئيسي
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.5.dp, GoldYell, RoundedCornerShape(12.dp)),
+                        colors = CardDefaults.cardColors(containerColor = Color(0x2DA2A012)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = " برمجة وفكرة وتصميم",
+                                color = Color(0xFF4A1008),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Youssef Adel",
+                                color = Color(0xFF2C1E14),
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // عنوان المساهمين
+                    Text(
+                        text = "شكر خاص لكل من ساهموا في خروج اللعبة للنور :",
+                        color = Color(0xFF4A1008),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // عرض الأسماء في شبكة متناسقة (2 في كل صف)
+                    val contributors = listOf(
+                        "Mohamed Gamal", "Omar Abdelslam",
+                        "Mohamed Ashraf", "Eslam Gbr",
+                        "Ahmed Rabea", "Adham Magdy"
+                    )
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        contributors.chunked(2).forEach { rowNames ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                rowNames.forEach { name ->
+                                    Surface(
+                                        modifier = Modifier.weight(1f),
+                                        color = Color(0x1F2C1E14),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x3B2C1E14))
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "✨ $name",
+                                                color = PapyrusTextSecondary,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },

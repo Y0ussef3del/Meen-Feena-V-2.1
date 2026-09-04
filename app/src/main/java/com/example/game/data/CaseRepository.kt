@@ -69,6 +69,8 @@ object CaseRepository {
         }
     }
 
+    fun getDefaultCases(): List<Case> = synchronized(defaultCases) { defaultCases.toList() }
+
     fun getUniqueCase(completedTitles: Set<String>, playersCount: Int): Case? {
         val allAvailableCases = synchronized(customCases) { customCases.toList() } + synchronized(defaultCases) { defaultCases.toList() }
         val matchingCases = allAvailableCases.filter { it.characters.size == playersCount }
@@ -127,7 +129,6 @@ object CaseRepository {
         mutex.withLock {
             val targetFile = file ?: return@withContext
 
-            // جلب الأقسام المخزنة حالياً
             val currentCases = if (targetFile.exists() && targetFile.readText().isNotBlank()) {
                 try {
                     json.decodeFromString(
