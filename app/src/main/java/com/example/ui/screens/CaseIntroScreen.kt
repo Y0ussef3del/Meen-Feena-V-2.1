@@ -3,7 +3,7 @@ package com.example.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FindInPage
@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.game.model.RoomState
 import com.example.game.viewmodel.GameViewModel
+import com.example.game.viewmodel.startCaseInvestigationIntro
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
@@ -114,10 +115,10 @@ fun CaseIntroScreen(viewModel: GameViewModel, state: RoomState) {
                         )
                     }
 
-                    items(
+                    itemsIndexed(
                         items = currentCase.characters,
-                        key = { character -> character.name + character.occupation }
-                    ) { character ->
+                        key = { index, character -> "${character.name}_${character.occupation}_$index" }
+                    ) { _, character ->
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()

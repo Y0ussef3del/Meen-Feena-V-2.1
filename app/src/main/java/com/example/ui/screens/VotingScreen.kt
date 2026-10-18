@@ -6,7 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.example.game.model.RoomState
 import com.example.game.viewmodel.GameViewModel
 import com.example.game.audio.MysteryAudioPlayer
+import com.example.game.viewmodel.submitVote
 import com.example.ui.components.MysteryBackground
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
@@ -88,7 +89,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                 Text(text = "صوت علي اللي شاكك فيه", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(12.dp))
                 LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(eligibleCandidates, key = { it.id }) { candidate ->
+                    itemsIndexed(eligibleCandidates, key = { index, candidate -> "${candidate.id}_$index" }) { _, candidate ->
                         val isSelected = candidate.id == selectedTargetId
                         Row(
                             modifier = Modifier
@@ -196,7 +197,7 @@ fun VotingScreen(viewModel: GameViewModel, state: RoomState) {
                     Text(text = "اختار الشخص اللي شاكك فيه ان هو المجرم:", color = PapyrusTextSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                     Spacer(modifier = Modifier.height(12.dp))
                     LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(eligibleCandidates, key = { it.id }) { candidate ->
+                        itemsIndexed(eligibleCandidates, key = { index, candidate -> "${candidate.id}_$index" }) { _, candidate ->
                             val isSelected = candidate.id == selectedTargetId
                             Row(
                                 modifier = Modifier

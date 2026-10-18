@@ -4,7 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.game.model.RoomState
 import com.example.game.viewmodel.GameViewModel
+import com.example.game.viewmodel.submitJuryVote
 import com.example.ui.components.MysteryBackground
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
@@ -117,7 +118,7 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                         modifier = Modifier.fillMaxWidth().weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(remainingSuspects, key = { it.id }) { suspect ->
+                        itemsIndexed(remainingSuspects, key = { index, suspect -> "${suspect.id}_$index" }) { _, suspect ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -208,7 +209,7 @@ fun JuryScreen(viewModel: GameViewModel, state: RoomState) {
                                 modifier = Modifier.fillMaxWidth().weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                items(remainingSuspects, key = { it.id }) { suspect ->
+                                itemsIndexed(remainingSuspects, key = { index, suspect -> "${suspect.id}_$index" }) { _, suspect ->
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()

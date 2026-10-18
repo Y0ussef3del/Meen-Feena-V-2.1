@@ -1,3 +1,143 @@
 <resources>
     <string name="app_name">مين فينا؟</string>
 </resources>
+<!-- Statuses & Roles -->
+<string name="status_played">تم لعبها</string>
+<string name="status_new">جديدة</string>
+<string name="role_mafia">مجرم</string>
+<string name="role_innocent">بريء</string>
+<string name="case_number_format">قضية #%d</string>
+
+<!-- Main Menu & Lobbies -->
+<string name="dialog_no_internet_title">مفيش إنترنت</string>
+<string name="dialog_no_internet_message">برجاء الاتصال بالإنترنت لمواصلة اللعب.</string>
+<string name="dialog_no_hearts_title">القلوب خلصت</string>
+<string name="dialog_no_hearts_message">مفيش قلوب كافية لبدء قضية جديدة. لازم تشوف إعلان للحصول على 1 قلب للعب.</string>
+<string name="host_room_title">اوضة المضيف</string>
+<string name="host_share_code_prompt">شارك الكود مع أصدقائك للانضمام:</string>
+<string name="host_joined_players_format">اللاعبين المنضمون (%d) : </string>
+<string name="label_host_suffix"> (مضيف)</string>
+<string name="host_min_players_remaining_format">متبقي %d لاعبين كحد أدنى للبدء.</string>
+<string name="host_room_ready">الاوضة جاهزة لبدء القضية!</string>
+<string name="btn_cancel_room">إلغاء الاوضة</string>
+<string name="btn_start_case">ابدأ القضية!</string>
+<string name="client_waiting_title">في انتظار التحقيق</string>
+<string name="client_joined_room_prompt">أنت منضم للاوضة رقم:</string>
+<string name="client_please_wait">يرجى الانتظار...</string>
+<string name="client_current_lobby_players_format"> اللاعبون الحاليون باللوبي (%d) : </string>
+<string name="label_you_suffix"> (أنت)</string>
+<string name="btn_leave_and_return_home">مغادرة والرجوع للرئيسية</string>
+<string name="local_setup_title">إعداد اللاعبين</string>
+<string name="local_current_players_count_format">عدد اللاعبين الحالي: %d</string>
+<string name="local_required_players_format">المطلوب للقضية: %d لاعبين</string>
+<string name="label_player_name">اسم اللاعب</string>
+<string name="toast_max_players_limit_format">الحد الأقصى الحالي هو %d لاعبين</string>
+<string name="toast_min_players_required">أقل حاجة للعب 4 لاعيبة</string>
+<string name="btn_start_game">ابدأ اللعبة 🔍</string>
+<string name="lan_join_title">الانضمام للاوضة</string>
+<string name="lan_join_subtitle">ادخل الرمز للانضمام للعبة عبر الإنترنت</string>
+<string name="label_your_name_in_game">اسمك في اللعبة</string>
+<string name="lan_join_by_code_prompt">انضم عن طريق رمز الغرفة:</string>
+<string name="label_enter_code_5_digits">اكتب الرمز (5 أرقام)</string>
+<string name="toast_check_code_and_connection">تأكد من رمز الغرفة وقوة الاتصال.</string>
+<string name="toast_code_must_be_5_digits">الرمز لازم يبقي 5 أرقام</string>
+<string name="btn_return_to_main_menu">الرجوع للقائمة الرئيسية</string>
+<string name="toast_enter_name_first">يرجى كتابة اسمك أولاً</string>
+
+<!-- Cases Library & Creator -->
+<string name="library_title">مكتبة قضايا التحقيق</string>
+<string name="btn_import_cases">استيراد قضايا</string>
+<string name="btn_new_case">قضية جديدة</string>
+<string name="tab_default_cases">قضايا اللعبة (%d)</string>
+<string name="tab_custom_cases">القضايا المضافة (%d)</string>
+<string name="empty_default_cases">لا توجد قضايا أساسية</string>
+<string name="empty_custom_cases">لا توجد قضايا مضافة بعد</string>
+<string name="case_meta_summary_format">المكان: %1$s \vert{} الوقت: \%2$s</string>
+<string name="case_suspects_count_format">المشتبه بهم: %d لاعبين</string>
+<string name="create_case_title">صناعة قضية جديدة</string>
+<string name="edit_case_title">تعديل القضية</string>
+<string name="section_basic_puzzle_data">بيانات اللغز الأساسية</string>
+<string name="label_case_title">عنوان القضية</string>
+<string name="label_location">المكان</string>
+<string name="label_time_date">الوقت والتاريخ</string>
+<string name="label_victim">الضحية</string>
+<string name="label_crime_description">قصة ووصف الجريمة العثور عليها</string>
+<string name="section_case_rules">قواعد وهيكل القضية</string>
+<string name="label_select_suspect_count">اختر عدد المشتبه بهم الإجمالي في هذه القضية:</string>
+<string name="chip_players_count_format">%d لاعبين</string>
+<string name="rules_summary_format">حسب اختيارك؛ تتطلب اللعبة تلقائياً: %1$d مجرم و \%2$d دلائل.</string>
+<string name="section_evidences_format">إدخال الدلائل (%d دلائل مطلوبة)</string>
+<string name="label_evidence_number_format">دليل رقم %d</string>
+<string name="section_suspects_data_format">بيانات المشتبه بهم (%d لاعبين)</string>
+<string name="warning_criminal_count_format">تنبيه: يجب تفعيل خانة \'هل هو مجرم؟\' لعدد %d شخصيات بالظبط.</string>
+<string name="label_suspect_number_format">المشتبه به رقم %d</string>
+<string name="label_name">الاسم</string>
+<string name="label_occupation">الوظيفة</string>
+<string name="label_background_secret">الخلفية والسر</string>
+<string name="label_possible_motive">الدافع المحتمل</string>
+<string name="label_is_criminal">هل هذا اللاعب هو المجرم؟</string>
+<string name="section_final_explanation">الحل النهائي (Explanation)</string>
+<string name="label_explanation_hint">شرح طريقة ارتكاب الجريمة والحل المفصل للتطبيق</string>
+<string name="toast_enter_title_at_least">الرجاء إدخال عنوان القضية على الأقل</string>
+<string name="toast_case_saved_success">تم حفظ القضية بنجاح 💾</string>
+<string name="toast_save_error">حدث خطأ أثناء الحفظ</string>
+<string name="btn_save_case_and_return">حفظ القضية والملف والعودة للمكتبة</string>
+
+<!-- Case Intro & Evidence -->
+<string name="case_details_title">تفاصيل الجريمة</string>
+<string name="case_location_prefix">المكان: %s</string>
+<string name="case_victim_prefix">الضحية: %s</string>
+<string name="suspects_title">المشتبه فيهم :</string>
+<string name="btn_first_clue">خش علي الدليل الاول</string>
+<string name="evidence_banner_format">الدليل %1$d من \%2$d</string>
+<string name="evidence_warning_msg">ركز في الدليل بالله عليك عشان متضيعناش</string>
+<string name="btn_show_hint">عرض تلميح  💡</string>
+<string name="btn_go_to_discussion">خش علي المناقشة🗣️</string>
+<string name="msg_waiting_host_discussion">في انتظار المضيف لبدء المناقشة...</string>
+<string name="msg_no_more_clues">لا أدلة إضافية حالياً.</string>
+
+<!-- Discussion Screen -->
+<string name="msg_no_alive_players">لا يوجد لاعبين أحياء حالياً في الغرفة</string>
+<string name="discussion_banner_title">ده وقت النقاش والمواجهة</string>
+<string name="label_time_remaining_prefix">فاضل</string>
+<string name="label_time_remaining_suffix">للإدلاء بالاستنتاج</string>
+<string name="msg_no_character_details">لا توجد تفاصيل متاحة لهذه الشخصية</string>
+<string name="btn_go_to_voting">الانتقال للتصويت 🗳️</string>
+<string name="msg_waiting_host_voting">في انتظار المضيف للانتقال للتصويت...</string>
+
+<!-- Jury Screen -->
+<string name="jury_pass_device_title">مرر الموبايل</string>
+<string name="jury_pass_device_msg_format">ادي الموبايل لـ / %s</string>
+<string name="jury_pass_device_subtitle">تصويتك هيكون مهم ومصير الباقيين في إيدك .... متبقاش غبي !!</string>
+<string name="btn_enter_vote">ادخل صوّت </string>
+<string name="jury_screen_title">هيئة المحلفين</string>
+<string name="jury_warning_title">!!! لا تقلقوا ولكن احذروا !!!</string>
+<string name="jury_warning_subtitle">بما ان فضل اتنين فبالله عليكم نفوق شوية ونركز عشان نعرف نطلع المجرم</string>
+<string name="jury_player_turn_format">دور اللاعب : %s</string>
+<string name="jury_character_info_format">الشخصية: %1$s \vert{} المهنة: \%2$s</string>
+<string name="btn_condemn">إدانة</string>
+<string name="jury_votes_collected">تم جمع كافة استنتاجات اللاعبين بنجاح. سنعلن النتيجة الآن!</string>
+<string name="jury_voting_now">هيئة المحلفين بتصوّت دلوقتي...</string>
+<string name="jury_voting_description">مصيرك وصاحبك الأخير بين إيدين اللاعبين اللي خرجوا! مين هيتبرأ ومين هيدان؟ تفتكر هيختاروا صح؟</string>
+<string name="jury_vote_recorded_title">تم تسجيل صوتك للمحلفين! ⚖️</string>
+<string name="jury_waiting_other_votes">مستنيين باقي اللاعبين عشان تظهر النتيجة...</string>
+<string name="jury_click_real_criminal">اضغط المجرم الحقيقي عشان تحسم الجريمة</string>
+<string name="btn_this_is_him">هو ده</string>
+
+<!-- Endgame Screen -->
+<string name="endgame_banner_title">جه وقت الحقيقة</string>
+<string name="victory_innocents">ايه الحلاوة دي الله ينور عليكم</string>
+<string name="victory_mafia">المجرم ضحك علي الكل</string>
+<string name="section_what_happened">ايه اللي حصل بالتفصيل : </string>
+<string name="msg_no_narrative_records">لم تتوفر سجلات سردية للملف.</string>
+<string name="section_reveal_identities">كشف هويات :</string>
+<string name="section_punishments">دلوقتي وقت الحكم يحلو :</string>
+<string name="btn_play_new_round">لعب جولة وقضية جديدة</string>
+<string name="btn_watch_ad_new_round">شاهد إعلان للعب قضية جديدة</string>
+<string name="btn_back_to_main_menu">العودة للقائمة الرئيسية</string>
+
+<!-- Toasts and general messages -->
+<string name="toast_import_success">تم استيراد القضية بنجاح! 🎉</string>
+<string name="toast_import_failed">فشل استيراد الملف، تأكد من صحة التنسيق!</string>
+<string name="toast_export_success">تم حفظ القضية بنجاح 📄</string>
+<string name="toast_export_failed">فشل حفظ الملف!</string>

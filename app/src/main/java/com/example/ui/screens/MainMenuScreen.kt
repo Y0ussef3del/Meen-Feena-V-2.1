@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,6 +41,16 @@ import com.example.game.model.RoomState
 import com.example.game.model.Case as UserCase
 import com.example.game.network.OnlineManager
 import com.example.game.viewmodel.GameViewModel
+import com.example.game.viewmodel.addLocalLobbyPlayer
+import com.example.game.viewmodel.hasHeartsToPlay
+import com.example.game.viewmodel.joinLanHostByCode
+import com.example.game.viewmodel.removePlayerFromLobby
+import com.example.game.viewmodel.resetToMainMenu
+import com.example.game.viewmodel.selectCustomCase
+import com.example.game.viewmodel.setupPassAndPlayGame
+import com.example.game.viewmodel.showAdToEarnHeart
+import com.example.game.viewmodel.startInvestigationGame
+import com.example.game.viewmodel.startOnlineHost
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
@@ -185,7 +196,8 @@ fun MainMenuOrLobbyScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxSize()) {
             if (state.mode == "ONLINE") {
-                val isHost = state.hostId == viewModel.myPlayerId.value
+                val myPlayerId by viewModel.myPlayerId.collectAsState()
+                val isHost = state.hostId == myPlayerId
                 if (isHost) {
                     HostLobbyScreen(viewModel, state)
                 } else {
@@ -285,6 +297,8 @@ fun HeartsIndicator(heartsCount: Int, modifier: Modifier = Modifier) {
 
 @Composable
 fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
+    val myPlayerId by viewModel.myPlayerId.collectAsState()
+
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp).systemBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -329,7 +343,7 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(state.players, key = { "host_p_${it.id}" }) { player ->
+                itemsIndexed(state.players, key = { index, player -> "host_p_${player.id}_$index" }) { _, player ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -407,7 +421,7 @@ fun HostLobbyScreen(viewModel: GameViewModel, state: RoomState) {
 
 @Composable
 fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
-    val myName = viewModel.myPlayerName.collectAsState().value
+    val myName by viewModel.myPlayerName.collectAsState()
     val context = LocalContext.current
     val clientError by OnlineManager.clientConnectionError.collectAsState()
 
@@ -469,7 +483,7 @@ fun ClientWaitingScreen(viewModel: GameViewModel, state: RoomState) {
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                items(state.players, key = { "client_p_${it.id}" }) { player ->
+                itemsIndexed(state.players, key = { index, player -> "client_p_${player.id}_$index" }) { _, player ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -518,7 +532,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
         modifier = Modifier.fillMaxSize().padding(20.dp).systemBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        ParchmentHeaderBanner(text = if (customCasePlayersCount != null) "قضية مخصصة: ${state.currentCase.title}" else "إعداد اللاعبين")
+        ParchmentHeaderBanner(text = if (customCasePlayersCount != null) "قضية مخصصة: ${state.currentCase?.title ?: ""}" else "إعداد اللاعبين")
         Spacer(modifier = Modifier.height(10.dp))
         ThrillerTitleComponent(fontSize = 32.sp)
         Spacer(modifier = Modifier.height(10.dp))
@@ -585,7 +599,7 @@ fun LocalSetupScreen(viewModel: GameViewModel, state: RoomState, onBack: () -> U
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(state.players, key = { "local_setup_p_${it.id}" }) { player ->
+                itemsIndexed(state.players, key = { index, player -> "local_setup_p_${player.id}_$index" }) { _, player ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -744,7 +758,7 @@ fun LanJoinLobbyScreen(
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = onBack,
-            colors = ButtonColors(containerColor = DarkWoodButton, contentColor = GoldShine, disabledContainerColor = Color.Gray, disabledContentColor = Color.White),
+            colors = ButtonDefaults.buttonColors(containerColor = DarkWoodButton, contentColor = GoldShine, disabledContainerColor = Color.Gray, disabledContentColor = Color.White),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("الرجوع للقائمة الرئيسية", color = GoldShine)
@@ -763,7 +777,8 @@ fun MainMenuHomeScreen(
 ) {
     val context = LocalContext.current
     var showHostNameDialog by remember { mutableStateOf(false) }
-    var hostNameInput by remember { mutableStateOf(viewModel.myPlayerName.value) }
+    val myPlayerName by viewModel.myPlayerName.collectAsState()
+    var hostNameInput by remember { mutableStateOf(myPlayerName) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -909,7 +924,7 @@ fun MainMenuHomeScreen(
 
             Card(
                 modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(12.dp)).clickable {
-                    hostNameInput = viewModel.myPlayerName.value
+                    hostNameInput = myPlayerName
                     showHostNameDialog = true
                 },
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF35120D)),

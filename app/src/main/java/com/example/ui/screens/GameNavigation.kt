@@ -15,7 +15,7 @@ import com.example.game.viewmodel.GameViewModel
 import com.example.ui.components.MysteryBackground
 import com.example.ui.theme.DarkBg
 import kotlinx.coroutines.delay
-
+import com.example.game.viewmodel.*
 @Composable
 fun GameNavigation(
     viewModel: GameViewModel,

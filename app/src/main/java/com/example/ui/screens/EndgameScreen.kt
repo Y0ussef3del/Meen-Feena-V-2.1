@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import com.example.game.viewmodel.*
 import android.app.Activity
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -11,6 +12,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -204,7 +206,7 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
-                        items(items = state.players, key = { "endgame_player_${it.id}" }) { p ->
+                        itemsIndexed(state.players, key = { index, p -> "endgame_player_${p.id}_$index" }) { _, p ->
                             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(text = if (p.isMafia) "مجرم" else "بريء ", color = if (p.isMafia) RedAccent else InnocentAccent, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                 Text(text = "${p.name} (${p.character?.name ?: ""})", color = PapyrusTextSecondary, fontSize = 15.sp)
@@ -228,7 +230,7 @@ fun EndgameScreen(viewModel: GameViewModel, state: RoomState) {
 
                         val losers = state.players.filter { if (isInnocentsWinner) it.isMafia else !it.isMafia }
 
-                        items(items = losers, key = { "endgame_loser_${it.id}" }) { loser ->
+                        itemsIndexed(losers, key = { index, loser -> "endgame_loser_${loser.id}_$index" }) { _, loser ->
                             val punishment = remember(loser.id, state.currentCase, state.winnerSide) {
                                 PunishmentPoolManager.getNextPunishment(loser.id, punishmentsList)
                             }

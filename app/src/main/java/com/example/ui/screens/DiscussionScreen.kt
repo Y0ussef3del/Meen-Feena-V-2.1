@@ -12,11 +12,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.HowToVote
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +38,10 @@ import androidx.core.content.ContextCompat
 import com.example.game.model.GamePhase
 import com.example.game.model.RoomState
 import com.example.game.viewmodel.GameViewModel
+import com.example.game.viewmodel.advanceFromDiscussionToVoting
+import com.example.game.viewmodel.startVoiceChatIfPermitted
+import com.example.game.viewmodel.toggleMutePlayer
+import com.example.game.viewmodel.toggleSelfMic
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*
 import kotlin.math.cos
@@ -47,11 +52,18 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
     val context = LocalContext.current
     val suspectedByClick = remember { mutableStateListOf<String>() }
 
+    var selectedPlayerIdForInfo by remember { mutableStateOf<String?>(null) }
+
     val alivePlayers = remember(state.players) {
         state.players.filter { it.isAlive }
     }
 
-    val isHost = state.mode != "ONLINE" || state.hostId == viewModel.myPlayerId.value
+    val selectedPlayerForInfo = remember(selectedPlayerIdForInfo, alivePlayers) {
+        alivePlayers.find { it.id == selectedPlayerIdForInfo }
+    }
+
+    val myPlayerId by viewModel.myPlayerId.collectAsState()
+    val isHost = state.mode != "ONLINE" || state.hostId == myPlayerId
 
     val isMicMuted by viewModel.isMicMuted.collectAsState()
     val mutedPlayers by viewModel.mutedPlayersState.collectAsState()
@@ -206,6 +218,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                     val offsetY = (radius.value * sin(angleInRadians)).dp
 
                     val isSuspected = player.id in suspectedByClick
+                    val isSelected = player.id == selectedPlayerIdForInfo
                     val isRemotePlayerMuted = mutedPlayers.contains(player.id)
 
                     Box(
@@ -213,6 +226,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                             .offset(x = offsetX, y = offsetY)
                             .size(avatarSize)
                             .clickable {
+                                selectedPlayerIdForInfo = if (selectedPlayerIdForInfo == player.id) null else player.id
                                 if (isSuspected) {
                                     suspectedByClick.remove(player.id)
                                 } else {
@@ -225,8 +239,8 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                             shape = CircleShape,
                             color = if (isSuspected) RedAccent else DarkWoodButton,
                             border = androidx.compose.foundation.BorderStroke(
-                                2.dp,
-                                if (isSuspected) GoldYell else GoldShine
+                                if (isSelected) 3.dp else 2.dp,
+                                if (isSelected || isSuspected) GoldYell else GoldShine
                             ),
                             modifier = Modifier
                                 .fillMaxSize()
@@ -255,7 +269,7 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                             }
                         }
 
-                        if (state.mode == "ONLINE" && player.id != viewModel.myPlayerId.value) {
+                        if (state.mode == "ONLINE" && player.id != myPlayerId) {
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
@@ -276,6 +290,64 @@ fun DiscussionScreen(viewModel: GameViewModel, state: RoomState) {
                                     modifier = Modifier.size(12.dp)
                                 )
                             }
+                        }
+                    }
+                }
+
+                // كارت تفاصيل الشخصية المتراكب في المنتصف بشكل مضغوط بنفس UI اللعبة
+                selectedPlayerForInfo?.let { selectedPlayer ->
+                    val character = selectedPlayer.character
+                    val descText = character?.background?.takeIf { it.isNotBlank() } ?: "لا توجد تفاصيل متاحة لهذه الشخصية"
+
+                    Surface(
+                        color = Color(0xF21E0604),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, GoldShine),
+                        shadowElevation = 8.dp,
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .widthIn(max = 280.dp)
+                            .wrapContentHeight()
+                            .clickable { selectedPlayerIdForInfo = null }
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = character?.let { "${it.name} (${it.occupation})" } ?: selectedPlayer.name,
+                                    color = GoldYell,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "إغلاق",
+                                    tint = GoldShine,
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clickable { selectedPlayerIdForInfo = null }
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text(
+                                text = descText,
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp,
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
                 }

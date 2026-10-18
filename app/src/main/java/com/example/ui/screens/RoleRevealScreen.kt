@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.example.game.model.RoomState
 import com.example.game.viewmodel.GameViewModel
 import com.example.game.audio.MysteryAudioPlayer
+import com.example.game.viewmodel.confirmSecretsRevealed
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner
 import com.example.ui.theme.*

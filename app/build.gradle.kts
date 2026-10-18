@@ -31,17 +31,18 @@ android {
         applicationId = "com.youssef.meenfeena"
         minSdk = 24
         targetSdk = 36
-        versionCode = 6
-        versionName = "2.1"
+        versionCode = 9
+        versionName = "2.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            isMinifyEnabled = true
+            isShrinkResources = false
             signingConfig = signingConfigs.getByName("release")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
@@ -105,10 +106,9 @@ dependencies {
     "ksp"(libs.moshi.kotlin.codegen)
     implementation("com.google.android.gms:play-services-ads:23.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
-    implementation("com.google.firebase:firebase-database-ktx:20.3.1")
-    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
-    implementation("com.google.firebase:firebase-database-ktx")
-    implementation("io.getstream:stream-webrtc-android:1.1.1")
+    implementation("com.google.firebase:firebase-database")
+    implementation("io.getstream:stream-webrtc-android:1.3.10")
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
 }
 
 abstract class ProvisionMolhimFontTask : DefaultTask() {

@@ -1,0 +1,143 @@
+<resources>
+    <string name="app_name">Meen Feena?</string>
+</resources>
+<!-- Statuses & Roles -->
+<string name="status_played">Played</string>
+<string name="status_new">Fresh</string>
+<string name="role_mafia">Bad Guy</string>
+<string name="role_innocent">Innocent</string>
+<string name="case_number_format">Case #%d</string>
+
+<!-- Main Menu & Lobbies -->
+<string name="dialog_no_internet_title">No Internet connection!</string>
+<string name="dialog_no_internet_message">Hey, connect to the internet so we can keep playing.</string>
+<string name="dialog_no_hearts_title">Out of hearts!</string>
+<string name="dialog_no_hearts_message">You don\'t have enough hearts for a new case. Watch a quick ad to grab 1 heart and get back in!</string>
+<string name="host_room_title">Host Room</string>
+<string name="host_share_code_prompt">Send this code to your friends to jump in:</string>
+<string name="host_joined_players_format">Players in (%d): </string>
+<string name="label_host_suffix"> (Host)</string>
+<string name="host_min_players_remaining_format">Need at least %d more player(s) to start.</string>
+<string name="host_room_ready">Room\'s ready, let\'s solve this!</string>
+<string name="btn_cancel_room">Cancel Room</string>
+<string name="btn_start_case">Start Case!</string>
+<string name="client_waiting_title">Waiting Room</string>
+<string name="client_joined_room_prompt">You\'re in room:</string>
+<string name="client_please_wait">Hold on a second...</string>
+<string name="client_current_lobby_players_format"> Players in the lobby (%d): </string>
+<string name="label_you_suffix"> (You)</string>
+<string name="btn_leave_and_return_home">Bail to Main Menu</string>
+<string name="local_setup_title">Player Setup</string>
+<string name="local_current_players_count_format">Current players: %d</string>
+<string name="local_required_players_format">Needed for case: %d players</string>
+<string name="label_player_name">Player Name</string>
+<string name="toast_max_players_limit_format">Max limit right now is %d players</string>
+<string name="toast_min_players_required">You need at least 4 players to play!</string>
+<string name="btn_start_game">Start Game 🔍</string>
+<string name="lan_join_title">Join Room</string>
+<string name="lan_join_subtitle">Type in the code to join the game online</string>
+<string name="label_your_name_in_game">Your In-Game Name</string>
+<string name="lan_join_by_code_prompt">Join using room code:</string>
+<string name="label_enter_code_5_digits">Type code (5 digits)</string>
+<string name="toast_check_code_and_connection">Double-check the room code and your internet connection.</string>
+<string name="toast_code_must_be_5_digits">Code must be 5 digits long</string>
+<string name="btn_return_to_main_menu">Back to Main Menu</string>
+<string name="toast_enter_name_first">Hey, enter your name first!</string>
+
+<!-- Cases Library & Creator -->
+<string name="library_title">Case Files Library</string>
+<string name="btn_import_cases">Import Cases</string>
+<string name="btn_new_case">New Case</string>
+<string name="tab_default_cases">Game Cases (%d)</string>
+<string name="tab_custom_cases">Custom Cases (%d)</string>
+<string name="empty_default_cases">No default cases available</string>
+<string name="empty_custom_cases">No custom cases added yet</string>
+<string name="case_meta_summary_format">Location: %1$s \vert{} Time: \%2$s</string>
+<string name="case_suspects_count_format">Suspects: %d players</string>
+<string name="create_case_title">Create New Case</string>
+<string name="edit_case_title">Edit Case</string>
+<string name="section_basic_puzzle_data">Basic Case Details</string>
+<string name="label_case_title">Case Title</string>
+<string name="label_location">Location</string>
+<string name="label_time_date">Date &amp; Time</string>
+<string name="label_victim">The Victim</string>
+<string name="label_crime_description">Crime Story &amp; Details</string>
+<string name="section_case_rules">Case Setup &amp; Rules</string>
+<string name="label_select_suspect_count">Pick total number of suspects for this case:</string>
+<string name="chip_players_count_format">%d players</string>
+<string name="rules_summary_format">Based on your pick, the game needs: %1$d bad guy(s) and \%2$d clue(s).</string>
+<string name="section_evidences_format">Add Clues (%d clue(s) required)</string>
+<string name="label_evidence_number_format">Clue #%d</string>
+<string name="section_suspects_data_format">Suspects Info (%d players)</string>
+<string name="warning_criminal_count_format">Heads up: You must check \'Is this the bad guy?\' for exactly %d character(s).</string>
+<string name="label_suspect_number_format">Suspect #%d</string>
+<string name="label_name">Name</string>
+<string name="label_occupation">Job</string>
+<string name="label_background_secret">Backstory &amp; Secret</string>
+<string name="label_possible_motive">Motive</string>
+<string name="label_is_criminal">Is this person the bad guy?</string>
+<string name="section_final_explanation">The Solution (Explanation)</string>
+<string name="label_explanation_hint">Explain how the crime went down and the final solution</string>
+<string name="toast_enter_title_at_least">Please enter a case title at least!</string>
+<string name="toast_case_saved_success">Case saved! 💾</string>
+<string name="toast_save_error">Oops, couldn\'t save the case.</string>
+<string name="btn_save_case_and_return">Save Case &amp; Go to Library</string>
+
+<!-- Case Intro & Evidence -->
+<string name="case_details_title">Crime Details</string>
+<string name="case_location_prefix">Location: %s</string>
+<string name="case_victim_prefix">Victim: %s</string>
+<string name="suspects_title">The Suspects:</string>
+<string name="btn_first_clue">Check First Clue</string>
+<string name="evidence_banner_format">Clue %1$d of \%2$d</string>
+<string name="evidence_warning_msg">Focus on the clue please, don\'t mess this up for us!</string>
+<string name="btn_show_hint">Get a Hint 💡</string>
+<string name="btn_go_to_discussion">Start Discussing 🗣️</string>
+<string name="msg_waiting_host_discussion">Waiting for host to open discussion...</string>
+<string name="msg_no_more_clues">No more clues right now.</string>
+
+<!-- Discussion Screen -->
+<string name="msg_no_alive_players">No active players left in the room</string>
+<string name="discussion_banner_title">Time to talk and confront each other!</string>
+<string name="label_time_remaining_prefix">Left:</string>
+<string name="label_time_remaining_suffix">before guessing</string>
+<string name="msg_no_character_details">No info available for this character</string>
+<string name="btn_go_to_voting">Head to Voting 🗳️</string>
+<string name="msg_waiting_host_voting">Waiting for host to move to voting...</string>
+
+<!-- Jury Screen -->
+<string name="jury_pass_device_title">Pass the phone!</string>
+<string name="jury_pass_device_msg_format">Hand the phone to %s</string>
+<string name="jury_pass_device_subtitle">Your vote matters and everyone\'s fate is in your hands... don\'t blow it!!</string>
+<string name="btn_enter_vote">Cast Vote</string>
+<string name="jury_screen_title">The Jury</string>
+<string name="jury_warning_title">!!! Stay calm but stay sharp !!!</string>
+<string name="jury_warning_subtitle">Only two left! Lock in and pay attention so we can catch the real killer.</string>
+<string name="jury_player_turn_format">Turn: %s</string>
+<string name="jury_character_info_format">Character: %1$s \vert{} Job: \%2$s</string>
+<string name="btn_condemn">Guilty!</string>
+<string name="jury_votes_collected">All votes are in! Announcing results now...</string>
+<string name="jury_voting_now">The Jury is voting right now...</string>
+<string name="jury_voting_description">Your fate is in the hands of the eliminated players! Who\'s getting cleared and who\'s going down? Let\'s see if they get it right!</string>
+<string name="jury_vote_recorded_title">Jury vote recorded! ⚖️</string>
+<string name="jury_waiting_other_votes">Waiting for others to finish voting...</string>
+<string name="jury_click_real_criminal">Tap the actual bad guy to wrap up the mystery</string>
+<string name="btn_this_is_him">It\'s them!</string>
+
+<!-- Endgame Screen -->
+<string name="endgame_banner_title">Truth time!</string>
+<string name="victory_innocents">NICE ONE! You guys nailed it!</string>
+<string name="victory_mafia">The bad guy totally played you all!</string>
+<string name="section_what_happened">Here\'s what actually went down: </string>
+<string name="msg_no_narrative_records">No story details found for this file.</string>
+<string name="section_reveal_identities">Identity Reveal:</string>
+<string name="section_punishments">Time for punishment, folks:</string>
+<string name="btn_play_new_round">Play Another Case</string>
+<string name="btn_watch_ad_new_round">Watch Ad for New Case</string>
+<string name="btn_back_to_main_menu">Back to Main Menu</string>
+
+<!-- Toasts and general messages -->
+<string name="toast_import_success">Case imported successfully! 🎉</string>
+<string name="toast_import_failed">Failed to import file. Make sure format is correct!</string>
+<string name="toast_export_success">Case saved successfully 📄</string>
+<string name="toast_export_failed">Failed to save file!</string>

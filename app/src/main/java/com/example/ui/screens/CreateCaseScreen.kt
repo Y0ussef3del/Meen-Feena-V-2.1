@@ -68,6 +68,22 @@ fun CreateCaseScreen(
         }
     }
 
+    // المزامنة الآمنة لعناصر القوائم خارج مرحلة الـ Composition لمنع الكراش
+    LaunchedEffect(suspectCount, evidenceCount) {
+        while (evidences.size < evidenceCount) {
+            evidences.add("")
+        }
+        while (characters.size < suspectCount) {
+            characters.add(
+                UserCharacter(
+                    name = "", age = 30, occupation = "", background = "", traits = "غامض", hiddenMotive = "غير معروف",
+                    fullName = "", personalitySummary = "شخصية غامضة", socialStatus = "متوسط الحال", relationshipToVictim = "مجهول",
+                    relationshipToOtherSuspects = "", possibleMotive = "غير معروف", relevantHistory = "سجل خالي من السوابق", isMafia = false
+                )
+            )
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -120,15 +136,14 @@ fun CreateCaseScreen(
                 Column(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("إدخال الدلائل ($evidenceCount دلائل مطلوبة)", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4A1008))
                     for (i in 0 until evidenceCount) {
-                        while (evidences.size <= i) {
-                            evidences.add("")
+                        if (i < evidences.size) {
+                            OutlinedTextField(
+                                value = evidences[i],
+                                onValueChange = { text -> evidences[i] = text },
+                                label = { Text("دليل رقم ${i + 1}") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
-                        OutlinedTextField(
-                            value = evidences[i],
-                            onValueChange = { text -> evidences[i] = text },
-                            label = { Text("دليل رقم ${i + 1}") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
                     }
                 }
             }
@@ -139,56 +154,49 @@ fun CreateCaseScreen(
                     Text("تنبيه: يجب تفعيل خانة 'هل هو مجرم؟' لعدد $criminalCount شخصيات بالظبط.", fontSize = 12.sp, color = RedAccent)
 
                     for (i in 0 until suspectCount) {
-                        while (characters.size <= i) {
-                            characters.add(
-                                UserCharacter(
-                                    name = "", age = 30, occupation = "", background = "", traits = "غامض", hiddenMotive = "غير معروف",
-                                    fullName = "", personalitySummary = "شخصية غامضة", socialStatus = "متوسط الحال", relationshipToVictim = "مجهول",
-                                    relationshipToOtherSuspects = "", possibleMotive = "غير معروف", relevantHistory = "سجل خالي من السوابق", isMafia = false
+                        if (i < characters.size) {
+                            val currentSuspect = characters[i]
+
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text("المشتبه به رقم ${i + 1}", fontWeight = FontWeight.Bold, color = Color(0xFF4A1008))
+
+                                OutlinedTextField(
+                                    value = currentSuspect.name,
+                                    onValueChange = { text -> characters[i] = currentSuspect.copy(name = text, fullName = text) },
+                                    label = { Text("الاسم") },
+                                    modifier = Modifier.fillMaxWidth()
                                 )
-                            )
-                        }
-                        val currentSuspect = characters[i]
-
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text("المشتبه به رقم ${i + 1}", fontWeight = FontWeight.Bold, color = Color(0xFF4A1008))
-
-                            OutlinedTextField(
-                                value = currentSuspect.name,
-                                onValueChange = { text -> characters[i] = currentSuspect.copy(name = text, fullName = text) },
-                                label = { Text("الاسم") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            OutlinedTextField(
-                                value = currentSuspect.occupation,
-                                onValueChange = { text -> characters[i] = currentSuspect.copy(occupation = text) },
-                                label = { Text("الوظيفة") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            OutlinedTextField(
-                                value = currentSuspect.background,
-                                onValueChange = { text -> characters[i] = currentSuspect.copy(background = text) },
-                                label = { Text("الخلفية والسر") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            OutlinedTextField(
-                                value = currentSuspect.hiddenMotive,
-                                onValueChange = { text -> characters[i] = currentSuspect.copy(hiddenMotive = text, possibleMotive = text) },
-                                label = { Text("الدافع المحتمل") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(
-                                    checked = currentSuspect.isMafia,
-                                    onCheckedChange = { isChecked -> characters[i] = currentSuspect.copy(isMafia = isChecked) }
+                                OutlinedTextField(
+                                    value = currentSuspect.occupation,
+                                    onValueChange = { text -> characters[i] = currentSuspect.copy(occupation = text) },
+                                    label = { Text("الوظيفة") },
+                                    modifier = Modifier.fillMaxWidth()
                                 )
-                                Text("هل هذا اللاعب هو المجرم؟", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                OutlinedTextField(
+                                    value = currentSuspect.background,
+                                    onValueChange = { text -> characters[i] = currentSuspect.copy(background = text) },
+                                    label = { Text("الخلفية والسر") },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                OutlinedTextField(
+                                    value = currentSuspect.hiddenMotive,
+                                    onValueChange = { text -> characters[i] = currentSuspect.copy(hiddenMotive = text, possibleMotive = text) },
+                                    label = { Text("الدافع المحتمل") },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(
+                                        checked = currentSuspect.isMafia,
+                                        onCheckedChange = { isChecked -> characters[i] = currentSuspect.copy(isMafia = isChecked) }
+                                    )
+                                    Text("هل هذا اللاعب هو المجرم؟", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                }
+                                HorizontalDivider(color = Color(0x11000000))
                             }
-                            HorizontalDivider(color = Color(0x11000000))
                         }
                     }
                 }

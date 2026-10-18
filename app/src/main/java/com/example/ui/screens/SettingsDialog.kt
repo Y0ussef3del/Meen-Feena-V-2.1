@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.game.viewmodel.GameViewModel
+import com.example.game.viewmodel.updateSettings
 import com.example.ui.components.ParchmentCard
 import com.example.ui.theme.*
 
@@ -118,7 +119,6 @@ fun SettingsDialog(
                     HorizontalDivider(color = Color(0x3B2C1E14))
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // بطاقة مميزة للمطور الرئيسي
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -150,7 +150,6 @@ fun SettingsDialog(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // عنوان المساهمين
                     Text(
                         text = "شكر خاص لكل من ساهموا في خروج اللعبة للنور :",
                         color = Color(0xFF4A1008),
@@ -161,7 +160,6 @@ fun SettingsDialog(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // عرض الأسماء في شبكة متناسقة (2 في كل صف)
                     val contributors = listOf(
                         "Mohamed Gamal", "Omar Abdelslam",
                         "Mohamed Ashraf", "Eslam Gbr",

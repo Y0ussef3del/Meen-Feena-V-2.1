@@ -24,6 +24,8 @@ import com.example.game.audio.MysteryAudioPlayer
 import com.example.game.model.GamePhase
 import com.example.game.model.RoomState
 import com.example.game.viewmodel.GameViewModel
+import com.example.game.viewmodel.confirmVoteResultAndProceed
+import com.example.game.viewmodel.playButtonClick
 import com.example.ui.components.MysteryBackground
 import com.example.ui.components.ParchmentCard
 import com.example.ui.components.ParchmentHeaderBanner

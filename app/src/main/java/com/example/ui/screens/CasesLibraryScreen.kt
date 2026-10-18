@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Share
@@ -196,7 +197,7 @@ fun CasesLibraryScreen(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    itemsIndexed(currentList, key = { _, item -> item.id.ifBlank { item.title } }) { index, userCase ->
+                    itemsIndexed(currentList, key = { index, item -> "${item.id}_${item.title}_$index" }) { index, userCase ->
                         val isPlayed = completedCaseTitles.contains(userCase.title)
 
                         ParchmentCard(
@@ -211,12 +212,15 @@ fun CasesLibraryScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // أزرار التحكم (مسح للقضايا المضافة + تصدير/حفظ)
+                                // أزرار التحكم (تعديل ومسح للقضايا المضافة + تصدير/حفظ)
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     if (selectedTabIndex == 1) {
+                                        IconButton(onClick = { onEditCase(userCase) }) {
+                                            Icon(Icons.Default.Edit, contentDescription = "تعديل", tint = DarkWoodButton)
+                                        }
                                         IconButton(onClick = {
                                             scope.launch {
                                                 repository.deleteCase(userCase.id)
